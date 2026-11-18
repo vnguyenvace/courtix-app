@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOrg } from "@/lib/org";
+import { canManage, requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { SessionStatusBadge, Spots, levelText } from "@/components/SessionBits";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
-import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession } from "../actions";
+import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession, updateSession } from "../actions";
 import { CATEGORY_LABELS, type MemberStatus, type RosterRow, type SessionOverview } from "@/lib/types";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -25,7 +25,8 @@ export default async function SessionPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, multiLocation } = await requireOrg();
+  const { supabase, org, multiLocation, role } = await requireOrg();
+  const editable = canManage(role);
 
   const [{ data: sData }, { data: rData }, { data: mData }] = await Promise.all([
     supabase.from("session_overview").select("*").eq("id", id).eq("org_id", org.id).maybeSingle(),
@@ -74,6 +75,16 @@ export default async function SessionPage({
   }
 
   const s = sData as SessionOverview;
+
+  // For the edit form: this location's courts and the ones the session holds now.
+  const [{ data: courtData }, { data: holdData }] = editable
+    ? await Promise.all([
+        supabase.from("courts").select("id, name").eq("location_id", s.location_id).eq("is_active", true).order("sort_order"),
+        supabase.from("bookings").select("court_id").eq("session_id", s.id).eq("status", "confirmed"),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const locationCourts = (courtData ?? []) as { id: string; name: string }[];
+  const heldCourts = new Set(((holdData ?? []) as { court_id: string }[]).map((b) => b.court_id));
   const roster = (rData ?? []) as RosterRow[];
   const members = (mData ?? []) as Pick<MemberStatus, "member_id" | "full_name" | "membership_status" | "package_name">[];
   const tz = s.location_timezone;
@@ -237,6 +248,94 @@ export default async function SessionPage({
                 <button className="primary">{s.spots_left === 0 ? "Add to waitlist" : "Sign up"}</button>
               </form>
             </section>
+          )}
+
+          {editable && s.status !== "cancelled" && !finished && (
+            <details className="card">
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>Edit session</summary>
+              <form action={updateSession} className="form" style={{ marginTop: 12 }}>
+                <input type="hidden" name="session_id" value={s.id} />
+                <input type="hidden" name="timezone" value={tz} />
+                <input type="hidden" name="original_title" value={s.name} />
+                <label>
+                  Title
+                  <input name="title" defaultValue={s.name} />
+                </label>
+                <div className="form-row">
+                  <label>
+                    Date
+                    <input type="date" name="date" required defaultValue={day} />
+                  </label>
+                  <label>
+                    Starts
+                    <input type="time" name="start_time" required defaultValue={localTime(s.starts_at, tz)} />
+                  </label>
+                  <label>
+                    Ends
+                    <input type="time" name="end_time" required defaultValue={localTime(s.ends_at, tz)} />
+                  </label>
+                </div>
+                {endDay !== day && (
+                  <label>
+                    End date (multi-day event)
+                    <input type="date" name="end_date" defaultValue={endDay} />
+                  </label>
+                )}
+                <div className="form-row">
+                  <label>
+                    Price per person
+                    <input type="number" name="price" min="0" required defaultValue={s.price} />
+                  </label>
+                  <label>
+                    Minimum players
+                    <input type="number" name="min_players" min="1" required defaultValue={s.min_players} />
+                  </label>
+                  <label>
+                    Maximum players
+                    <input type="number" name="max_players" min="1" required defaultValue={s.max_players} />
+                  </label>
+                </div>
+                <div className="form-row">
+                  <label>
+                    Level from
+                    <input type="number" name="level_min" step="0.5" min="1" max="6" defaultValue={s.level_min ?? ""} placeholder="Any" />
+                  </label>
+                  <label>
+                    Level to
+                    <input type="number" name="level_max" step="0.5" min="1" max="6" defaultValue={s.level_max ?? ""} placeholder="Any" />
+                  </label>
+                  <label>
+                    Coach
+                    <input name="coach_name" defaultValue={s.coach_name ?? ""} />
+                  </label>
+                </div>
+                {locationCourts.length > 0 && (
+                  <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend className="small muted" style={{ marginBottom: 6 }}>Courts to hold</legend>
+                    <div className="actions">
+                      {locationCourts.map((c) => (
+                        <label key={c.id} className="check">
+                          <input type="checkbox" name="court_ids" value={c.id} defaultChecked={heldCourts.has(c.id)} /> {c.name}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                <label>
+                  Description
+                  <textarea name="description" defaultValue={s.description ?? ""} />
+                </label>
+                <label>
+                  Notes for staff
+                  <textarea name="notes" defaultValue={s.notes ?? ""} />
+                </label>
+                <p className="muted small">
+                  People already booked keep the price they signed up at. If you change the time, let them know.
+                  Later timetable changes won&apos;t overwrite this session.
+                </p>
+                <button className="primary" data-pending-label="Saving…">Save session</button>
+              </form>
+            </details>
           )}
 
           <section className="card">

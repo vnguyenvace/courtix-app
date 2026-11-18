@@ -248,18 +248,6 @@ export async function setSessionTypePublic(form: FormData) {
   back("/sessions/setup", isPublic ? "Shown on the booking page." : "Hidden from the booking page.", "notice");
 }
 
-// Sign-ups open this many days before each session (empty = any time).
-export async function setSignupWindow(form: FormData) {
-  const { supabase } = await requireManager("/sessions/setup");
-  const { error } = await supabase
-    .from("session_types")
-    .update({ signup_opens_days: num(form, "signup_opens_days") })
-    .eq("id", str(form, "type_id"));
-  if (error) back("/sessions/setup", friendly(error));
-  refresh();
-  back("/sessions/setup", "Sign-up window saved.", "notice");
-}
-
 export async function toggleSessionType(form: FormData) {
   const { supabase } = await requireManager("/sessions/setup");
   const { error } = await supabase
@@ -338,4 +326,126 @@ function signUpMessage(reg: SignUpRow, currency: string): string {
   }
   if (reg.covered_by) return `Signed up. Covered by ${reg.covered_by}.`;
   return `Signed up. Price ${formatMoney(reg.price, currency)}.`;
+}
+
+// ---------------------------------------------------------------- Editing
+// Rules live in update_session / apply_session_type / update_schedule (database).
+
+/** Edit one session (owners and managers). Times are in the session's location time zone. */
+export async function updateSession(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}`;
+  const { supabase } = await requireManager(path);
+  const tz = str(form, "timezone") || "Asia/Bangkok";
+  const date = str(form, "date");
+  const endDate = str(form, "end_date") || date;
+  if (!isValidDate(date) || !isValidDate(endDate)) back(path, "Enter a valid date.");
+  const start = str(form, "start_time");
+  const end = str(form, "end_time");
+  if (!start || !end) back(path, "Enter a start and end time.");
+
+  const { data, error } = await supabase.rpc("update_session", {
+    p_session: sessionId,
+    // Unchanged title: keep following the session type's name (null keeps the current title).
+    p_title: str(form, "title") === str(form, "original_title") ? null : str(form, "title"),
+    p_starts_at: zonedToUtc(date, start, tz).toISOString(),
+    p_ends_at: zonedToUtc(endDate, end, tz).toISOString(),
+    p_price: num(form, "price"),
+    p_min_players: num(form, "min_players"),
+    p_max_players: num(form, "max_players"),
+    p_level_min: num(form, "level_min"),
+    p_level_max: num(form, "level_max"),
+    p_coach_name: optStr(form, "coach_name"),
+    p_description: optStr(form, "description"),
+    p_notes: optStr(form, "notes"),
+    p_courts: form.getAll("court_ids").map(String),
+  });
+  if (error) back(path, friendly(error));
+  refresh();
+  const r = (data ?? {}) as { moved_up?: number; court_note?: string | null };
+  let message = "Session saved. People already booked keep the price they signed up at.";
+  if (r.moved_up) message += ` ${r.moved_up} moved up from the waitlist.`;
+  if (r.court_note) message += ` ${r.court_note}.`;
+  back(path, message, "notice");
+}
+
+/** Edit a session type, and optionally its upcoming sessions. */
+export async function updateSessionType(form: FormData) {
+  const path = "/sessions/setup";
+  const { supabase } = await requireManager(path);
+  const typeId = str(form, "type_id");
+  const { error } = await supabase
+    .from("session_types")
+    .update({
+      name: str(form, "name"),
+      category: str(form, "category") || "open_play",
+      description: optStr(form, "description"),
+      price: num(form, "price") ?? 0,
+      duration_minutes: num(form, "duration_minutes") ?? 60,
+      min_players: num(form, "min_players") ?? 1,
+      max_players: num(form, "max_players") ?? 8,
+      min_age: num(form, "min_age"),
+      level_min: num(form, "level_min"),
+      level_max: num(form, "level_max"),
+      book_by_minutes: num(form, "book_by_minutes") ?? 60,
+      min_check_hours: num(form, "min_check_hours") ?? 3,
+      signup_opens_days: num(form, "signup_opens_days"),
+    })
+    .eq("id", typeId);
+  if (error) back(path, friendly(error));
+
+  let message = "Session type saved.";
+  if (form.get("apply_upcoming") === "on") {
+    const { data, error: applyError } = await supabase.rpc("apply_session_type", { p_type: typeId });
+    if (applyError) back(path, friendly(applyError));
+    const r = (data ?? {}) as { updated?: number; kept_max?: number; moved_up?: number };
+    message += ` ${r.updated ?? 0} upcoming ${r.updated === 1 ? "session" : "sessions"} updated (sessions you edited by hand were left alone).`;
+    if (r.kept_max) message += ` ${r.kept_max} already had more people than the new maximum, so they keep a higher limit.`;
+    if (r.moved_up) message += ` ${r.moved_up} moved up from waitlists.`;
+  } else {
+    message += " Upcoming sessions were not changed; new ones use the new settings.";
+  }
+  refresh();
+  back(path, message, "notice");
+}
+
+/** Edit a weekly timetable entry and rebuild its upcoming empty sessions. */
+export async function updateScheduleEntry(form: FormData) {
+  const path = "/sessions/setup";
+  const { supabase } = await requireManager(path);
+  const scheduleId = str(form, "schedule_id");
+  const days = form.getAll("days").map(Number).filter((d) => d >= 0 && d <= 6);
+  if (days.length === 0) back(path, "Pick at least one day.");
+  const validUntil = str(form, "valid_until");
+  const { data: sched } = await supabase.from("session_schedules").select("location_id").eq("id", scheduleId).maybeSingle();
+  const courtIds = form.getAll("court_ids").map(String);
+  if (sched && courtIds.length) {
+    const { data: wrong } = await supabase.from("courts").select("name").in("id", courtIds).neq("location_id", sched.location_id);
+    if (wrong?.length) back(path, `${wrong.map((c) => c.name).join(", ")} isn't at that location.`);
+  }
+
+  const { data, error } = await supabase.rpc("update_schedule", {
+    p_schedule: scheduleId,
+    p_days: days,
+    p_start_time: str(form, "start_time"),
+    p_courts: courtIds,
+    p_valid_until: isValidDate(validUntil) ? validUntil : null,
+  });
+  if (error) back(path, friendly(error));
+  refresh();
+
+  const r = (data ?? {}) as { rebuilt?: number; created?: number; kept?: { id: string; starts_at: string }[] };
+  let message = `Timetable updated. ${r.created ?? 0} upcoming ${r.created === 1 ? "session" : "sessions"} made from the new times.`;
+  const kept = r.kept ?? [];
+  if (kept.length) {
+    const { data: loc } = sched
+      ? await supabase.from("locations").select("timezone").eq("id", sched.location_id).maybeSingle()
+      : { data: null };
+    const tz = loc?.timezone ?? "Asia/Bangkok";
+    const when = kept
+      .map((k) => new Date(k.starts_at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: tz }))
+      .join(", ");
+    message += ` ${kept.length} ${kept.length === 1 ? "session already has" : "sessions already have"} people signed up and stayed at the old time (${when}). Open each one to move it, or cancel it, and let the players know.`;
+  }
+  back(path, message, "notice");
 }

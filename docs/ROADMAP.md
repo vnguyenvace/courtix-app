@@ -14,6 +14,9 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 - Multiple locations: per-site hours, time zone, courts, timetable, prices; packages valid everywhere by default; staff limited to sites; location picker and per-location dashboard comparison.
 - Demo data: `add_demo_data` (12 sample members) and `load_raccoon_demo` (Raccoon's real timetable and prices). `supabase/seed.sql` builds a ready demo club on every `supabase db reset` (login `demo@clubos.test` / `password123`), with WhatsApp numbers, session sign-ups and court bookings.
 
+- Editing (18 Nov 2026, migration `20261118060000_edit_sessions.sql`, test `edit_sessions_test.sql`): owners and managers can edit **one session** (session page → Edit session: time, price, players, levels, coach, courts, text), a **session type** (Sessions → Set up → Edit, with "also update upcoming sessions"), and a **timetable entry** (days, start time, courts, end date). Booked places keep their price; limits can't drop below people booked; raising a limit moves the waitlist up; court holds follow the time. Hand-edited sessions (`sessions.edited_at`) are skipped by later type/timetable changes. Timetable edits remake only upcoming sessions nobody has signed up for; sessions with people keep their time and are listed for staff to move or cancel. `sessions.schedule_slot` remembers the timetable slot, so a moved session isn't recreated at its old time.
+- Fixed 18 Nov 2026: `Referrer-Policy: no-referrer` made Chrome send `Origin: null` on plain form posts (before JavaScript loads), and every server action then failed with a 500 (sign-in included). Now `same-origin` (`next.config.ts`).
+
 ### Verified so far
 - All migrations and the four SQL test files pass on **real local Supabase** (Postgres 17) via `npm run test:db` (18 Nov 2026).
 - `lib/time.ts` and `lib/ai.ts` were unit-tested with tsx (time zones, WhatsApp numbers, prompts, a simulated Claude API response).
