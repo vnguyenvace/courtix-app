@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { canManage, requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
@@ -101,7 +102,15 @@ export default async function SessionPage({
       <div className="page-head">
         <div>
           <Link href={`/sessions?from=${day}`} className="small">← Sessions</Link>
-          <h1>{s.name}</h1>
+          <div className="title-row">
+            <h1>{s.name}</h1>
+            {editable && s.status !== "cancelled" && !finished && (
+              <Link href={`/sessions/${s.id}/edit`} className="button small-button">
+                <Pencil size={15} strokeWidth={1.75} aria-hidden />
+                Edit
+              </Link>
+            )}
+          </div>
           <p className="muted">
             {multiLocation ? `${s.location_name} · ` : ""}
             {formatLongDay(day)} · {localTime(s.starts_at, tz)}–
@@ -115,17 +124,12 @@ export default async function SessionPage({
             {s.min_age && <span className="badge">Age {s.min_age}+</span>}
           </div>
         </div>
-        <div className="actions" style={{ alignItems: "flex-end" }}>
-        {editable && s.status !== "cancelled" && !finished && (
-          <Link href={`/sessions/${s.id}/edit`} className="button">Edit session</Link>
-        )}
         <div className="stat" style={{ minWidth: 200 }}>
           <div className="label">Players</div>
           <Spots s={s} />
           <div className="muted small" style={{ marginTop: 4 }}>
             Minimum {s.min_players} · {formatMoney(s.price, org.currency)} each
           </div>
-        </div>
         </div>
       </div>
       <Banner sp={sp} />
