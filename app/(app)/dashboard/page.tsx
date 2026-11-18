@@ -97,7 +97,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <Stat label="Drop-in leads" value={d.drop_in_leads ?? 0} />
         <Stat label="Sessions today" value={here ? here.sessions_today : d.sessions_today ?? 0} />
         <Stat label="Court bookings today" value={here ? here.bookings_today : d.bookings_today ?? 0} />
-        <Stat label="Package sales this month" value={formatMoney(d.package_sales_this_month, org.currency)} />
+        <Stat label="Package sales this month" unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
       </div>
 
       {multiLocation && byLocation.length > 0 && (
@@ -238,11 +238,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value, unit }: { label: string; value: number | string; unit?: string }) {
   return (
     <div className="stat">
       <div className="label">{label}</div>
-      <div className="value">{value}</div>
+      <div className="value">
+        {unit && <span className="unit">{unit}</span>}
+        {value}
+      </div>
     </div>
   );
 }

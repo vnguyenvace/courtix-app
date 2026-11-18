@@ -211,6 +211,8 @@ Done when: two demo clubs run at their own subdomains on the public URL, staff o
 - Seed has a second club (Chalong Padel, `other@clubos.test`).
 Left: everything that needs the real accounts (hosted Supabase, Vercel wildcard domain, GoDaddy nameservers → Vercel, Supabase auth URLs for `https://*.courtix.app/**`).
 
+**Notes, 18 Nov 2026 (hosting).** Code on GitHub `vnguyenvace/courtix-app`; Vercel (team `vace4`) deploys `main` automatically; `courtix.app` and `*.courtix.app` point at Vercel and the first production deploy works. Hosted Supabase project `courtix` (ref `ogiyiobrrgnyzxetvjks`, Singapore, org VACE): all migrations applied with `supabase db push --remote` (CLI v3 targets the local stack unless you pass `--remote`), both cron jobs scheduled. Left: Vercel env vars pointing at the hosted project, Supabase auth URLs, a real SMTP sender for sign-up emails, then the "Done when" check with two real clubs.
+
 ## Step 10: Scheduled jobs  ☐
 
 `pg_cron` in Supabase: `refresh_membership_statuses` nightly, `check_session_minimums` every 15 minutes, `generate_sessions` nightly (commands are in the README), and a daily AI draft run per club (Edge Function or a Vercel cron calling a protected route).

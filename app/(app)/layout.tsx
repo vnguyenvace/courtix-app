@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { requireOrg, ORG_COOKIE, LOCATION_COOKIE } from "@/lib/org";
 import { signOut } from "@/app/login/actions";
 import { currentHost } from "@/lib/host";
+import SidebarNav from "@/components/SidebarNav";
+import { LogOut, Menu, X } from "lucide-react";
 
 const COOKIE = { path: "/", httpOnly: true, sameSite: "lax" as const };
 
@@ -45,48 +47,53 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">Courtix</div>
-        <div className="club-name">{org.name}</div>
-        {multiLocation && (
-          <form action={switchLocation} className="actions" style={{ padding: "0 10px 12px", gap: 6 }}>
-            <select
-              name="location_id"
-              defaultValue={location?.id ?? "all"}
-              aria-label="Location"
-              style={{ flex: 1, minWidth: 0, padding: "6px 8px", fontSize: 14 }}
-            >
-              {canSeeAll && <option value="all">All locations</option>}
-              {myLocations.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-            <button style={{ padding: "6px 10px" }}>Go</button>
-          </form>
-        )}
-        <nav className="nav">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/sessions">Sessions</Link>
-          <Link href="/bookings">Courts</Link>
-          <Link href="/members">Members</Link>
-          <Link href="/replies">Reply helper</Link>
-          <Link href="/followups">AI follow-ups</Link>
-          <Link href="/settings">Settings</Link>
-        </nav>
-        <div className="sidebar-foot">
-          {clubs.length > 1 && (
-            <form action={switchClub} className="form">
-              <select name="club_id" defaultValue={org.id} aria-label="Switch club">
-                {clubs.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+        {/* Phones and tablets: this checkbox opens the menu (CSS only, works without JS) */}
+        <input type="checkbox" id="nav-toggle" className="nav-toggle" aria-label="Menu" />
+        <div className="sidebar-top">
+          <Link href="/dashboard" className="brand-block">
+            <span className="brand-mark" aria-hidden>C</span>
+            <span className="brand-text">
+              <span className="brand">Courtix</span>
+              <span className="club-name">{org.name}</span>
+            </span>
+          </Link>
+          <label htmlFor="nav-toggle" className="menu-button" aria-hidden>
+            <Menu className="icon-open" size={22} strokeWidth={1.75} />
+            <X className="icon-close" size={22} strokeWidth={1.75} />
+          </label>
+        </div>
+        <div className="sidebar-body">
+          {multiLocation && (
+            <form action={switchLocation} className="location-picker">
+              <select name="location_id" defaultValue={location?.id ?? "all"} aria-label="Location">
+                {canSeeAll && <option value="all">All locations</option>}
+                {myLocations.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
               </select>
-              <button>Switch club</button>
+              <button>Go</button>
             </form>
           )}
-          <span>{email}</span>
-          <form action={signOut}>
-            <button className="link">Sign out</button>
-          </form>
+          <SidebarNav />
+          <div className="sidebar-foot">
+            {clubs.length > 1 && (
+              <form action={switchClub} className="form">
+                <select name="club_id" defaultValue={org.id} aria-label="Switch club">
+                  {clubs.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <button>Switch club</button>
+              </form>
+            )}
+            <span className="user-email" title={email ?? undefined}>{email}</span>
+            <form action={signOut}>
+              <button className="nav-button">
+                <LogOut size={18} strokeWidth={1.75} aria-hidden />
+                <span>Sign out</span>
+              </button>
+            </form>
+          </div>
         </div>
       </aside>
       <main className="main">{children}</main>
