@@ -1,0 +1,61 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { currentHost } from "@/lib/host";
+import { signOut } from "@/app/login/actions";
+
+// Shown when someone is signed in on a club subdomain they're not staff of.
+export default async function NoAccessPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const host = await currentHost();
+  let clubName = "this club";
+  if (host.kind === "club") {
+    const { data } = await supabase.rpc("club_by_slug", { p_slug: host.slug });
+    clubName = ((data ?? [])[0] as { name: string } | undefined)?.name ?? clubName;
+  }
+
+  const { data: rows } = await supabase
+    .from("org_staff")
+    .select("orgs(name, slug)")
+    .eq("user_id", user.id)
+    .order("created_at");
+  const myClubs = ((rows ?? []) as unknown as { orgs: { name: string; slug: string } }[]).map((r) => r.orgs);
+
+  return (
+    <main className="auth">
+      <div className="card">
+        <h1>No access</h1>
+        <p className="muted" style={{ marginBottom: 16 }}>
+          You&apos;re signed in as {user.email}, but you&apos;re not on the staff of {clubName}. Ask the club&apos;s owner to add
+          you.
+        </p>
+        {myClubs.length > 0 && (
+          <>
+            <p className="small">Your clubs:</p>
+            <ul className="list" style={{ marginBottom: 16 }}>
+              {myClubs.map((c) => (
+                <li key={c.slug}>
+                  <a href={host.kind === "other" ? "/dashboard" : host.clubUrl(c.slug, "/dashboard")}>{c.name}</a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        <div className="actions">
+          {myClubs.length === 0 && (
+            <a className="button" href={host.kind === "other" ? "/onboarding" : host.rootUrl("/onboarding")}>
+              Set up your own club
+            </a>
+          )}
+          <form action={signOut}>
+            <button className="link">Sign out</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  );
+}
