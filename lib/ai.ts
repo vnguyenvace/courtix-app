@@ -108,7 +108,7 @@ export function buildUserPrompt(reason: FollowupReason, context: Record<string, 
 
 async function callClaude(system: string, user: string): Promise<string> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30_000);
+  const timer = setTimeout(() => controller.abort(), 60_000);
   try {
     const res = await fetch(API_URL, {
       method: "POST",
@@ -120,7 +120,12 @@ async function callClaude(system: string, user: string): Promise<string> {
       },
       body: JSON.stringify({
         model: AI_MODEL,
-        max_tokens: 1024,
+        // Current models think before answering, and thinking counts toward max_tokens.
+        // A low cap (it was 1024) can be used up by thinking, leaving no text at all.
+        // You only pay for tokens actually used.
+        max_tokens: 16000,
+        // Short front-desk messages don't need deep reasoning: faster and cheaper.
+        output_config: { effort: "low" },
         system,
         messages: [{ role: "user", content: user }],
       }),
@@ -133,14 +138,23 @@ async function callClaude(system: string, user: string): Promise<string> {
       throw new Error(`Claude API error ${res.status}: ${detail.slice(0, 200)}`);
     }
 
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+    const data = (await res.json()) as {
+      content?: { type: string; text?: string }[];
+      stop_reason?: string;
+    };
+    if (data.stop_reason === "refusal") {
+      throw new Error("Claude declined to write this message. Write it yourself, or try different wording.");
+    }
     // The response can include thinking blocks; the message is in the text blocks.
     const text = (data.content ?? [])
       .filter((b) => b.type === "text" && b.text)
       .map((b) => b.text)
       .join("\n")
       .trim();
-    if (!text) throw new Error("Claude returned an empty message.");
+    if (!text && data.stop_reason === "max_tokens") {
+      throw new Error("Claude ran out of room before writing the message. Try again.");
+    }
+    if (!text) throw new Error(`Claude returned an empty message (stop reason: ${data.stop_reason ?? "unknown"}).`);
     return cleanMessage(text);
   } finally {
     clearTimeout(timer);
