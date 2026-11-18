@@ -335,14 +335,15 @@ function signUpMessage(reg: SignUpRow, currency: string): string {
 export async function updateSession(form: FormData) {
   const sessionId = str(form, "session_id");
   const path = `/sessions/${sessionId}`;
+  const editPath = `${path}/edit`;
   const { supabase } = await requireManager(path);
   const tz = str(form, "timezone") || "Asia/Bangkok";
   const date = str(form, "date");
   const endDate = str(form, "end_date") || date;
-  if (!isValidDate(date) || !isValidDate(endDate)) back(path, "Enter a valid date.");
+  if (!isValidDate(date) || !isValidDate(endDate)) back(editPath, "Enter a valid date.");
   const start = str(form, "start_time");
   const end = str(form, "end_time");
-  if (!start || !end) back(path, "Enter a start and end time.");
+  if (!start || !end) back(editPath, "Enter a start and end time.");
 
   const { data, error } = await supabase.rpc("update_session", {
     p_session: sessionId,
@@ -360,7 +361,7 @@ export async function updateSession(form: FormData) {
     p_notes: optStr(form, "notes"),
     p_courts: form.getAll("court_ids").map(String),
   });
-  if (error) back(path, friendly(error));
+  if (error) back(editPath, friendly(error));
   refresh();
   const r = (data ?? {}) as { moved_up?: number; court_note?: string | null };
   let message = "Session saved. People already booked keep the price they signed up at.";
