@@ -106,7 +106,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
           </p>
         </div>
         <form action={writeDrafts}>
-          <button className="primary">Write today&apos;s drafts</button>
+          <button className="primary" data-pending-label="Writing drafts…">Write today&apos;s drafts</button>
         </form>
       </div>
       <Banner sp={sp} />
@@ -233,7 +233,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                       <button formAction={saveDraft}>Save edit</button>
                     </span>
                     <span className="actions">
-                      <button className="link" formAction={rewriteDraft}>Rewrite</button>
+                      <button className="link" formAction={rewriteDraft} data-pending-label="Rewriting…">Rewrite</button>
                       <button className="link danger" formAction={dismissDraft}>Dismiss</button>
                     </span>
                   </div>

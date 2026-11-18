@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
+import PendingButtons from "@/components/PendingButtons";
 
 export const metadata: Metadata = {
   title: "Courtix",
@@ -9,7 +11,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Spinner + no double submits on every form button. Stamp changes on each server render. */}
+        <Suspense fallback={null}>
+          <PendingButtons stamp={String(Date.now())} />
+        </Suspense>
+      </body>
     </html>
   );
 }

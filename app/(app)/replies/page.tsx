@@ -132,7 +132,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
             Pick the member if you know them: Claude then knows their package and what they&apos;ve booked.
           </p>
           <div className="actions">
-            <button className="primary" disabled={!ai}>Draft a reply</button>
+            <button className="primary" disabled={!ai} data-pending-label="Drafting…">Draft a reply</button>
           </div>
         </form>
       </section>
@@ -182,7 +182,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
                     <button formAction={saveInquiryReply}>Save edit</button>
                   </span>
                   <span className="actions">
-                    <button className="link" formAction={rewriteInquiryReply}>Rewrite</button>
+                    <button className="link" formAction={rewriteInquiryReply} data-pending-label="Rewriting…">Rewrite</button>
                     <button className="link danger" formAction={dismissInquiryReply}>Dismiss</button>
                   </span>
                 </div>

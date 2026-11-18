@@ -148,6 +148,15 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); fon
 button.danger { color: var(--danger); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+/* Pending buttons (components/PendingButtons.tsx): spinner while an action runs */
+.is-pending { cursor: progress; pointer-events: none; opacity: 0.8; }
+.is-pending::before { content: ""; display: inline-block; flex: none; width: 0.95em; height: 0.95em; margin-right: 0.5em; vertical-align: -0.12em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.is-pending[data-pending-label] { font-size: 0; }
+.is-pending[data-pending-label]::before { font-size: 14px; }
+.is-pending[data-pending-label]::after { content: attr(data-pending-label); font-size: 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .is-pending::before { animation-duration: 2s; } }
+
 /* Banners */
 .banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
 .banner.error { background: var(--danger-soft); color: var(--danger); }
