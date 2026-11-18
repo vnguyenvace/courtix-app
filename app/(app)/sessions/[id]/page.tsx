@@ -157,6 +157,15 @@ export default async function SessionPage({
         </div>
 
         <div className="stack">
+          {s.status !== "cancelled" && finished && (
+            <section className="card">
+              <h2>This session has finished</h2>
+              <p className="muted small">
+                It ended at {localTime(s.ends_at, tz)}, so sign-ups and cancellations are closed. Use{" "}
+                <Link href={`/sessions?from=${day}`}>Sessions</Link> to find an upcoming one.
+              </p>
+            </section>
+          )}
           {s.status !== "cancelled" && !finished && (
             <section className="card">
               <h2>{s.spots_left === 0 ? "Add to waitlist" : "Sign someone up"}</h2>
