@@ -3,7 +3,7 @@ import { requireOrg, canManage } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { levelText } from "@/components/SessionBits";
 import { formatDate, formatMoney } from "@/lib/time";
-import { addSchedule, addSessionType, generateSessions, toggleSchedule, toggleSessionType, setSignupWindow } from "../actions";
+import { addSchedule, addSessionType, generateSessions, toggleSchedule, toggleSessionType, setSignupWindow, setSessionTypePublic } from "../actions";
 import { CATEGORY_LABELS, type Court, type SessionCategory, type SessionSchedule, type SessionType } from "@/lib/types";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -189,6 +189,14 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
                     </span>
                     <span className="actions">
                       {!t.is_active && <span className="badge">hidden</span>}
+                      {t.is_active && !t.is_public && <span className="badge">not on booking page</span>}
+                      {editable && t.is_active && (
+                        <form action={setSessionTypePublic} className="inline">
+                          <input type="hidden" name="type_id" value={t.id} />
+                          <input type="hidden" name="is_public" value={String(!t.is_public)} />
+                          <button className="link">{t.is_public ? "Hide online" : "Show online"}</button>
+                        </form>
+                      )}
                       {editable && (
                         <form action={toggleSessionType} className="inline">
                           <input type="hidden" name="type_id" value={t.id} />

@@ -144,7 +144,7 @@ Done when: an early-bird sign-up records 2,500 before the deadline and 3,300 aft
 
 Done when: a private lesson books a coach and a court in one step, clashes are refused, group-size pricing works, and tests cover it.
 
-## Step 6: Public booking page per location  ☐
+## Step 6: Public booking page per location  ☑
 
 Replace "DM to book" on the flyers with a link and QR code.
 
@@ -154,6 +154,11 @@ Replace "DM to book" on the flyers with a link and QR code.
 - Needs carefully scoped anon access: read-only views of public session info through `security definer` functions, never direct table access. Rate-limit sign-ups.
 
 Done when: a stranger can open the link on a phone, see real sessions, request a spot, and staff see it as a pending order. Anon can't read members or anything else (test it).
+
+**Notes, 18 Nov 2026.** Built: migration `20261118050000_public_booking.sql`, test `public_booking_test.sql`, pages `app/book` (timetable), `app/book/s/[id]` (session + sign-up form), `app/book/courts` (free court times). Decided with Julian: **an online sign-up takes the spot straight away** (pay at the club; there are no orders yet, so "pending order" became a booked place marked `source = 'online'`), and **courts show free times only**, with each free slot opening WhatsApp with the request typed in. Visitors only reach four security-definer functions (`public_club`, `public_sessions`, `public_court_slots`, `public_register`); no table access. Online sign-ups are always guests at the drop-in price: a phone number is never matched to a member, so nobody can spend someone else's credits. Spam limits: one live place per number per session, 3 online sign-ups per number per day, 60 per club per hour, plus a hidden honeypot field. Consent: a required "may contact me about this booking" tick and an optional marketing tick (stored on the sign-up).
+Staff side: Settings → Booking page (link, QR code for flyers, on/off), Sessions → Set up → "Hide online" per session type, "booked online" on the roster, and an "Online sign-ups" card on the dashboard.
+**Approval option (added 18 Nov 2026, Julian's request):** Settings → Booking page → "When someone signs up online": *They get the spot straight away* (default) or *Request, staff approve* (`orgs.online_signups = 'approve'`). Requests are saved as the new registration status `requested`, take no spot, and show with **Approve / Decline** on the dashboard and the session page. Approving books them, or waitlists them if the session filled up in the meantime; declining cancels. Open requests close when the session is cancelled. Migrations `20261118050100_requested_status.sql` (enum value on its own) and `20261118050200_online_approval.sql`, test `online_approval_test.sql`.
+Left open: members recognised by phone with a one-time WhatsApp code (needs Step 9), so members can use their package online; visitors can't cancel online yet (they message the club); IP-based rate limiting (only per number and per club for now); no confirmation message is sent (needs Step 9).
 
 ## Step 7: PromptPay checkout  ☐
 
@@ -216,15 +221,16 @@ Done when: two demo clubs run at their own subdomains on the public URL, staff o
 Left: everything that needs the real accounts (hosted Supabase, Vercel wildcard domain, GoDaddy nameservers → Vercel, Supabase auth URLs for `https://*.courtix.app/**`).
 
 **Notes, 18 Nov 2026 (hosting).** Code on GitHub `vnguyenvace/courtix-app`; Vercel (team `vace4`) deploys `main` automatically; `courtix.app` and `*.courtix.app` point at Vercel and the first production deploy works. Hosted Supabase project `courtix` (ref `ogiyiobrrgnyzxetvjks`, Singapore, org VACE): all migrations applied with `supabase db push --remote` (CLI v3 targets the local stack unless you pass `--remote`), both cron jobs scheduled. Left: Vercel env vars pointing at the hosted project, Supabase auth URLs, a real SMTP sender for sign-up emails, then the "Done when" check with two real clubs.
+**Region (18 Nov 2026):** Vercel functions must run in **Singapore (`sin1`)**, next to the database. New Vercel projects default to Washington (`iad1`), which made every page about 5 s. `vercel.json` sets `regions: ["sin1"]`, but on this project only the dashboard setting took effect (Settings → Functions → Function Regions, then redeploy). Check with the `x-vercel-id` response header: it should read `sin1::sin1`.
 
-## Step 10: Scheduled jobs  ☐
+## Step 10: Scheduled jobs  ☑
 
 `pg_cron` in Supabase: `refresh_membership_statuses` nightly, `check_session_minimums` every 15 minutes, `generate_sessions` nightly (commands are in the README), and a daily AI draft run per club (Edge Function or a Vercel cron calling a protected route).
 
 Done when: jobs are scheduled in the hosted project and their last runs are visible.
 
 **Notes, 18 Nov 2026.** Migration `20261118020000_scheduled_jobs.sql` schedules `club-os-housekeeping` hourly (`run_housekeeping()`: refresh membership statuses + `generate_sessions(org, 14)` for every club; one club failing doesn't stop the others) and a daily cleanup of cron history. Tested locally (`scheduled_jobs_test.sql`, and pg_cron really fires inside local Supabase). Left for later:
-- Tick once it runs in the hosted project (after Step 10a).
+- ~~Tick once it runs in the hosted project (after Step 10a).~~ Done 18 Nov 2026: `club-os-housekeeping` has run on the hosted project (5 runs, all succeeded).
 - **Go / no-go is deliberately not scheduled**: it would cancel sessions without telling players. Schedule it in Step 9 together with automatic cancellation notices (needs Julian's OK: it's automatic messaging).
 - The daily AI draft run belongs to Step 9b (morning approval list).
 

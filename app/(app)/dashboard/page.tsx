@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { approveRequest, declineRequest } from "../sessions/actions";
 import { requireOrg, canManage } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { lastVisitText } from "@/components/MemberBadges";
@@ -57,6 +58,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const leads = all.filter((s) => s.is_drop_in_lead);
   const bookingsToday = (todays ?? []) as BookingRow[];
   const sessionsToday = (sessionData ?? []) as SessionOverview[];
+
+  // Sign-ups from the public booking page in the last 3 days (still live places).
+  const { data: onlineData } = await supabase
+    .from("session_roster")
+    .select("id, session_id, name, phone, status, created_at")
+    .eq("org_id", org.id)
+    .eq("source", "online")
+    .in("status", ["booked", "waitlisted", "requested"])
+    // Open requests stay until someone deals with them; others show for 3 days.
+    .or(`status.eq.requested,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  const online = (onlineData ?? []) as { id: string; session_id: string; name: string; phone: string | null; status: string; created_at: string }[];
+  const { data: onlineSessions } = online.length
+    ? await supabase
+        .from("session_overview")
+        .select("id, name, starts_at, location_timezone")
+        .in("id", [...new Set(online.map((o) => o.session_id))])
+    : { data: [] };
+  const sessionInfo = new Map(
+    ((onlineSessions ?? []) as Pick<SessionOverview, "id" | "name" | "starts_at" | "location_timezone">[]).map((x) => [x.id, x]),
+  );
 
   return (
     <>
@@ -221,6 +244,61 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                   </span>
                 </li>
               ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="actions" style={{ justifyContent: "space-between" }}>
+            <h2 style={{ margin: 0 }}>Online sign-ups</h2>
+            <Link href="/settings" className="small">Booking page →</Link>
+          </div>
+          <p className="muted small">
+            From your public booking page. They pay at the club.
+            {org.online_signups === "approve" ? " Requests wait for you to approve them." : ""}
+          </p>
+          {online.length === 0 ? (
+            <p className="muted small">None yet. Share your booking page link or QR code (Settings).</p>
+          ) : (
+            <ul className="list">
+              {online.map((o) => {
+                const si = sessionInfo.get(o.session_id);
+                return (
+                  <li key={o.id}>
+                    <span>
+                      {o.name}
+                      <span className="muted small">{o.phone ? ` · ${o.phone}` : ""}</span>
+                      {si && (
+                        <div className="small">
+                          <Link href={`/sessions/${o.session_id}`}>{si.name}</Link>{" "}
+                          <span className="muted">
+                            {new Date(si.starts_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: si.location_timezone })}{" "}
+                            {localTime(si.starts_at, si.location_timezone)}
+                          </span>
+                        </div>
+                      )}
+                    </span>
+                    {o.status === "requested" ? (
+                      <span className="actions">
+                        <form action={approveRequest} className="inline">
+                          <input type="hidden" name="registration_id" value={o.id} />
+                          <input type="hidden" name="session_id" value={o.session_id} />
+                          <input type="hidden" name="back_to" value="/dashboard" />
+                          <button className="primary">Approve</button>
+                        </form>
+                        <form action={declineRequest} className="inline">
+                          <input type="hidden" name="registration_id" value={o.id} />
+                          <input type="hidden" name="session_id" value={o.session_id} />
+                          <input type="hidden" name="back_to" value="/dashboard" />
+                          <button className="link danger">Decline</button>
+                        </form>
+                      </span>
+                    ) : (
+                      <span className={`badge ${o.status === "waitlisted" ? "info" : "ok"}`}>{o.status}</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -203,6 +203,51 @@ export async function addSessionType(form: FormData) {
   back("/sessions/setup", "Session type added.", "notice");
 }
 
+// Online requests (club setting "Request, staff approve"). back_to: where to return.
+function backTo(form: FormData, fallback: string) {
+  const to = str(form, "back_to");
+  return to.startsWith("/") && !to.startsWith("//") ? to : fallback;
+}
+
+export async function approveRequest(form: FormData) {
+  const path = backTo(form, `/sessions/${str(form, "session_id")}`);
+  const { supabase } = await requireOrg();
+  const { data, error } = await supabase.rpc("approve_online_request", { p_registration: str(form, "registration_id") });
+  if (error) back(path, friendly(error));
+  refresh();
+  revalidatePath("/dashboard");
+  back(
+    path,
+    data === "waitlisted"
+      ? "Approved, but the session is full now, so they're on the waitlist. Let them know on WhatsApp."
+      : "Approved. Let them know on WhatsApp that their place is confirmed.",
+    "notice",
+  );
+}
+
+export async function declineRequest(form: FormData) {
+  const path = backTo(form, `/sessions/${str(form, "session_id")}`);
+  const { supabase } = await requireOrg();
+  const { error } = await supabase.rpc("decline_online_request", { p_registration: str(form, "registration_id") });
+  if (error) back(path, friendly(error));
+  refresh();
+  revalidatePath("/dashboard");
+  back(path, "Request declined.", "notice");
+}
+
+// Show or hide a session type on the public booking page.
+export async function setSessionTypePublic(form: FormData) {
+  const { supabase } = await requireManager("/sessions/setup");
+  const isPublic = str(form, "is_public") === "true";
+  const { error } = await supabase
+    .from("session_types")
+    .update({ is_public: isPublic })
+    .eq("id", str(form, "type_id"));
+  if (error) back("/sessions/setup", friendly(error));
+  refresh();
+  back("/sessions/setup", isPublic ? "Shown on the booking page." : "Hidden from the booking page.", "notice");
+}
+
 // Sign-ups open this many days before each session (empty = any time).
 export async function setSignupWindow(form: FormData) {
   const { supabase } = await requireManager("/sessions/setup");

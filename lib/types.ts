@@ -27,6 +27,8 @@ export interface Org {
   ai_offers: string | null;
   followup_cooldown_days: number;
   late_cancel_hours: number; // cancel at least this long before a session to get a credit back
+  public_booking: boolean; // the public booking page (<slug>.courtix.app/book) is on
+  online_signups: "instant" | "approve"; // online sign-ups take the spot, or wait for staff approval
 }
 
 export interface Court {
@@ -171,7 +173,7 @@ export interface Dashboard {
 
 export type SessionCategory = "open_play" | "clinic" | "match_play" | "camp" | "tournament" | "course" | "other";
 export type SessionStatus = "scheduled" | "confirmed" | "cancelled";
-export type RegistrationStatus = "booked" | "waitlisted" | "cancelled" | "attended" | "no_show";
+export type RegistrationStatus = "booked" | "waitlisted" | "cancelled" | "attended" | "no_show" | "requested"; // requested = online, waiting for staff
 
 export const CATEGORY_LABELS: Record<SessionCategory, string> = {
   open_play: "Open play",
@@ -200,6 +202,7 @@ export interface SessionType {
   min_check_hours: number;
   is_active: boolean;
   signup_opens_days: number | null; // null = sign-ups open any time
+  is_public: boolean; // listed on the public booking page
 }
 
 export interface SessionSchedule {
@@ -265,6 +268,7 @@ export interface RosterRow {
   covered_by: string | null; // package name
   covered_kind: PackageKind | null;
   sessions_left: number | null; // credits left on that pack
+  source: "desk" | "online"; // online = signed up on the public booking page
 }
 
 // ---------------------------------------------------------------- AI follow-ups

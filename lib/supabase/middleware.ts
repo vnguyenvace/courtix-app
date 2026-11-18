@@ -2,7 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { cookieDomain, requestHost } from "@/lib/tenant";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+// /book: the public booking page on a club subdomain (no sign-in; data comes from public_* functions).
+const PUBLIC_PATHS = ["/login", "/auth", "/book"];
 
 // Keeps the Supabase session fresh and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {

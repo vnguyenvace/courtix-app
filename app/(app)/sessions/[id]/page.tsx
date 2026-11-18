@@ -4,13 +4,14 @@ import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { SessionStatusBadge, Spots, levelText } from "@/components/SessionBits";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
-import { cancelRegistration, cancelSession, markAttendance, registerForSession } from "../actions";
+import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession } from "../actions";
 import { CATEGORY_LABELS, type MemberStatus, type RosterRow, type SessionOverview } from "@/lib/types";
 
 const STATUS_BADGE: Record<string, string> = {
   booked: "ok",
   attended: "ok",
   waitlisted: "info",
+  requested: "warn",
   no_show: "danger",
   cancelled: "",
 };
@@ -85,6 +86,7 @@ export default async function SessionPage({
 
   const playing = roster.filter((r) => r.status === "booked" || r.status === "attended" || r.status === "no_show");
   const waiting = roster.filter((r) => r.status === "waitlisted");
+  const requests = roster.filter((r) => r.status === "requested");
   const cancelled = roster.filter((r) => r.status === "cancelled");
   const signedUp = new Set(roster.filter((r) => r.status !== "cancelled").map((r) => r.member_id));
   const available = members.filter((m) => !signedUp.has(m.member_id));
@@ -135,6 +137,31 @@ export default async function SessionPage({
               <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} />
             )}
           </section>
+
+          {requests.length > 0 && (
+            <section className="card">
+              <h2>Online requests ({requests.length})</h2>
+              <p className="muted small">
+                Waiting for you to approve. Approving books them (or waitlists them if the session has filled up).
+              </p>
+              <ul className="list">
+                {requests.map((r) => (
+                  <li key={r.id} style={{ flexWrap: "wrap" }}>
+                    <span>
+                      {r.name}
+                      <span className="muted small">{r.phone ? ` · ${r.phone}` : ""}</span>
+                    </span>
+                    {!finished && s.status !== "cancelled" && (
+                      <span className="actions">
+                        <Act sessionId={s.id} id={r.id} action={approveRequest} label="Approve" />
+                        <Act sessionId={s.id} id={r.id} action={declineRequest} label="Decline" danger />
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {waiting.length > 0 && (
             <section className="card">
@@ -266,6 +293,7 @@ function RosterList({
             {r.member_id ? <Link href={`/members/${r.member_id}`}>{r.name}</Link> : r.name}
             <span className="muted small">
               {r.is_guest ? " · guest" : ""}
+              {r.source === "online" ? " · booked online" : ""}
               {r.skill_level ? ` · ${r.skill_level}` : ""}
               {r.language ? ` · ${r.language.toUpperCase()}` : ""}
               {r.phone ? ` · ${r.phone}` : ""}

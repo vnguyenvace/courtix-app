@@ -259,6 +259,32 @@ export async function updateClub(form: FormData) {
   back("/settings", "Club settings saved.", "notice");
 }
 
+// Online sign-ups: take the spot straight away, or wait for staff approval.
+export async function setOnlineSignupMode(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const mode = str(form, "mode") === "approve" ? "approve" : "instant";
+  const { error } = await supabase.from("orgs").update({ online_signups: mode }).eq("id", org.id);
+  if (error) back("/settings", friendly(error));
+  revalidatePath("/settings");
+  back(
+    "/settings",
+    mode === "approve"
+      ? "Online sign-ups now wait for approval. You'll find them on the dashboard and on each session."
+      : "Online sign-ups now take the spot straight away.",
+    "notice",
+  );
+}
+
+// The public booking page (<slug>.courtix.app/book) on or off.
+export async function setPublicBooking(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const on = str(form, "on") === "true";
+  const { error } = await supabase.from("orgs").update({ public_booking: on }).eq("id", org.id);
+  if (error) back("/settings", friendly(error));
+  revalidatePath("/settings");
+  back("/settings", on ? "Online booking is on." : "Online booking is off. The page now says to book by WhatsApp.", "notice");
+}
+
 export async function addCourt(form: FormData) {
   const { supabase, org, workLocation } = await requireManager();
   const name = str(form, "name");
