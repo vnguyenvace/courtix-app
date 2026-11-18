@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
-import { isValidDate, zonedToUtc } from "@/lib/time";
+import { formatMoney, isValidDate, zonedToUtc } from "@/lib/time";
 
 function refresh() {
   revalidatePath("/sessions", "layout");
@@ -61,7 +61,7 @@ export async function loadRaccoonDemo() {
 export async function registerForSession(form: FormData) {
   const sessionId = str(form, "session_id");
   const path = `/sessions/${sessionId}`;
-  const { supabase } = await requireOrg();
+  const { supabase, org } = await requireOrg();
 
   const memberId = optStr(form, "member_id");
   const guestName = optStr(form, "guest_name");
@@ -77,20 +77,37 @@ export async function registerForSession(form: FormData) {
   });
   if (error) back(path, friendly(error));
 
-  const { data: reg } = await supabase.from("session_registrations").select("status").eq("id", data).single();
+  const { data: reg } = await supabase
+    .from("session_roster")
+    .select("status, price, credit_used, covered_by, covered_kind, sessions_left")
+    .eq("id", data)
+    .single();
   refresh();
-  back(path, reg?.status === "waitlisted" ? "Session is full, so they're on the waitlist." : "Signed up.", "notice");
+  back(path, signUpMessage(reg, org.currency), "notice");
 }
 
 export async function cancelRegistration(form: FormData) {
   const path = `/sessions/${str(form, "session_id")}`;
   const { supabase } = await requireOrg();
+  const registrationId = str(form, "registration_id");
+  const { data: before } = await supabase
+    .from("session_registrations")
+    .select("credit_used")
+    .eq("id", registrationId)
+    .maybeSingle();
   const { data: promoted, error } = await supabase.rpc("cancel_registration", {
-    p_registration: str(form, "registration_id"),
+    p_registration: registrationId,
   });
   if (error) back(path, friendly(error));
+  const { data: after } = await supabase
+    .from("session_registrations")
+    .select("credit_used")
+    .eq("id", registrationId)
+    .maybeSingle();
 
   let message = "Place cancelled.";
+  if (before?.credit_used && !after?.credit_used) message += " Their credit is back on their pack.";
+  if (before?.credit_used && after?.credit_used) message += " It's past the late-cancel cut-off, so the credit is used.";
   if (promoted) {
     const { data } = await supabase.from("session_roster").select("name").eq("id", promoted).single();
     message += ` ${data?.name ?? "Next person"} moved up from the waitlist.`;
@@ -179,10 +196,23 @@ export async function addSessionType(form: FormData) {
     level_max: num(form, "level_max"),
     book_by_minutes: num(form, "book_by_minutes") ?? 60,
     min_check_hours: num(form, "min_check_hours") ?? 3,
+    signup_opens_days: num(form, "signup_opens_days"),
   });
   if (error) back("/sessions/setup", friendly(error));
   refresh();
   back("/sessions/setup", "Session type added.", "notice");
+}
+
+// Sign-ups open this many days before each session (empty = any time).
+export async function setSignupWindow(form: FormData) {
+  const { supabase } = await requireManager("/sessions/setup");
+  const { error } = await supabase
+    .from("session_types")
+    .update({ signup_opens_days: num(form, "signup_opens_days") })
+    .eq("id", str(form, "type_id"));
+  if (error) back("/sessions/setup", friendly(error));
+  refresh();
+  back("/sessions/setup", "Sign-up window saved.", "notice");
 }
 
 export async function toggleSessionType(form: FormData) {
@@ -239,4 +269,28 @@ export async function toggleSchedule(form: FormData) {
       : "Timetable slot turned off. Sessions already created stay until you cancel them.",
     "notice",
   );
+}
+
+type SignUpRow = {
+  status: string;
+  price: number;
+  credit_used: boolean;
+  covered_by: string | null;
+  covered_kind: string | null;
+  sessions_left: number | null;
+} | null;
+
+function signUpMessage(reg: SignUpRow, currency: string): string {
+  if (!reg) return "Signed up.";
+  if (reg.status === "waitlisted") {
+    return reg.price === 0
+      ? "Session is full, so they're on the waitlist. Their package covers it when they move up."
+      : "Session is full, so they're on the waitlist.";
+  }
+  if (reg.credit_used) {
+    const left = reg.sessions_left ?? 0;
+    return `Signed up. Used 1 credit from ${reg.covered_by}: ${left} ${left === 1 ? "credit" : "credits"} left.`;
+  }
+  if (reg.covered_by) return `Signed up. Covered by ${reg.covered_by}.`;
+  return `Signed up. Price ${formatMoney(reg.price, currency)}.`;
 }

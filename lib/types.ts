@@ -26,6 +26,7 @@ export interface Org {
   ai_sign_off: string | null;
   ai_offers: string | null;
   followup_cooldown_days: number;
+  late_cancel_hours: number; // cancel at least this long before a session to get a credit back
 }
 
 export interface Court {
@@ -49,6 +50,19 @@ export interface PackageType {
   max_active_bookings: number | null;
   is_active: boolean;
   location_ids: string[] | null;
+  priority_days: number; // members with this package can sign up this many days earlier
+}
+
+/** Which sessions a package covers (one rule per row; any match covers). */
+export interface PackageCoverage {
+  id: string;
+  org_id: string;
+  package_type_id: string;
+  session_type_id: string | null; // or
+  category: SessionCategory | null; // both null = every session
+  days_of_week: number[] | null; // 0 = Sunday; null = every day
+  start_time: string | null; // session must start in [start_time, end_time)
+  end_time: string | null;
 }
 
 export interface RateRule {
@@ -185,6 +199,7 @@ export interface SessionType {
   book_by_minutes: number;
   min_check_hours: number;
   is_active: boolean;
+  signup_opens_days: number | null; // null = sign-ups open any time
 }
 
 export interface SessionSchedule {
@@ -245,6 +260,11 @@ export interface RosterRow {
   price: number;
   notes: string | null;
   created_at: string;
+  membership_id: string | null; // the package that covered this place
+  credit_used: boolean; // a class-pack credit was taken
+  covered_by: string | null; // package name
+  covered_kind: PackageKind | null;
+  sessions_left: number | null; // credits left on that pack
 }
 
 // ---------------------------------------------------------------- AI follow-ups

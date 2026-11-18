@@ -3,7 +3,7 @@ import { requireOrg, canManage } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { levelText } from "@/components/SessionBits";
 import { formatDate, formatMoney } from "@/lib/time";
-import { addSchedule, addSessionType, generateSessions, toggleSchedule, toggleSessionType } from "../actions";
+import { addSchedule, addSessionType, generateSessions, toggleSchedule, toggleSessionType, setSignupWindow } from "../actions";
 import { CATEGORY_LABELS, type Court, type SessionCategory, type SessionSchedule, type SessionType } from "@/lib/types";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -167,7 +167,25 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
                         {t.min_players}–{t.max_players} players · {levelText(t.level_min, t.level_max)}
                         {t.min_age ? ` · age ${t.min_age}+` : ""} · book {t.book_by_minutes} min ahead · go / no-go{" "}
                         {t.min_check_hours}h before
+                        {t.signup_opens_days !== null ? ` · sign-ups open ${t.signup_opens_days} days before` : ""}
                       </div>
+                      {editable && (
+                        <form action={setSignupWindow} className="actions" style={{ marginTop: 6 }}>
+                          <input type="hidden" name="type_id" value={t.id} />
+                          <input
+                            type="number"
+                            name="signup_opens_days"
+                            min="0"
+                            max="90"
+                            defaultValue={t.signup_opens_days ?? ""}
+                            placeholder="Any time"
+                            aria-label={`Sign-ups open (days before) for ${t.name}`}
+                            style={{ maxWidth: 110, padding: "4px 8px", fontSize: 14 }}
+                          />
+                          <span className="small muted">days before sign-ups open</span>
+                          <button className="link">Save</button>
+                        </form>
+                      )}
                     </span>
                     <span className="actions">
                       {!t.is_active && <span className="badge">hidden</span>}
@@ -246,7 +264,14 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
                     Go / no-go decision (hours before)
                     <input type="number" name="min_check_hours" min="0" defaultValue={3} />
                   </label>
+                  <label>
+                    Sign-ups open (days before)
+                    <input type="number" name="signup_opens_days" min="0" max="90" placeholder="Any time" />
+                  </label>
                 </div>
+                <p className="muted small">
+                  Packages with priority booking let their members sign up that many days earlier.
+                </p>
                 <label>
                   Description
                   <textarea name="description" placeholder="A coached hour for beginners and improvers…" />

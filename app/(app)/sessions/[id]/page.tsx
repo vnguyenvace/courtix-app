@@ -37,6 +37,41 @@ export default async function SessionPage({
   ]);
   if (!sData) notFound();
 
+  // Which members' packages cover this session (for the sign-up picker). The database
+  // decides for real at sign-up (register_for_session); this is only a hint for the desk.
+  const day0 = new Date((sData as SessionOverview).starts_at).toLocaleDateString("en-CA", {
+    timeZone: (sData as SessionOverview).location_timezone,
+  });
+  const { data: msData } = await supabase
+    .from("memberships")
+    .select("member_id, package_type_id, sessions_left, starts_on, ends_on, package_types(kind)")
+    .eq("org_id", org.id)
+    .eq("status", "active");
+  const memberships = (msData ?? []) as unknown as {
+    member_id: string;
+    package_type_id: string;
+    sessions_left: number | null;
+    starts_on: string;
+    ends_on: string | null;
+    package_types: { kind: "time_based" | "class_pack" } | null;
+  }[];
+  const pkgIds = [...new Set(memberships.map((m) => m.package_type_id))];
+  const covers = new Set<string>();
+  await Promise.all(
+    pkgIds.map(async (pkg) => {
+      const { data } = await supabase.rpc("package_covers_session", { p_package: pkg, p_session: id });
+      if (data) covers.add(pkg);
+    }),
+  );
+  const coverHint = new Map<string, string>();
+  for (const m of memberships) {
+    if (!covers.has(m.package_type_id) || m.starts_on > day0 || (m.ends_on && m.ends_on < day0)) continue;
+    if (m.package_types?.kind === "time_based") coverHint.set(m.member_id, "covered");
+    else if ((m.sessions_left ?? 0) > 0 && coverHint.get(m.member_id) !== "covered") {
+      coverHint.set(m.member_id, `uses 1 credit, ${m.sessions_left} left`);
+    }
+  }
+
   const s = sData as SessionOverview;
   const roster = (rData ?? []) as RosterRow[];
   const members = (mData ?? []) as Pick<MemberStatus, "member_id" | "full_name" | "membership_status" | "package_name">[];
@@ -97,7 +132,7 @@ export default async function SessionPage({
             {playing.length === 0 ? (
               <p className="muted small">Nobody yet.</p>
             ) : (
-              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} />
+              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} />
             )}
           </section>
 
@@ -105,7 +140,7 @@ export default async function SessionPage({
             <section className="card">
               <h2>Waitlist ({waiting.length})</h2>
               <p className="muted small">The first person moves up automatically when someone cancels.</p>
-              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable />
+              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable currency={org.currency} />
             </section>
           )}
 
@@ -133,7 +168,8 @@ export default async function SessionPage({
                     <option value="">Guest (enter name below)</option>
                     {available.map((m) => (
                       <option key={m.member_id} value={m.member_id}>
-                        {m.full_name}{m.package_name ? ` · ${m.package_name}` : ""}
+                        {m.full_name}
+                        {coverHint.has(m.member_id) ? ` · ${coverHint.get(m.member_id)}` : m.package_name ? ` · ${m.package_name} (not covered)` : ""}
                       </option>
                     ))}
                   </select>
@@ -159,7 +195,8 @@ export default async function SessionPage({
                   </label>
                 )}
                 <p className="muted small">
-                  Price {formatMoney(s.price, org.currency)}. Package credits and payments come in the next step.
+                  Price {formatMoney(s.price, org.currency)}. Members whose package covers this session pay nothing;
+                  session packs use 1 credit.
                 </p>
                 <button className="primary">{s.spots_left === 0 ? "Add to waitlist" : "Sign up"}</button>
               </form>
@@ -204,11 +241,13 @@ function RosterList({
   sessionId,
   started,
   cancellable,
+  currency,
 }: {
   rows: RosterRow[];
   sessionId: string;
   started: boolean;
   cancellable: boolean;
+  currency: string;
 }) {
   return (
     <ul className="list">
@@ -222,6 +261,7 @@ function RosterList({
               {r.language ? ` · ${r.language.toUpperCase()}` : ""}
               {r.phone ? ` · ${r.phone}` : ""}
             </span>
+            <div className="small muted">{paymentText(r, currency)}</div>
           </span>
           <span className="actions">
             <span className={`badge ${STATUS_BADGE[r.status] ?? ""}`}>{r.status.replace("_", "-")}</span>
@@ -266,4 +306,11 @@ function Act({
       <button className={`link ${danger ? "danger" : ""}`}>{label}</button>
     </form>
   );
+}
+
+function paymentText(r: RosterRow, currency: string): string {
+  if (r.credit_used) return `1 credit from ${r.covered_by}${r.sessions_left !== null ? ` (${r.sessions_left} left)` : ""}`;
+  if (r.covered_by) return `Covered by ${r.covered_by}`;
+  if (r.status === "waitlisted" && Number(r.price) === 0) return "Covered by their package when they move up";
+  return `Pays ${formatMoney(r.price, currency)}`;
 }

@@ -4,17 +4,20 @@ import { LANGUAGES } from "@/components/MemberFields";
 import { formatMoney } from "@/lib/time";
 import {
   addCourt,
+  addCoverage,
   addLocation,
   addPackage,
   addRateRule,
   deleteRateRule,
+  removeCoverage,
+  setPriorityDays,
   toggleCourt,
   toggleLocation,
   togglePackage,
   updateClub,
   updateLocation,
 } from "../actions";
-import type { Court, Location, PackageType, RateRule } from "@/lib/types";
+import { CATEGORY_LABELS, type Court, type Location, type PackageCoverage, type PackageType, type RateRule, type SessionCategory, type SessionType } from "@/lib/types";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TIMEZONES = ["Asia/Bangkok", "Asia/Ho_Chi_Minh", "Asia/Makassar", "Asia/Jakarta", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Manila", "Asia/Tokyo", "Australia/Sydney", "Europe/London", "UTC"];
@@ -73,14 +76,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const multi = locations.filter((l) => l.is_active).length > 1;
   const locName = new Map(locations.map((l) => [l.id, l.name]));
 
-  const [{ data: courtData }, { data: pkgData }, { data: ruleData }] = await Promise.all([
+  const [{ data: courtData }, { data: pkgData }, { data: ruleData }, { data: covData }, { data: typeData }] = await Promise.all([
     supabase.from("courts").select("*").eq("org_id", org.id).order("sort_order"),
     supabase.from("package_types").select("*").eq("org_id", org.id).order("price"),
     supabase.from("rate_rules").select("*").eq("org_id", org.id).order("priority"),
+    supabase.from("package_coverage").select("*").eq("org_id", org.id).order("created_at"),
+    supabase.from("session_types").select("id, name, category").eq("org_id", org.id).eq("is_active", true).order("name"),
   ]);
   const courts = (courtData ?? []) as Court[];
   const packages = (pkgData ?? []) as PackageType[];
   const rules = (ruleData ?? []) as RateRule[];
+  const coverage = (covData ?? []) as PackageCoverage[];
+  const sessionTypes = (typeData ?? []) as Pick<SessionType, "id" | "name" | "category">[];
+  const typeName = new Map(sessionTypes.map((t) => [t.id, t.name]));
 
   return (
     <>
@@ -125,6 +133,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                     <input type="number" name="renewal_window_days" min="1" max="60" defaultValue={org.renewal_window_days} />
                   </label>
                 </div>
+                <label>
+                  Late cancel cut-off (hours before a session)
+                  <input type="number" name="late_cancel_hours" min="0" max="168" defaultValue={org.late_cancel_hours} />
+                  <span className="small muted">
+                    Cancel earlier and a package credit comes back. Later, or a no-show, and the credit is used.
+                  </span>
+                </label>
                 <div className="form-row">
                   <label>
                     Currency
@@ -253,7 +268,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                       {formatMoney(p.price, org.currency)}
                       {p.max_active_bookings && ` · ${p.max_active_bookings} bookings at a time`}
                       {multi && ` · ${p.location_ids ? p.location_ids.map((id) => locName.get(id)).join(", ") + " only" : "all locations"}`}
+                      {p.priority_days > 0 && ` · signs up ${p.priority_days} ${p.priority_days === 1 ? "day" : "days"} early`}
                     </div>
+                    <div className="small">
+                      {coverageSummary(coverage.filter((c) => c.package_type_id === p.id), typeName)}
+                    </div>
+                    {editable && (
+                      <CoverageEditor
+                        pkg={p}
+                        rules={coverage.filter((c) => c.package_type_id === p.id)}
+                        typeName={typeName}
+                        sessionTypes={sessionTypes}
+                      />
+                    )}
                   </span>
                   <span className="actions">
                     {!p.is_active && <span className="badge">hidden</span>}
@@ -302,7 +329,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                       Upcoming bookings allowed (optional)
                       <input type="number" name="max_active_bookings" min="1" placeholder={String(org.max_active_bookings)} />
                     </label>
+                    <label>
+                      Priority booking (days early)
+                      <input type="number" name="priority_days" min="0" max="30" defaultValue={0} />
+                    </label>
                   </div>
+                  <p className="muted small">After adding it, open the package to choose which sessions it covers.</p>
                   {multi && (
                     <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
                       <legend className="small muted" style={{ marginBottom: 6 }}>
@@ -410,5 +442,114 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         </div>
       </div>
     </>
+  );
+}
+
+// ---------------------------------------------------------------- Package coverage
+
+function hhmm(t: string | null) {
+  return t ? t.slice(0, 5) : "";
+}
+
+function ruleText(c: PackageCoverage, typeName: Map<string, string>) {
+  const what = c.session_type_id
+    ? typeName.get(c.session_type_id) ?? "A session type"
+    : c.category
+      ? CATEGORY_LABELS[c.category]
+      : "Every session";
+  const days = c.days_of_week ? ` on ${c.days_of_week.map((d) => DAYS[d]).join(", ")}` : "";
+  const time = c.start_time ? ` starting ${hhmm(c.start_time)}–${hhmm(c.end_time)}` : "";
+  return what + days + time;
+}
+
+function coverageSummary(rules: PackageCoverage[], typeName: Map<string, string>) {
+  if (rules.length === 0) return <span className="muted">Covers court booking only, no sessions.</span>;
+  return <span>Covers: {rules.map((c) => ruleText(c, typeName)).join("; ")}</span>;
+}
+
+function CoverageEditor({
+  pkg,
+  rules,
+  typeName,
+  sessionTypes,
+}: {
+  pkg: PackageType;
+  rules: PackageCoverage[];
+  typeName: Map<string, string>;
+  sessionTypes: Pick<SessionType, "id" | "name" | "category">[];
+}) {
+  const categories = Object.keys(CATEGORY_LABELS) as SessionCategory[];
+  return (
+    <details style={{ marginTop: 6 }}>
+      <summary className="small" style={{ cursor: "pointer", color: "var(--accent)" }}>Sessions it covers</summary>
+      <div className="stack" style={{ marginTop: 8, gap: 10 }}>
+        <p className="muted small">
+          {pkg.kind === "class_pack"
+            ? "Signing up for a covered session uses 1 credit. Other sessions cost the drop-in price."
+            : "Covered sessions are free for members with this package. Other sessions cost the drop-in price."}
+        </p>
+        {rules.length > 0 && (
+          <ul className="list">
+            {rules.map((c) => (
+              <li key={c.id}>
+                <span>{ruleText(c, typeName)}</span>
+                <form action={removeCoverage} className="inline">
+                  <input type="hidden" name="coverage_id" value={c.id} />
+                  <button className="link danger">Remove</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={addCoverage} className="form">
+          <input type="hidden" name="package_id" value={pkg.id} />
+          <label>
+            Covers
+            <select name="what" defaultValue="cat:open_play">
+              <option value="all">Every session</option>
+              <optgroup label="All sessions of a kind">
+                {categories.map((c) => (
+                  <option key={c} value={`cat:${c}`}>{CATEGORY_LABELS[c]}</option>
+                ))}
+              </optgroup>
+              {sessionTypes.length > 0 && (
+                <optgroup label="One session type">
+                  {sessionTypes.map((t) => (
+                    <option key={t.id} value={`type:${t.id}`}>{t.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+          <div className="actions">
+            {DAYS.map((d, i) => (
+              <label key={d} className="check">
+                <input type="checkbox" name="days" value={i} /> {d}
+              </label>
+            ))}
+          </div>
+          <div className="form-row">
+            <label>
+              Starting from (optional)
+              <input type="time" name="start_time" />
+            </label>
+            <label>
+              Until
+              <input type="time" name="end_time" />
+            </label>
+          </div>
+          <p className="muted small">Leave days unticked for every day, and times empty for any time.</p>
+          <button>Add rule</button>
+        </form>
+        <form action={setPriorityDays} className="actions">
+          <input type="hidden" name="package_id" value={pkg.id} />
+          <label style={{ flex: "1 1 200px" }}>
+            Priority booking (days early)
+            <input type="number" name="priority_days" min="0" max="30" defaultValue={pkg.priority_days} />
+          </label>
+          <button style={{ alignSelf: "flex-end" }}>Save</button>
+        </form>
+      </div>
+    </details>
   );
 }

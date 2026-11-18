@@ -251,6 +251,7 @@ export async function updateClub(form: FormData) {
       max_active_bookings: num(form, "max_active_bookings") ?? org.max_active_bookings,
       at_risk_days: num(form, "at_risk_days") ?? org.at_risk_days,
       renewal_window_days: num(form, "renewal_window_days") ?? org.renewal_window_days,
+      late_cancel_hours: num(form, "late_cancel_hours") ?? org.late_cancel_hours,
     })
     .eq("id", org.id);
   if (error) back("/settings", friendly(error));
@@ -298,6 +299,7 @@ export async function addPackage(form: FormData) {
     sessions: kind === "class_pack" ? num(form, "sessions") : null,
     price: num(form, "price") ?? 0,
     max_active_bookings: num(form, "max_active_bookings"),
+    priority_days: num(form, "priority_days") ?? 0,
     // None ticked means valid at every location.
     location_ids: form.getAll("location_ids").length ? form.getAll("location_ids").map(String) : null,
   });
@@ -315,6 +317,51 @@ export async function togglePackage(form: FormData) {
   if (error) back("/settings", friendly(error));
   revalidatePath("/settings");
   back("/settings", "Package updated.", "notice");
+}
+
+// ---------------------------------------------------------------------------
+// Which sessions a package covers (package_coverage). Managers only (RLS too).
+// "what" is "all", "cat:<category>" or "type:<session type id>".
+// ---------------------------------------------------------------------------
+export async function addCoverage(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const what = str(form, "what");
+  const days = form.getAll("days").map(Number);
+  const start = optStr(form, "start_time");
+  const end = optStr(form, "end_time");
+  if (Boolean(start) !== Boolean(end)) back("/settings", "Enter both times, or leave both empty for any time.");
+  const { error } = await supabase.from("package_coverage").insert({
+    org_id: org.id,
+    package_type_id: str(form, "package_id"),
+    category: what.startsWith("cat:") ? what.slice(4) : null,
+    session_type_id: what.startsWith("type:") ? what.slice(5) : null,
+    // None ticked, or all seven, means every day.
+    days_of_week: days.length && days.length < 7 ? days : null,
+    start_time: start,
+    end_time: end,
+  });
+  if (error) back("/settings", friendly(error));
+  revalidatePath("/settings");
+  back("/settings", "Package now covers those sessions.", "notice");
+}
+
+export async function removeCoverage(form: FormData) {
+  const { supabase } = await requireManager();
+  const { error } = await supabase.from("package_coverage").delete().eq("id", str(form, "coverage_id"));
+  if (error) back("/settings", friendly(error));
+  revalidatePath("/settings");
+  back("/settings", "Rule removed.", "notice");
+}
+
+export async function setPriorityDays(form: FormData) {
+  const { supabase } = await requireManager();
+  const { error } = await supabase
+    .from("package_types")
+    .update({ priority_days: num(form, "priority_days") ?? 0 })
+    .eq("id", str(form, "package_id"));
+  if (error) back("/settings", friendly(error));
+  revalidatePath("/settings");
+  back("/settings", "Priority booking saved.", "notice");
 }
 
 export async function addRateRule(form: FormData) {

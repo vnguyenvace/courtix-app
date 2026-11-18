@@ -97,7 +97,7 @@ Clubs need to add desk staff without Supabase Studio.
 
 Done when: an owner can invite a desk person limited to one site, that person signs up, sees only their site's write actions, and the SQL test covers invite acceptance and the last-owner rule.
 
-## Step 2: Packages that cover sessions  ☐
+## Step 2: Packages that cover sessions  ☑
 
 Raccoon sells "Unlimited evenings" (3,500 / 30 days, evening open play), "Unlimited any session" (4,000 / 30 days, plus priority booking) and match play "buy 10 get 1 free" credit packs (11 credits). Today signing up for a session ignores packages and always records the drop-in price.
 
@@ -108,6 +108,10 @@ Raccoon sells "Unlimited evenings" (3,500 / 30 days, evening open play), "Unlimi
 - Update `load_raccoon_demo` (in a new migration) to add coverage for Raccoon's packages.
 
 Done when: an unlimited-evenings member signs up for 18:00 open play at 0 THB, pays 500 for a 09:00 clinic, a credit pack goes 11 → 10 and back to 11 on cancel, and the SQL test covers all of it.
+
+**Notes, 18 Nov 2026.** Built: migration `20261118040000_package_coverage.sql`, test `package_coverage_test.sql`. Decided with Julian: **a credit is used at sign-up** (when the place is booked; waitlisted places take it when they move up, or pay the drop-in price if the pack ran out by then), **cancelling before the club's cut-off refunds it** (`orgs.late_cancel_hours`, default 24, in Settings), late cancels and no-shows lose it, and a session the club cancels (by hand or go / no-go) refunds everyone. Unlimited packages are used before credits. Session check-ins ("Attended") no longer use a credit (they used to, which would have charged twice); desk check-ins still do. Priority booking: `session_types.signup_opens_days` (null = any time) plus `package_types.priority_days`; the desk override lets anyone in early.
+App: Settings → Packages → "Sessions it covers" (rules, priority days), late-cancel cut-off in club settings, sign-up window per session type (Sessions → Set up), coverage hints in the session sign-up picker, "Covered by…" / "1 credit (9 left)" / "Pays 500" on the roster, and credit messages on sign-up and cancel.
+Left open: Raccoon's priority-booking days are a **placeholder (2)** until the club confirms; the demo's sample members have the old starter packages, which cover no sessions. The reply helper and AI follow-ups don't yet tell members their package covers a session (prices shown are drop-in prices).
 
 ## Step 3: Orders and payments (staff-marked)  ☐
 
@@ -236,6 +240,7 @@ Tiers (for example Basic: courts and members; Pro: sessions, AI follow-ups; Mult
 - Coach Kimo camp start times; IPTPA workshop price.
 - Which court each session normally uses.
 - Private coaching prices by group size and the 30-minute option.
-- Does a class-pack credit get used at sign-up or at attendance? Are late cancellations charged?
+- ~~Does a class-pack credit get used at sign-up or at attendance? Are late cancellations charged?~~ Decided 18 Nov 2026: at sign-up; late cancels (after the club's cut-off, default 24 h) and no-shows lose the credit. Confirm Raccoon is happy with 24 h.
+- How many days early does "priority booking" mean for Unlimited any session? (demo uses 2, a placeholder)
 - Which payment provider, and does the club already have a PromptPay QR or merchant account?
 - For multi-site clubs: which sites, and should any package be limited to one site?
