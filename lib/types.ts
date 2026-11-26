@@ -392,7 +392,8 @@ export interface ChatConversation {
   org_id: string;
   location_id: string | null;
   channel: ChatChannel;
-  contact_phone: string;
+  contact_phone: string | null; // null for LINE (LINE gives a user id, not a number)
+  line_user_id: string | null;
   contact_name: string | null;
   member_id: string | null;
   status: ChatStatus;
@@ -412,4 +413,24 @@ export interface ChatMessage {
   event: Record<string, unknown> | null;
   created_by: string | null;
   created_at: string;
+  delivered_at: string | null; // sent out on LINE/WhatsApp
+  delivery_error: string | null;
+  external_id: string | null; // provider's event id (repeats are ignored)
+}
+
+/** A club's own LINE (later WhatsApp) account. Credentials are encrypted by the app (lib/secrets.ts). */
+export interface MessagingChannel {
+  id: string;
+  org_id: string;
+  location_id: string | null;
+  provider: "line" | "whatsapp";
+  webhook_key: string;
+  secret_enc: string;
+  token_enc: string;
+  account_name: string | null;
+  account_id: string | null;
+  is_enabled: boolean;
+  last_event_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

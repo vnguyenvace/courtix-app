@@ -7,6 +7,8 @@ import { back, friendly, num, optStr, str } from "@/lib/form";
 import { isValidDate, zonedToUtc } from "@/lib/time";
 import { normalizeHex } from "@/lib/brand";
 import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
+import { encryptSecret, secretsConfigured } from "@/lib/secrets";
+import { LineError, lineBotInfo } from "@/lib/line";
 import type { BookingKind, MessageChannel } from "@/lib/types";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
@@ -292,6 +294,70 @@ export async function setChatMode(form: FormData) {
       : `${ASSISTANT_NAME} now answers chats only. Bookings come to you.`,
     "notice",
   );
+}
+
+// ---------------------------------------------------------------- Messaging (the club's own LINE account)
+
+const MESSAGING = "/settings#messaging";
+
+/** Connect (or reconnect) the club's LINE Official Account. The token is checked with LINE first. */
+export async function connectLine(form: FormData) {
+  const { supabase, org } = await requireManager();
+  if (!secretsConfigured()) back(MESSAGING, "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.");
+  const secret = str(form, "channel_secret").replace(/\s+/g, "");
+  const token = str(form, "access_token").replace(/\s+/g, "");
+  if (!/^[0-9a-f]{32}$/i.test(secret)) back(MESSAGING, "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).");
+  if (token.length < 100) back(MESSAGING, "Paste the whole channel access token (LINE Developers → Messaging API → Issue).");
+
+  let info: Awaited<ReturnType<typeof lineBotInfo>>;
+  try {
+    info = await lineBotInfo(token);
+  } catch (e) {
+    back(MESSAGING, e instanceof LineError ? e.message : "Couldn't reach LINE to check the token. Try again.");
+  }
+
+  const row = {
+    secret_enc: encryptSecret(secret),
+    token_enc: encryptSecret(token),
+    account_name: info.displayName ?? null,
+    account_id: info.basicId ?? null,
+    is_enabled: true,
+    updated_at: new Date().toISOString(),
+  };
+  const { data: existing } = await supabase
+    .from("messaging_channels")
+    .select("id")
+    .eq("org_id", org.id)
+    .eq("provider", "line")
+    .is("location_id", null)
+    .maybeSingle();
+  const { error } = existing
+    ? await supabase.from("messaging_channels").update(row).eq("id", existing.id)
+    : await supabase.from("messaging_channels").insert({ org_id: org.id, provider: "line", ...row });
+  if (error) back(MESSAGING, friendly(error));
+  revalidatePath("/settings");
+  back(MESSAGING, `Connected to ${info.displayName ?? "your LINE account"}. Now paste the webhook address into LINE (step 3).`, "notice");
+}
+
+export async function setLineEnabled(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const on = str(form, "on") === "true";
+  const { error } = await supabase
+    .from("messaging_channels")
+    .update({ is_enabled: on, updated_at: new Date().toISOString() })
+    .eq("org_id", org.id)
+    .eq("provider", "line");
+  if (error) back(MESSAGING, friendly(error));
+  revalidatePath("/settings");
+  back(MESSAGING, on ? "LINE chats are on." : "LINE chats are off. Messages to your LINE account are ignored here.", "notice");
+}
+
+export async function disconnectLine() {
+  const { supabase, org } = await requireManager();
+  const { error } = await supabase.from("messaging_channels").delete().eq("org_id", org.id).eq("provider", "line");
+  if (error) back(MESSAGING, friendly(error));
+  revalidatePath("/settings");
+  back(MESSAGING, "LINE disconnected and its keys deleted. Remove the webhook address in LINE Developers too.", "notice");
 }
 
 // The public booking page (<slug>.courtix.app/book) on or off.

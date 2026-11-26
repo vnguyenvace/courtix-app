@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
-import { closeChat, handBack, sendAsContact, staffReply, takeOver } from "../actions";
+import { closeChat, handBack, linkMember, sendAsContact, staffReply, takeOver } from "../actions";
 import type { ChatConversation, ChatMessage } from "@/lib/types";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
@@ -44,8 +44,15 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
   ]);
   const conv = convData as Conv | null;
   if (!conv) notFound();
+  // LINE gives no phone number: staff say which member it is (once; it's remembered).
+  const needsLink = conv.channel === "line" && !conv.members;
+  const { data: memberData } = needsLink
+    ? await supabase.from("members").select("id, full_name").eq("org_id", org.id).is("line_user_id", null).order("full_name")
+    : { data: [] };
+  const linkable = (memberData ?? []) as { id: string; full_name: string }[];
+  const live = conv.channel !== "test";
   const msgs = (msgData ?? []) as ChatMessage[];
-  const name = conv.members?.full_name ?? conv.contact_name ?? conv.contact_phone;
+  const name = conv.members?.full_name ?? conv.contact_name ?? conv.contact_phone ?? "LINE user";
   const isTest = conv.channel === "test";
   const closed = conv.status === "closed";
 
@@ -56,8 +63,10 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
           <p className="small"><Link href="/chats">← Chats</Link></p>
           <h1>{name}</h1>
           <p className="muted">
-            {conv.members ? <Link href={`/members/${conv.members.id}`}>Member</Link> : "Visitor"} · {conv.contact_phone}
+            {conv.members ? <Link href={`/members/${conv.members.id}`}>Member</Link> : "Visitor"}
+            {conv.contact_phone ? ` · ${conv.contact_phone}` : ""}
             {isTest ? " · test chat" : ` · ${conv.channel === "line" ? "LINE" : "WhatsApp"}`}
+            {conv.channel === "line" && conv.contact_name && conv.members ? ` · LINE name: ${conv.contact_name}` : ""}
           </p>
         </div>
         <div className="actions">
@@ -88,6 +97,11 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                         {m.role === "contact" ? name : m.role === "assistant" ? ASSISTANT_NAME : "Staff"} · {time(m.created_at, tz)}
                       </span>
                       {m.body}
+                      {live && (m.role === "assistant" || m.role === "staff") && (
+                        <span className={`delivery ${m.delivery_error && !m.delivered_at ? "failed" : ""}`}>
+                          {m.delivered_at ? "Sent on LINE" : m.delivery_error ? `Not sent: ${m.delivery_error}` : "Sending…"}
+                        </span>
+                      )}
                     </div>
                   )}
                   {items.map((e, i) => <EventLine key={`${m.id}-${i}`} e={e} />)}
@@ -100,6 +114,26 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
         </section>
 
         <div className="stack">
+          {needsLink && (
+            <section className="card">
+              <h2>Who is this?</h2>
+              <p className="muted small">
+                LINE doesn&apos;t share phone numbers. If {name} is a member, pick them: the assistant then knows their
+                package and bookings (and can book with it), and recognises them next time.
+              </p>
+              <form action={linkMember} className="form">
+                <input type="hidden" name="conversation_id" value={conv.id} />
+                <select name="member_id" defaultValue="" required>
+                  <option value="" disabled>Choose a member</option>
+                  {linkable.map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                  ))}
+                </select>
+                <button style={{ justifySelf: "start" }}>Link to member</button>
+              </form>
+            </section>
+          )}
+
           {isTest && !closed && (
             <section className="card">
               <h2>Write as {name}</h2>
@@ -120,11 +154,9 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
               <form action={staffReply} className="form">
                 <input type="hidden" name="conversation_id" value={conv.id} />
                 <textarea name="message" rows={3} required />
-                <button style={{ justifySelf: "start" }}>Add reply</button>
+                <button style={{ justifySelf: "start" }}>{conv.channel === "line" ? "Send on LINE" : "Add reply"}</button>
                 <span className="muted small">
-                  {isTest
-                    ? "Test chat: nothing is sent anywhere."
-                    : "WhatsApp isn't connected yet: send it from your phone too."}{" "}
+                  {isTest ? "Test chat: nothing is sent anywhere." : conv.channel === "line" ? "Sent on LINE straight away." : "WhatsApp isn't connected yet: send it from your phone too."}{" "}
                   Replying takes the chat over from the assistant.
                 </span>
               </form>

@@ -6,6 +6,8 @@ import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, optStr, str } from "@/lib/form";
 import { clubVoice, draftMessage, lineShareLink, whatsappLink, type ClubVoice, type FollowupReason } from "@/lib/ai";
 import { draftAndSave as draftAndSaveFor, type Candidate } from "@/lib/followups";
+import { loadLine } from "@/lib/messaging";
+import { linePush } from "@/lib/line";
 import type { Org } from "@/lib/types";
 
 const PAGE = "/followups";
@@ -138,10 +140,42 @@ export async function sendOnWhatsApp(form: FormData) {
 /** Opens LINE with the message filled in; staff pick the member's chat there. */
 export async function sendOnLine(form: FormData) {
   const page = pageOf(form);
-  const { supabase, userId } = await requireOrg();
+  const { supabase, userId, org, role } = await requireOrg();
   const id = str(form, "message_id");
   const body = str(form, "body");
   if (!body) back(page, "The message can't be empty.");
+
+  // Member linked on LINE and the club's LINE connected: send it directly (one tap, no share screen).
+  const { data: msg } = await supabase
+    .from("ai_messages")
+    .select("org_id, status, body, members(line_user_id)")
+    .eq("id", id)
+    .single();
+  const memberRel = msg?.members as unknown as { line_user_id: string | null } | { line_user_id: string | null }[] | null;
+  const lineUser = (Array.isArray(memberRel) ? memberRel[0] : memberRel)?.line_user_id ?? null;
+  if (lineUser && msg) {
+    const line = await loadLine(supabase, msg.org_id).catch(() => null);
+    if (line) {
+      // Check before anything leaves: same rule the database enforces when it's marked sent.
+      if (msg.status !== "draft" && msg.status !== "approved") back(page, "This message was already sent or dismissed.");
+      if (org.followup_mode === "approve" && !canManage(role)) {
+        if (msg.status !== "approved") back(page, "An owner or manager needs to approve this message before it goes out");
+        if (body !== msg.body) back(page, "This message was approved as it is. Ask an owner or manager to change it");
+      }
+      try {
+        await linePush(line.token, lineUser, [body]);
+      } catch (e) {
+        back(page, `Not sent on LINE: ${e instanceof Error ? e.message : "LINE error"}`);
+      }
+      const { error: markErr } = await supabase
+        .from("ai_messages")
+        .update({ body, status: "sent", sent_at: new Date().toISOString(), sent_by: userId, channel: "line" })
+        .eq("id", id);
+      if (markErr) back(page, `Sent on LINE, but not marked as sent: ${friendly(markErr)}`);
+      refresh();
+      back(page, "Sent on LINE.", "notice");
+    }
+  }
 
   const { error } = await supabase
     .from("ai_messages")

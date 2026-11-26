@@ -22,9 +22,10 @@ function ChatList({ rows, tz, empty }: { rows: Row[]; tz: string; empty: string 
         <li key={c.id}>
           <Link href={`/chats/${c.id}`} className="chat-row">
             <span className="chat-row-main">
-              <strong>{c.members?.full_name ?? c.contact_name ?? c.contact_phone}</strong>
+              <strong>{c.members?.full_name ?? c.contact_name ?? c.contact_phone ?? "LINE user"}</strong>
               <span className="muted small">
-                {c.members ? "Member" : "Visitor"} · {c.contact_phone}
+                {c.members ? "Member" : "Visitor"}
+                {c.contact_phone ? ` · ${c.contact_phone}` : ""}
                 {c.channel === "test" ? " · test chat" : ` · ${c.channel === "line" ? "LINE" : "WhatsApp"}`}
               </span>
               {c.status === "staff" && c.handoff_reason && <span className="small">{c.handoff_reason}</span>}
@@ -107,7 +108,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
           <section className="card">
             <h2>Try it: test chat</h2>
             <p className="muted small">
-              WhatsApp isn&apos;t connected yet. Play a member or a visitor here to see how {ASSISTANT_NAME} answers and books.
+              Play a member or a visitor here to see how {ASSISTANT_NAME} answers and books. Real chats come in from
+              your LINE account once it&apos;s connected (Settings → Messaging).
               Bookings it makes are real (they appear on the sessions and courts), so cancel them afterwards.
             </p>
             <form action={startTestChat} className="form">

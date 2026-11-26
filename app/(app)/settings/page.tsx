@@ -5,6 +5,7 @@ import { Banner, type SearchParams } from "@/components/Banner";
 import { LANGUAGES } from "@/components/MemberFields";
 import { formatMoney } from "@/lib/time";
 import { brandCss } from "@/lib/brand";
+import { secretsConfigured } from "@/lib/secrets";
 import { ClubLogo } from "@/components/ClubLogo";
 import {
   addCourt,
@@ -18,6 +19,9 @@ import {
   saveBrandColors,
   uploadLogo,
   setChatMode,
+  connectLine,
+  disconnectLine,
+  setLineEnabled,
   setOnlineSignupMode,
   setPublicBooking,
   setPriorityDays,
@@ -100,7 +104,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const coverage = (covData ?? []) as PackageCoverage[];
   const sessionTypes = (typeData ?? []) as Pick<SessionType, "id" | "name" | "category">[];
   const typeName = new Map(sessionTypes.map((t) => [t.id, t.name]));
-  const bookingUrl = (await currentHost()).clubUrl(org.slug, "/book");
+  const host = await currentHost();
+  const bookingUrl = host.clubUrl(org.slug, "/book");
+  // The club's LINE connection (never the encrypted keys: this page doesn't need them).
+  const { data: lineData } = await supabase
+    .from("messaging_channels")
+    .select("id, account_name, account_id, is_enabled, webhook_key, last_event_at")
+    .eq("org_id", org.id)
+    .eq("provider", "line")
+    .maybeSingle();
+  const lineChannel = lineData as { account_name: string | null; account_id: string | null; is_enabled: boolean; webhook_key: string; last_event_at: string | null } | null;
+  const lineWebhook = lineChannel ? host.rootUrl(`/api/line/${lineChannel.webhook_key}`) : null;
+  const canStoreKeys = secretsConfigured();
   const bookingQr = await QRCode.toString(bookingUrl, { type: "svg", margin: 1, width: 180 });
 
   return (
@@ -225,6 +240,83 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                 {editable && <button style={{ justifySelf: "start" }}>Save</button>}
               </fieldset>
             </form>
+          </section>
+
+          <section className="card" id="messaging">
+            <h2>Messaging: LINE</h2>
+            <p className="muted small">
+              Connect your club&apos;s own LINE Official Account. Messages to it appear in Chats, {ASSISTANT_NAME} answers
+              them (see Chat below), and your replies go out on LINE.
+            </p>
+            {lineChannel ? (
+              <div className="stack" style={{ gap: 10, marginTop: 8 }}>
+                <div className="actions">
+                  <span className={`badge ${lineChannel.is_enabled ? "ok" : ""}`}>
+                    {lineChannel.is_enabled ? "Connected" : "Off"}
+                  </span>
+                  <strong>{lineChannel.account_name ?? "LINE account"}</strong>
+                  {lineChannel.account_id && <span className="muted small">{lineChannel.account_id}</span>}
+                </div>
+                <label className="small">
+                  Webhook URL (paste into LINE Developers → Messaging API → Webhook URL, then Verify and turn on Use webhook)
+                  <input readOnly value={lineWebhook ?? ""} />
+                </label>
+                <span className="muted small">
+                  {lineChannel.last_event_at
+                    ? `Last message from LINE: ${new Date(lineChannel.last_event_at).toLocaleString("en-GB", { timeZone: org.timezone, dateStyle: "medium", timeStyle: "short" })}`
+                    : "No messages from LINE yet. After pasting the webhook URL, send your LINE account a message to test."}
+                </span>
+                {editable && (
+                  <div className="actions">
+                    <form action={setLineEnabled}>
+                      <input type="hidden" name="on" value={String(!lineChannel.is_enabled)} />
+                      <button>{lineChannel.is_enabled ? "Turn LINE chats off" : "Turn LINE chats on"}</button>
+                    </form>
+                    <form action={disconnectLine}>
+                      <button className="link danger">Disconnect and delete keys</button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <ol className="small steps">
+                <li>
+                  Create a LINE Official Account for the club (or use yours) and turn on <strong>Messaging API</strong> in
+                  LINE Official Account Manager → Settings.
+                </li>
+                <li>
+                  In <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers</a>, open
+                  the channel: copy the <strong>Channel secret</strong> (Basic settings) and issue a{" "}
+                  <strong>Channel access token</strong> (Messaging API tab). Paste both below.
+                </li>
+                <li>Courtix then shows a webhook URL to paste back into the Messaging API tab.</li>
+                <li>
+                  In LINE Official Account Manager → Response settings, turn off <strong>Auto-response messages</strong>, so
+                  members get one answer, not two.
+                </li>
+              </ol>
+            )}
+            {editable && (
+              <form action={connectLine} className="form" style={{ marginTop: 12 }}>
+                {!canStoreKeys && (
+                  <div className="banner warn">Courtix can&apos;t store LINE keys yet (CHANNEL_SECRETS_KEY isn&apos;t set).</div>
+                )}
+                <fieldset disabled={!canStoreKeys} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 10 }}>
+                  <label>
+                    Channel secret
+                    <input name="channel_secret" type="password" autoComplete="off" required placeholder="32 letters and numbers" />
+                  </label>
+                  <label>
+                    Channel access token
+                    <input name="access_token" type="password" autoComplete="off" required placeholder="The long token from Messaging API → Issue" />
+                  </label>
+                  <span className="muted small">Stored encrypted. Nobody can read them back here, not even you.</span>
+                  <button className="primary" style={{ justifySelf: "start" }}>
+                    {lineChannel ? "Replace keys" : "Connect LINE"}
+                  </button>
+                </fieldset>
+              </form>
+            )}
           </section>
 
           <section className="card" id="chat">

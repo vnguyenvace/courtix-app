@@ -6,7 +6,8 @@ import { cookieDomain, requestHost } from "@/lib/tenant";
 // "/" is the club's public front page (app/page.tsx); on the main site it redirects to /dashboard,
 // which is protected as before.
 // /api/cron: scheduled jobs, protected by CRON_SECRET in the route itself (no user session).
-const PUBLIC_PATHS = ["/login", "/auth", "/book", "/api/cron"];
+// /api/line: LINE webhooks, protected by LINE's signature with the club's channel secret.
+const PUBLIC_PATHS = ["/login", "/auth", "/book", "/api/cron", "/api/line"];
 
 // Keeps the Supabase session fresh and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {

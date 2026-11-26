@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/org";
 import { back, friendly, str } from "@/lib/form";
 import { contactApiMessage, runChatTurn, staffApiMessage } from "@/lib/chat";
+import { deliverChat } from "@/lib/messaging";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
 // Chats: conversations with members, answered by Claude, handed to staff when needed.
@@ -85,9 +86,12 @@ export async function staffReply(form: FormData) {
     .update({ status: "staff", last_message_at: new Date().toISOString() })
     .eq("id", id)
     .neq("status", "closed");
+  // LINE chats: send it now (push). Test chats: nothing is sent anywhere.
+  const out = await deliverChat(supabase, id);
   revalidatePath("/chats");
   revalidatePath(`/chats/${id}`);
-  // WhatsApp isn't connected yet, so nothing is sent from here: say so on test chats.
+  if (out.error) back(`/chats/${id}`, `Saved, but not sent: ${out.error}`);
+  if (out.sent) back(`/chats/${id}`, "Sent on LINE.", "notice");
   redirect(`/chats/${id}#latest`);
 }
 
@@ -109,8 +113,9 @@ export async function handBack(form: FormData) {
     .eq("id", id)
     .neq("status", "closed");
   if (error) back(`/chats/${id}`, friendly(error));
-  // If the member wrote while staff had the chat, Claude answers that now.
+  // If the member wrote while staff had the chat, the assistant answers that now.
   const r = await runChatTurn(supabase, org, locations, id);
+  await deliverChat(supabase, id);
   revalidatePath("/chats");
   if (r.replied || r.handedOff || r.error) afterTurn(id, r);
   back(`/chats/${id}`, `${ASSISTANT_NAME} is answering this chat again.`, "notice");
@@ -123,4 +128,17 @@ export async function closeChat(form: FormData) {
   if (error) back(`/chats/${id}`, friendly(error));
   revalidatePath("/chats");
   back("/chats", "Chat closed.", "notice");
+}
+
+/** LINE chats: say which member this is. Saved on the member, so later chats are recognised. */
+export async function linkMember(form: FormData) {
+  const { supabase } = await requireOrg();
+  const id = str(form, "conversation_id");
+  const memberId = str(form, "member_id");
+  if (!memberId) back(`/chats/${id}`, "Pick the member first.");
+  const { error } = await supabase.rpc("chat_link_member", { p_conversation: id, p_member: memberId });
+  if (error) back(`/chats/${id}`, friendly(error));
+  revalidatePath("/chats");
+  revalidatePath(`/chats/${id}`);
+  back(`/chats/${id}`, "Linked. The assistant now knows their package and bookings, and recognises them next time.", "notice");
 }
