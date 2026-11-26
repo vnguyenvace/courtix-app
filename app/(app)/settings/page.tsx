@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/time";
 import { brandCss } from "@/lib/brand";
 import { secretsConfigured } from "@/lib/secrets";
 import { promptPayPayload } from "@/lib/promptpay";
+import { slipCheckConfigured } from "@/lib/slipCheck";
 import { lineQuota } from "@/lib/line";
 import { loadLine } from "@/lib/messaging";
 import { ClubLogo } from "@/components/ClubLogo";
@@ -357,10 +358,22 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                     <input name="promptpay_id" defaultValue={org.promptpay_id ?? ""} inputMode="numeric" placeholder="081 234 5678 or 13-digit tax ID" />
                   </label>
                   <label>
-                    Account name (shown to payers)
+                    Account name (exactly as your banking app shows it)
                     <input name="promptpay_name" defaultValue={org.promptpay_name ?? ""} maxLength={80} placeholder="Raccoon Pickleball Co., Ltd." />
                   </label>
                 </div>
+                <label className="check" style={{ alignItems: "flex-start" }}>
+                  <input type="checkbox" name="slip_autoverify" defaultChecked={org.slip_autoverify} />
+                  <span>
+                    <strong>Check slips automatically</strong>
+                    <span className="muted small" style={{ display: "block" }}>
+                      When a payer sends their slip, Courtix confirms the transfer with the bank network. It&apos;s marked
+                      paid only if the amount is exact, it went to your PromptPay (and account name), it&apos;s recent and
+                      the slip was never used before. Anything else waits for you, with the reason.
+                      {slipCheckConfigured() ? "" : " (Not connected yet: Courtix support needs to add the slip-check key.)"}
+                    </span>
+                  </span>
+                </label>
                 {editable && <button style={{ justifySelf: "start" }}>Save</button>}
               </fieldset>
             </form>

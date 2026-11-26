@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, str } from "@/lib/form";
 import { LOGO_MAX_BYTES, normalizeSlip } from "@/lib/logo";
+import { checkSlipForOrder } from "@/lib/slipCheck";
+import { serviceClient } from "@/lib/supabase/service";
 
 // Recording money the club received (Step 3). Orders are created by the database for every
 // paid thing; staff mark them paid here, on the session roster or on the member page.
@@ -80,4 +82,22 @@ export async function resolveRefund(form: FormData) {
   if (error) back(page, friendly(error));
   refresh();
   back(page, refunded ? "Marked as refunded." : "Kept: no refund.", "notice");
+}
+
+/** Run the automatic slip check again (e.g. a Bangkok Bank slip that was too new). */
+export async function recheckSlip(form: FormData) {
+  const { supabase } = await requireOrg();
+  const page = pageOf(form);
+  // As the staff member first: RLS decides whether they may see this order and its slip.
+  const { data: o } = await supabase.from("orders").select("id, slip_path, status").eq("id", str(form, "order_id")).maybeSingle();
+  if (!o?.slip_path || o.status !== "pending") back(page, "There's no slip to check on this payment.");
+  const { data: file, error } = await supabase.storage.from("payment-slips").download(o.slip_path);
+  if (error || !file) back(page, "Couldn't open the slip.");
+  const result = await checkSlipForOrder(serviceClient(), o.id, Buffer.from(await file.arrayBuffer()));
+  refresh();
+  back(
+    page,
+    result.status === "verified" ? "Slip checked: paid." : `Slip not confirmed: ${result.reasons.join("; ")}.`,
+    result.status === "verified" ? "notice" : "error",
+  );
 }

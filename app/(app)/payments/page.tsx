@@ -3,7 +3,7 @@ import { requireOrg, canManage } from "@/lib/org";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
 import { formatMoney, todayIn, zonedToUtc } from "@/lib/time";
-import { markUnpaid, resolveRefund } from "./actions";
+import { markUnpaid, recheckSlip, resolveRefund } from "./actions";
 import type { Order } from "@/lib/types";
 
 // Payments (Step 3): what members and guests still owe, what was received, and refunds to decide.
@@ -138,6 +138,17 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                         </>
                       )}
                     </span>
+                    {o.slip_check && o.slip_check.status !== "verified" && (
+                      <div className="small slip-check">
+                        Automatic check: {o.slip_check.reasons.join("; ")}
+                        {o.slip_check.receiver ? ` (slip: ${o.slip_check.receiver})` : ""}
+                        <form action={recheckSlip} className="inline">
+                          <input type="hidden" name="order_id" value={o.id} />
+                          <input type="hidden" name="return_to" value={self} />
+                          <button className="link" data-pending-label="Checking…">Check again</button>
+                        </form>
+                      </div>
+                    )}
                     <MarkPaidForm orderId={o.id} returnTo={self} />
                   </>
                 )}
@@ -146,6 +157,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                     {METHOD_LABELS[o.method ?? ""] ?? o.method} · {o.paid_at ? when(o.paid_at, tz) : ""}
                     {o.received_by === userId ? " · by you" : ""}
                     {o.note ? ` · ${o.note}` : ""}
+                    {o.slip_check?.status === "verified" && o.slip_check.trans_ref ? ` · bank ref ${o.slip_check.trans_ref}` : ""}
                     {o.slip_path && (
                       <>
                         {" · "}

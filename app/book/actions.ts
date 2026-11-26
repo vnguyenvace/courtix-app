@@ -193,10 +193,11 @@ export async function sendPayerSlip(form: FormData) {
   const file = form.get("slip");
   if (!(file instanceof File) || file.size === 0) return go(path, "error", "Choose a photo or screenshot of the slip.");
   if (file.size > 4 * 1024 * 1024) return go(path, "error", "That photo is over 4 MB. Try a screenshot.");
+  let verified = false;
   try {
-    await savePayerSlip(slug, orderId, Buffer.from(await file.arrayBuffer()));
+    verified = (await savePayerSlip(slug, orderId, Buffer.from(await file.arrayBuffer()))).status === "verified";
   } catch (e) {
     go(path, "error", e instanceof Error ? e.message : "The slip didn't upload. Please try again.");
   }
-  go(path, "notice", "Slip sent. The club will check it and confirm.");
+  go(path, "notice", verified ? "Payment confirmed. Thank you, see you on court." : "Slip sent. The club will check it and confirm.");
 }

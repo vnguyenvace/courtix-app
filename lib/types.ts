@@ -41,6 +41,7 @@ export interface Org {
   payment_note: string | null; // how members pay, in the club's words (booking confirmations)
   promptpay_id: string | null; // club's PromptPay (0xxxxxxxxx phone, 13-digit ID or 15-digit e-wallet)
   promptpay_name: string | null; // account name payers see next to the QR
+  slip_autoverify: boolean; // check payer slips with the bank network and mark paid when they match
 }
 
 export interface Court {
@@ -462,5 +463,6 @@ export interface Order {
   note: string | null;
   slip_path: string | null; // private Storage bucket payment-slips
   payer_slip_at: string | null; // the payer sent a slip from the pay page: check and mark paid
+  slip_check: { status: "verified" | "mismatch" | "error"; reasons: string[]; checked_at: string; trans_ref?: string; receiver?: string } | null;
   created_at: string;
 }

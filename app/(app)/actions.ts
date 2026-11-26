@@ -703,7 +703,11 @@ export async function savePromptPay(form: FormData) {
   }
   const { error } = await supabase
     .from("orgs")
-    .update({ promptpay_id: id || null, promptpay_name: str(form, "promptpay_name").slice(0, 80) || null })
+    .update({
+      promptpay_id: id || null,
+      promptpay_name: str(form, "promptpay_name").slice(0, 80) || null,
+      slip_autoverify: form.get("slip_autoverify") === "on",
+    })
     .eq("id", org.id);
   if (error) back("/settings#payments", friendly(error));
   revalidatePath("/settings");

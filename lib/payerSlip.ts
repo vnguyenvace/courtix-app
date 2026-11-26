@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizeSlip } from "@/lib/logo";
 import { serviceClient } from "@/lib/supabase/service";
+import { checkSlipForOrder, type SlipCheckResult } from "@/lib/slipCheck";
 
 // A payer sends their transfer slip from the pay page. Saved by the server (visitors get no access
 // to the slip storage, so nobody can list or open other people's slips): this checks the order is
@@ -9,7 +10,7 @@ import { serviceClient } from "@/lib/supabase/service";
 
 const MAX_SLIPS = 3;
 
-export async function savePayerSlip(slug: string, orderId: string, file: Buffer): Promise<void> {
+export async function savePayerSlip(slug: string, orderId: string, file: Buffer): Promise<SlipCheckResult> {
   const db = serviceClient();
   const { data: order } = await db
     .from("orders")
@@ -36,4 +37,6 @@ export async function savePayerSlip(slug: string, orderId: string, file: Buffer)
   if (upErr) throw new Error("The slip didn't upload. Please try again.");
   const { error } = await db.rpc("public_attach_slip", { p_slug: slug, p_order: orderId, p_path: path });
   if (error) throw new Error(error.message);
+  // Check it with the bank network straight away; paid automatically if it clearly matches.
+  return checkSlipForOrder(db, orderId, jpg);
 }
