@@ -84,12 +84,13 @@ export default async function PublicSessionPage({
                     ? `Please pay ${formatMoney(Number(param(sp, "price")), club.currency)} at the club.`
                     : ""
               } See you on court.`}{" "}
-          <Link href="/book/me">My bookings</Link>
+          {param(sp, "pay") ? <Link href={`/book/pay/${param(sp, "pay")}`}>Pay now by PromptPay</Link> : <Link href="/book/me">My bookings</Link>}
         </div>
       )}
       {done === "booked" && (
         <div className="banner notice" role="status">
-          You&apos;re booked for {s.name} on {when}. Pay {formatMoney(s.price, club.currency)} at the club. See you on court.
+          You&apos;re booked for {s.name} on {when}. Pay {formatMoney(s.price, club.currency)}
+          {param(sp, "pay") ? <> <Link href={`/book/pay/${param(sp, "pay")}`}>now by PromptPay</Link> or</> : ""} at the club. See you on court.
         </div>
       )}
       {done === "requested" && (

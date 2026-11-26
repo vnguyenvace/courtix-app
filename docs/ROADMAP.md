@@ -197,6 +197,13 @@ Left open: members recognised by phone with a one-time WhatsApp code (needs Step
 
 ## Step 7: PromptPay checkout  ☐
 
+**Part A built, 26 Nov 2026: PromptPay QR without a payment provider (Julian: "build A first").** Migrations `20261126090000_promptpay.sql`, `20261126090100_payer_slips_server_side.sql`, `20261126090200_order_lookup.sql`, test `promptpay_test.sql`, `lib/promptpay.ts`, `lib/payerSlip.ts`, pages `/book/pay/[id]` (+ `/qr` PNG).
+- Settings → Payments: the club's PromptPay ID (mobile, national/tax ID or e-wallet) and account name, with a THB 1 test QR to scan. `lib/promptpay.ts` builds the Thai QR (EMVCo) payload with the exact amount; checked against all 8 test vectors of the dtinth/promptpay-qr library.
+- Pay page per unpaid order (payment link by order id; shows only items and amount, no names): the QR, "Save QR image" for paying on the same phone, and "Send your slip". Linked from: guest/member court bookings (straight to the pay page), session sign-ups (banner), My bookings (Pay per unpaid item), LINE booking confirmations ("Pay by PromptPay: <link>"), Payments → Show PromptPay QR (scan from the desk screen). Court requests waiting for approval show no QR.
+- Slips are saved by the server (`lib/payerSlip.ts`, service identity: unpaid order, max 3 slips, shrunk to JPEG); visitors get no storage access (a direct upload would have needed read access, and club ids are public). Staff see "Slip received · see slip" on Payments and mark paid. Money goes straight to the club; nothing is marked paid automatically.
+- Tested locally: settings + test QR, visitor court booking → pay page with QR and PNG download, slip → "Slip received" for staff, LINE confirmation with the pay link (in production the link is https://<club>.courtix.app/book/pay/…; locally it lacks the :3000 port).
+- Part B (online checkout with automatic confirmation) is still open, below.
+
 - Payment provider: Opn (Omise) or Stripe, both of which support PromptPay in Thailand. **Julian picks after comparing fees.**
 - Checkout from the public page and from a staff "send payment link" button; the webhook marks the order paid; failed or expired payments release the held spot.
 - Per-club provider keys (SaaS): store encrypted, never expose to the client.

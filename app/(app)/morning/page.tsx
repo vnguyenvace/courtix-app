@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireOrg, canManage } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { lineShareLink, whatsappLink, whatsappNumber } from "@/lib/ai";
-import { NOTICE_LABELS, noticeText, type NoticeKind, type NoticePayload } from "@/lib/notices";
+import { NOTICE_LABELS, noticeText, payUrlFor, type NoticeKind, type NoticePayload } from "@/lib/notices";
 import { markNoticeDone } from "./actions";
 import { addDays, formatLongDay, formatMoney, localTime, todayIn, zonedToUtc } from "@/lib/time";
 import { approveAll, approveDraft, dismissDraft, markSent, sendOnLine, sendOnWhatsApp, writeDrafts } from "../followups/actions";
@@ -104,7 +104,7 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
     supabase.from("member_notices").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("status", "sent").gte("sent_at", since),
     supabase
       .from("member_notices")
-      .select("id, kind, payload, error, created_at, members(id, full_name, language, phone, whatsapp, member_channel)")
+      .select("id, kind, dedupe_key, payload, error, created_at, members(id, full_name, language, phone, whatsapp, member_channel)")
       .eq("org_id", org.id)
       .in("status", ["manual", "failed"])
       .gte("created_at", new Date(Date.now() - 3 * 24 * 3600_000).toISOString())
@@ -113,11 +113,18 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
   type ManualNotice = {
     id: string;
     kind: NoticeKind;
+    dedupe_key: string;
     payload: NoticePayload;
     error: string | null;
     members: { id: string; full_name: string; language: string; phone: string | null; whatsapp: string | null; member_channel: string | null } | null;
   };
   const manual = (manualData ?? []) as unknown as ManualNotice[];
+  // Booking confirmations with something to pay get the PromptPay pay link.
+  const payUrls = new Map(
+    await Promise.all(
+      manual.map(async (n) => [n.id, await payUrlFor(supabase, { slug: org.slug, promptpay_id: org.promptpay_id }, n)] as const),
+    ),
+  );
   const sessions = (sessionData ?? []) as SessionOverview[];
   const short = sessions.filter((s) => s.booked < s.min_players);
   const sales = (salesData ?? []) as { price_paid: number | null }[];
@@ -244,7 +251,7 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
             <div className="stack">
               {manual.map((n) => {
                 const m = n.members;
-                const text = noticeText(n.kind, n.payload, m?.language ?? "en", { name: org.name, currency: org.currency, paymentNote: org.payment_note });
+                const text = noticeText(n.kind, { ...n.payload, pay_url: payUrls.get(n.id) ?? null }, m?.language ?? "en", { name: org.name, currency: org.currency, paymentNote: org.payment_note });
                 const wa = whatsappLink(m?.whatsapp ?? m?.phone, text);
                 return (
                   <article key={n.id} className="card morning-msg">

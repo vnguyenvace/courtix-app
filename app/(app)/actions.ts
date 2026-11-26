@@ -8,6 +8,7 @@ import { isValidDate, zonedToUtc } from "@/lib/time";
 import { normalizeHex } from "@/lib/brand";
 import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
 import { encryptSecret, secretsConfigured } from "@/lib/secrets";
+import { promptPayKind } from "@/lib/promptpay";
 import { LineError, lineBotInfo } from "@/lib/line";
 import { sendPendingNotices } from "@/lib/notices";
 import type { BookingKind, MessageChannel } from "@/lib/types";
@@ -690,4 +691,21 @@ export async function decideCourtRequest(form: FormData) {
   revalidatePath("/bookings");
   revalidatePath("/payments");
   back("/dashboard", approve ? "Court request approved. Let them know it's confirmed." : "Court request declined. The court is free again.", "notice");
+}
+
+// The club's PromptPay, for QR codes on pay pages (lib/promptpay.ts).
+export async function savePromptPay(form: FormData) {
+  const { supabase, org } = await requireManager();
+  let id = str(form, "promptpay_id").replace(/\D/g, "");
+  if (/^66\d{9}$/.test(id)) id = `0${id.slice(2)}`; // +66 81... → 081...
+  if (id && !promptPayKind(id)) {
+    back("/settings#payments", "Enter the PromptPay phone number (10 digits), national ID or tax ID (13 digits), or e-wallet ID (15 digits).");
+  }
+  const { error } = await supabase
+    .from("orgs")
+    .update({ promptpay_id: id || null, promptpay_name: str(form, "promptpay_name").slice(0, 80) || null })
+    .eq("id", org.id);
+  if (error) back("/settings#payments", friendly(error));
+  revalidatePath("/settings");
+  back("/settings#payments", id ? "PromptPay saved. Pay pages now show a QR with the amount." : "PromptPay removed. Pay pages say to pay at the club.", "notice");
 }

@@ -6,6 +6,7 @@ import { LANGUAGES } from "@/components/MemberFields";
 import { formatMoney } from "@/lib/time";
 import { brandCss } from "@/lib/brand";
 import { secretsConfigured } from "@/lib/secrets";
+import { promptPayPayload } from "@/lib/promptpay";
 import { lineQuota } from "@/lib/line";
 import { loadLine } from "@/lib/messaging";
 import { ClubLogo } from "@/components/ClubLogo";
@@ -22,6 +23,7 @@ import {
   uploadLogo,
   setChatMode,
   saveAutoNotices,
+  savePromptPay,
   connectLine,
   disconnectLine,
   setLineEnabled,
@@ -119,6 +121,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const lineChannel = lineData as { account_name: string | null; account_id: string | null; is_enabled: boolean; webhook_key: string; last_event_at: string | null } | null;
   const lineWebhook = lineChannel ? host.rootUrl(`/api/line/${lineChannel.webhook_key}`) : null;
   const canStoreKeys = secretsConfigured();
+  // A test QR (THB 1) so the owner can check it opens their own account in a banking app.
+  const promptPayQr = org.promptpay_id
+    ? await QRCode.toString(promptPayPayload(org.promptpay_id, 1), { type: "svg", margin: 1, width: 160 })
+    : null;
   // This month's LINE messages (automatic notices and late replies use them; quick replies don't).
   let quota: { limit: number | null; used: number } | null = null;
   if (lineChannel?.is_enabled && canStoreKeys) {
@@ -333,6 +339,39 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                   </button>
                 </fieldset>
               </form>
+            )}
+          </section>
+
+          <section className="card" id="payments">
+            <h2>Payments: PromptPay QR</h2>
+            <p className="muted small">
+              Members and guests see a PromptPay QR with the exact amount for anything they owe (after booking online, in
+              My bookings and in booking confirmations). They scan it in any Thai banking app; the money goes straight to
+              your account. You still mark it paid under Payments (payers can send their slip).
+            </p>
+            <form action={savePromptPay} className="form" style={{ marginTop: 8 }}>
+              <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 10 }}>
+                <div className="form-row">
+                  <label>
+                    PromptPay ID
+                    <input name="promptpay_id" defaultValue={org.promptpay_id ?? ""} inputMode="numeric" placeholder="081 234 5678 or 13-digit tax ID" />
+                  </label>
+                  <label>
+                    Account name (shown to payers)
+                    <input name="promptpay_name" defaultValue={org.promptpay_name ?? ""} maxLength={80} placeholder="Raccoon Pickleball Co., Ltd." />
+                  </label>
+                </div>
+                {editable && <button style={{ justifySelf: "start" }}>Save</button>}
+              </fieldset>
+            </form>
+            {promptPayQr && (
+              <div className="actions" style={{ alignItems: "flex-start", marginTop: 12 }}>
+                <div className="qr" role="img" aria-label="Test PromptPay QR for THB 1" dangerouslySetInnerHTML={{ __html: promptPayQr }} />
+                <p className="muted small" style={{ flex: "1 1 200px" }}>
+                  Test it: scan this with your banking app. It should show your account name and THB 1.00. You don&apos;t
+                  have to pay it.
+                </p>
+              </div>
             )}
           </section>
 

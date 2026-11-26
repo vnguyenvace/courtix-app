@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LineError, linePush } from "@/lib/line";
 import { loadLine } from "@/lib/messaging";
+import { clubUrl } from "@/lib/tenant";
 
 // Automatic service messages to members: booking reminders, package ending, waitlist moved up,
 // session cancelled. The database queues them (member_notices); this sends them.
@@ -33,6 +34,7 @@ export interface NoticePayload {
   ends_on?: string;
   amount?: number | string; // booking_confirmed: what's due (0 = nothing)
   covered_by?: string | null; // booking_confirmed: their package paid for it
+  pay_url?: string | null; // booking_confirmed: PromptPay pay page (added when sending)
 }
 
 /** Club details a notice may need. */
@@ -55,6 +57,7 @@ function dayName(date: string | undefined, lang: string, withWeekday: boolean) {
 }
 
 type Texts = {
+  payLink: string; // "Pay by PromptPay: {link}"
   confirmed: string; // {what} = session or court name, {money} = what's due or "covered"
   toPay: string;
   covered: string;
@@ -70,6 +73,7 @@ type Texts = {
 // {club} {session} {court} {location} {day} (weekday + date) {date} (date only) {start} {end} {package} {reason}
 const TEXTS: Record<string, Texts> = {
   en: {
+    payLink: "Pay by PromptPay: {link} ",
     confirmed: "{club}: you're booked for {what}, {day}, {start}–{end} at {location}. {money}Can't make it? Just reply to this message.",
     toPay: "To pay: {amount}. {how}",
     covered: "Covered by your package. ",
@@ -82,6 +86,7 @@ const TEXTS: Record<string, Texts> = {
     reason: " ({reason})",
   },
   th: {
+    payLink: "ชำระผ่าน PromptPay: {link} ",
     confirmed: "{club}: จองให้แล้วค่ะ {what} {day} เวลา {start}–{end} ที่ {location} {money}ถ้ามาไม่ได้ ตอบกลับข้อความนี้ได้เลยค่ะ",
     toPay: "ยอดที่ต้องชำระ: {amount} {how}",
     covered: "รวมอยู่ในแพ็กเกจของคุณแล้วค่ะ ",
@@ -94,6 +99,7 @@ const TEXTS: Record<string, Texts> = {
     reason: " (เหตุผล: {reason})",
   },
   ru: {
+    payLink: "Оплатить через PromptPay: {link} ",
     confirmed: "{club}: вы записаны: {what}, {day}, {start}–{end}, {location}. {money}Если не сможете, просто ответьте на это сообщение.",
     toPay: "К оплате: {amount}. {how}",
     covered: "Входит в ваш пакет. ",
@@ -106,6 +112,7 @@ const TEXTS: Record<string, Texts> = {
     reason: " (причина: {reason})",
   },
   zh: {
+    payLink: "PromptPay付款：{link} ",
     confirmed: "{club}：已为您预订{what}，时间：{day} {start}–{end}，地点：{location}。{money}如无法参加，请直接回复本消息。",
     toPay: "应付金额：{amount}。{how}",
     covered: "已包含在您的课程包中。",
@@ -118,6 +125,7 @@ const TEXTS: Record<string, Texts> = {
     reason: "（原因：{reason}）",
   },
   de: {
+    payLink: "Mit PromptPay bezahlen: {link} ",
     confirmed: "{club}: Du bist gebucht: {what}, {day}, {start}–{end} in {location}. {money}Falls du nicht kannst, antworte einfach auf diese Nachricht.",
     toPay: "Zu zahlen: {amount}. {how}",
     covered: "In deinem Paket enthalten. ",
@@ -130,6 +138,7 @@ const TEXTS: Record<string, Texts> = {
     reason: " (Grund: {reason})",
   },
   fr: {
+    payLink: "Payer par PromptPay : {link} ",
     confirmed: "{club} : c'est réservé : {what}, {day}, {start}–{end}, à {location}. {money}Si vous ne pouvez pas venir, répondez simplement à ce message.",
     toPay: "À régler : {amount}. {how}",
     covered: "Inclus dans votre forfait. ",
@@ -153,7 +162,8 @@ export function noticeText(kind: NoticeKind, p: NoticePayload, language: string,
     kind !== "booking_confirmed"
       ? ""
       : amount > 0
-        ? `${t.toPay.replace("{amount}", `${club.currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`).replace("{how}", club.paymentNote ? `${club.paymentNote.trim()} ` : "")}`.replace(/\s*$/, " ")
+        ? `${t.toPay.replace("{amount}", `${club.currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`).replace("{how}", club.paymentNote ? `${club.paymentNote.trim()} ` : "")}`.replace(/\s*$/, " ") +
+          (p.pay_url ? t.payLink.replace("{link}", p.pay_url) : "")
         : p.covered_by
           ? t.covered
           : "";
@@ -187,6 +197,7 @@ export function noticeText(kind: NoticeKind, p: NoticePayload, language: string,
 interface PendingRow {
   id: string;
   kind: NoticeKind;
+  dedupe_key: string;
   payload: NoticePayload;
   members: { language: string; line_user_id: string | null; notices_opt_out: boolean } | null;
 }
@@ -205,10 +216,10 @@ export async function sendPendingNotices(
   const result = { sent: 0, manual: 0, failed: 0 };
   try {
     const [{ data: org }, { data: rows }] = await Promise.all([
-      supabase.from("orgs").select("name, currency, payment_note").eq("id", orgId).single(),
+      supabase.from("orgs").select("name, slug, currency, payment_note, promptpay_id").eq("id", orgId).single(),
       supabase
         .from("member_notices")
-        .select("id, kind, payload, members(language, line_user_id, notices_opt_out)")
+        .select("id, kind, dedupe_key, payload, members(language, line_user_id, notices_opt_out)")
         .eq("org_id", orgId)
         .eq("status", "pending")
         .order("created_at")
@@ -235,7 +246,8 @@ export async function sendPendingNotices(
       }
       try {
         const club: NoticeClub = { name: org?.name ?? "", currency: org?.currency ?? "THB", paymentNote: org?.payment_note ?? null };
-        await linePush(line.token, m.line_user_id, [noticeText(n.kind, n.payload, m.language, club)]);
+        const payUrl = org ? await payUrlFor(supabase, { slug: org.slug, promptpay_id: org.promptpay_id }, n) : null;
+        await linePush(line.token, m.line_user_id, [noticeText(n.kind, { ...n.payload, pay_url: payUrl }, m.language, club)]);
         await supabase
           .from("member_notices")
           .update({ status: "sent", channel: "line", sent_at: new Date().toISOString(), error: null })
@@ -253,4 +265,25 @@ export async function sendPendingNotices(
     console.error("Notices: couldn't send", e);
   }
   return result;
+}
+
+/**
+ * The PromptPay pay page for a booking confirmation with something to pay, or null.
+ * The notice's dedupe key names what was booked (confirmed:reg:<id> / confirmed:court:<id>).
+ */
+export async function payUrlFor(
+  supabase: SupabaseClient,
+  club: { slug: string; promptpay_id: string | null },
+  notice: { kind: string; dedupe_key: string; payload: NoticePayload },
+): Promise<string | null> {
+  if (notice.kind !== "booking_confirmed" || !club.promptpay_id || Number(notice.payload.amount ?? 0) <= 0) return null;
+  const m = notice.dedupe_key.match(/^confirmed:(reg|court):([0-9a-f-]{36})$/);
+  if (!m) return null;
+  const { data } = await supabase
+    .from("order_items")
+    .select("order_id, orders!inner(status)")
+    .eq(m[1] === "reg" ? "registration_id" : "booking_id", m[2])
+    .eq("orders.status", "pending")
+    .maybeSingle();
+  return data ? clubUrl(club.slug, `/book/pay/${data.order_id}`, null) : null;
 }

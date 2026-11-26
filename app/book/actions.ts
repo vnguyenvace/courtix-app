@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { friendly, str } from "@/lib/form";
 import { clearMemberCookie, memberToken, requestMemberCode, setMemberCookie } from "@/lib/memberAuth";
 import { loadPublicClub } from "@/lib/public";
+import { savePayerSlip } from "@/lib/payerSlip";
 import { formatMoney } from "@/lib/time";
 
 // A visitor signs up for a session on the public booking page. All the rules (capacity,
@@ -30,9 +31,21 @@ export async function publicSignUp(form: FormData) {
   });
   if (error) redirect(`${path}?error=${encodeURIComponent(friendly(error))}`);
 
-  const raw = (data as { status?: string } | null)?.status;
+  const raw = (data as { status?: string; registration_id?: string } | null)?.status;
   const status = raw === "waitlisted" || raw === "requested" ? raw : "booked";
-  redirect(`${path}?done=${status}`);
+  // Booked with something to pay: offer the PromptPay pay page.
+  const pay = status === "booked" ? await orderFor(host.slug, { registration: (data as { registration_id?: string }).registration_id }) : null;
+  redirect(`${path}?done=${status}${pay ? `&pay=${pay}` : ""}`);
+}
+
+/** The unpaid order for a booking just made (for the pay page), or null. */
+async function orderFor(slug: string, ref: { registration?: string; booking?: string }) {
+  const { data } = await (await createClient()).rpc("public_order_for", {
+    p_slug: slug,
+    p_registration: ref.registration ?? null,
+    p_booking: ref.booking ?? null,
+  });
+  return (data as string | null) ?? null;
 }
 
 // ---------------------------------------------------------------- Members (sign in with a code)
@@ -97,8 +110,9 @@ export async function memberBookSession(form: FormData) {
     p_session: sessionId,
   });
   if (error) go(path, "error", friendly(error));
-  const r = data as { status: string; price: number; covered: boolean };
-  redirect(`${path}?done=member&status=${r.status}&price=${r.price}&covered=${r.covered ? 1 : 0}`);
+  const r = data as { registration_id: string; status: string; price: number; covered: boolean };
+  const pay = r.status === "booked" && Number(r.price) > 0 ? await orderFor(slug, { registration: r.registration_id }) : null;
+  redirect(`${path}?done=member&status=${r.status}&price=${r.price}&covered=${r.covered ? 1 : 0}${pay ? `&pay=${pay}` : ""}`);
 }
 
 export async function memberBookCourt(form: FormData) {
@@ -115,7 +129,9 @@ export async function memberBookCourt(form: FormData) {
   if (error) go(back, "error", friendly(error));
   const price = Number((data as { price: number }).price);
   const { club } = await loadPublicClub();
-  go("/book/me", "notice", price > 0 ? `Court booked. Please pay ${formatMoney(price, club.currency)} at the club.` : "Court booked.");
+  const pay = price > 0 ? await orderFor(slug, { booking: (data as { booking_id: string }).booking_id }) : null;
+  if (pay) go(`/book/pay/${pay}`, "notice", `Court booked. ${formatMoney(price, club.currency)} to pay.`);
+  go("/book/me", "notice", "Court booked.");
 }
 
 export async function memberCancel(form: FormData) {
@@ -152,8 +168,12 @@ export async function publicBookCourt(form: FormData) {
     p_marketing: form.get("marketing") === "on",
   });
   if (error) go(formPath, "error", friendly(error));
-  const r = data as { price: number; pending_approval: boolean };
+  const r = data as { booking_id: string; price: number; pending_approval: boolean };
   const { club } = await loadPublicClub();
+  if (!r.pending_approval && Number(r.price) > 0) {
+    const pay = await orderFor(slug, { booking: r.booking_id });
+    if (pay) go(`/book/pay/${pay}`, "notice", `You're booked. ${formatMoney(Number(r.price), club.currency)} to pay: by PromptPay below, or at the club.`);
+  }
   const pay = Number(r.price) > 0 ? ` Pay ${formatMoney(Number(r.price), club.currency)} at the club.` : "";
   go(
     back,
@@ -162,4 +182,21 @@ export async function publicBookCourt(form: FormData) {
       ? "Thanks, the court is held for you. The club will confirm on WhatsApp."
       : `You're booked.${pay} See you on court.`,
   );
+}
+
+/** The payer sends their transfer slip from the pay page (saved by the server; see lib/payerSlip.ts). */
+export async function sendPayerSlip(form: FormData) {
+  const slug = await clubSlug();
+  const orderId = str(form, "order_id");
+  const path = `/book/pay/${orderId}`;
+  if (!/^[0-9a-f-]{36}$/.test(orderId)) redirect("/book");
+  const file = form.get("slip");
+  if (!(file instanceof File) || file.size === 0) return go(path, "error", "Choose a photo or screenshot of the slip.");
+  if (file.size > 4 * 1024 * 1024) return go(path, "error", "That photo is over 4 MB. Try a screenshot.");
+  try {
+    await savePayerSlip(slug, orderId, Buffer.from(await file.arrayBuffer()));
+  } catch (e) {
+    go(path, "error", e instanceof Error ? e.message : "The slip didn't upload. Please try again.");
+  }
+  go(path, "notice", "Slip sent. The club will check it and confirm.");
 }

@@ -96,7 +96,22 @@ export default async function MemberPage({ searchParams }: { searchParams: Searc
             ) : (
               <p className="muted">No package at the moment. You pay the drop-in price at the club.</p>
             )}
-            {me.to_pay > 0 && <p className="small">To pay at the club: <strong>{formatMoney(me.to_pay, club.currency)}</strong></p>}
+            {me.to_pay > 0 && <p className="small">To pay: <strong>{formatMoney(me.to_pay, club.currency)}</strong></p>}
+            {me.unpaid.length > 0 && (
+              <ul className="list">
+                {me.unpaid.map((u) => (
+                  <li key={u.order_id}>
+                    <span className="small">
+                      {u.description}
+                      {u.slip_sent && <span className="muted"> · slip sent</span>}
+                    </span>
+                    <Link className="button small-button" href={`/book/pay/${u.order_id}`}>
+                      Pay {formatMoney(u.total, club.currency)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="public-day">

@@ -39,6 +39,8 @@ export interface Org {
   morning_run_on: string | null; // club's local date the morning job last ran
   auto_notices: string[]; // automatic service messages the club sends (see lib/notices.ts)
   payment_note: string | null; // how members pay, in the club's words (booking confirmations)
+  promptpay_id: string | null; // club's PromptPay (0xxxxxxxxx phone, 13-digit ID or 15-digit e-wallet)
+  promptpay_name: string | null; // account name payers see next to the QR
 }
 
 export interface Court {
@@ -459,5 +461,6 @@ export interface Order {
   received_by: string | null;
   note: string | null;
   slip_path: string | null; // private Storage bucket payment-slips
+  payer_slip_at: string | null; // the payer sent a slip from the pay page: check and mark paid
   created_at: string;
 }

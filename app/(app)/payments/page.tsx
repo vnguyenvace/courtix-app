@@ -127,7 +127,17 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                 <span className="small">{items}</span>
                 {tab === "due" && (
                   <>
-                    <span className="muted small">Since {when(o.created_at, tz)}</span>
+                    <span className="muted small">
+                      Since {when(o.created_at, tz)} ·{" "}
+                      <Link href={`/book/pay/${o.id}`} target="_blank">Show PromptPay QR</Link>
+                      {o.payer_slip_at && (
+                        <>
+                          {" · "}
+                          <strong style={{ color: "var(--warning)" }}>Slip received</strong>{" "}
+                          <Link href={`/payments/slip/${o.id}`} target="_blank">see slip</Link>: check your bank, then mark paid
+                        </>
+                      )}
+                    </span>
                     <MarkPaidForm orderId={o.id} returnTo={self} />
                   </>
                 )}

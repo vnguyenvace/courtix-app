@@ -101,6 +101,7 @@ export interface MemberMe {
   }[];
   courts: { id: string; court: string; location: string; starts_at: string; ends_at: string; timezone: string; price: number }[];
   to_pay: number;
+  unpaid: { order_id: string; total: number; slip_sent: boolean; description: string | null }[];
 }
 
 /** The member signed in on this browser (cookie), or null. Cached per request. */
