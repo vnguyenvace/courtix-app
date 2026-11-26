@@ -277,6 +277,22 @@ export async function setOnlineSignupMode(form: FormData) {
   );
 }
 
+// Chat: Claude answers only, or answers and books free / package-covered places.
+export async function setChatMode(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const mode = str(form, "mode") === "answer" ? "answer" : "book";
+  const { error } = await supabase.from("orgs").update({ chat_mode: mode }).eq("id", org.id);
+  if (error) back("/settings#chat", friendly(error));
+  revalidatePath("/", "layout");
+  back(
+    "/settings#chat",
+    mode === "book"
+      ? "Claude now answers chats and books free or package-covered places."
+      : "Claude now answers chats only. Bookings come to you.",
+    "notice",
+  );
+}
+
 // The public booking page (<slug>.courtix.app/book) on or off.
 export async function setPublicBooking(form: FormData) {
   const { supabase, org } = await requireManager();

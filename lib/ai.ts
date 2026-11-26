@@ -161,6 +161,45 @@ async function callClaude(system: string, user: string): Promise<string> {
   }
 }
 
+// ---------------------------------------------------------------- Raw Messages API call (chat with tools)
+
+/** A content block as the API sends it (text, thinking, tool_use, ...). Kept as-is for replay. */
+export type ApiBlock = { type: string; [key: string]: unknown };
+// "system" = a mid-conversation system message (operator facts added after a user turn).
+export type ApiMessage = { role: "user" | "assistant" | "system"; content: string | ApiBlock[] };
+export interface ApiResponse {
+  content: ApiBlock[];
+  stop_reason: string | null;
+}
+
+/** One Messages API request. The caller builds the body (model, system, tools, messages). */
+export async function claudeMessages(body: Record<string, unknown>, timeoutMs = 90_000): Promise<ApiResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({ model: AI_MODEL, max_tokens: 16000, ...body }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      if (res.status === 401) throw new Error("Claude API key was rejected. Check ANTHROPIC_API_KEY.");
+      if (res.status === 429) throw new Error("Claude API rate limit reached. Try again in a minute.");
+      throw new Error(`Claude API error ${res.status}: ${detail.slice(0, 200)}`);
+    }
+    const data = (await res.json()) as Partial<ApiResponse>;
+    return { content: data.content ?? [], stop_reason: data.stop_reason ?? null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Strips things models sometimes add around a message: quotes, labels, markdown. */
 export function cleanMessage(text: string): string {
   let t = text.trim();

@@ -17,6 +17,7 @@ import {
   removeLogo,
   saveBrandColors,
   uploadLogo,
+  setChatMode,
   setOnlineSignupMode,
   setPublicBooking,
   setPriorityDays,
@@ -217,6 +218,38 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                     <span className="muted small" style={{ display: "block" }}>
                       It waits as a request and doesn&apos;t take a spot until someone at the club approves it on the
                       dashboard or the session.
+                    </span>
+                  </span>
+                </label>
+                {editable && <button style={{ justifySelf: "start" }}>Save</button>}
+              </fieldset>
+            </form>
+          </section>
+
+          <section className="card" id="chat">
+            <h2>Chat</h2>
+            <p className="muted small">
+              What Claude may do when members and visitors message the club. Refunds, complaints, private coaching and
+              anything unclear always come to you (Chats).
+            </p>
+            <form action={setChatMode} className="form" style={{ marginTop: 8 }}>
+              <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                <label className="check" style={{ alignItems: "flex-start" }}>
+                  <input type="radio" name="mode" value="book" defaultChecked={org.chat_mode !== "answer"} />
+                  <span>
+                    <strong>Answer and book free places</strong>
+                    <span className="muted small" style={{ display: "block" }}>
+                      Books sessions and courts that are free or covered by the member&apos;s package. Paid places come
+                      to you to confirm.
+                    </span>
+                  </span>
+                </label>
+                <label className="check" style={{ alignItems: "flex-start" }}>
+                  <input type="radio" name="mode" value="answer" defaultChecked={org.chat_mode === "answer"} />
+                  <span>
+                    <strong>Answer only</strong>
+                    <span className="muted small" style={{ display: "block" }}>
+                      Answers questions and suggests options. Every booking comes to you.
                     </span>
                   </span>
                 </label>

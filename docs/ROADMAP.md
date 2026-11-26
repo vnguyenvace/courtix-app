@@ -17,7 +17,8 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 - Editing (18 Nov 2026, migration `20261118060000_edit_sessions.sql`, test `edit_sessions_test.sql`): owners and managers can edit **one session** (session page → Edit session: time, price, players, levels, coach, courts, text), a **session type** (Sessions → Set up → Edit, with "also update upcoming sessions"), and a **timetable entry** (days, start time, courts, end date). Booked places keep their price; limits can't drop below people booked; raising a limit moves the waitlist up; court holds follow the time. Hand-edited sessions (`sessions.edited_at`) are skipped by later type/timetable changes. Timetable edits remake only upcoming sessions nobody has signed up for; sessions with people keep their time and are listed for staff to move or cancel. `sessions.schedule_slot` remembers the timetable slot, so a moved session isn't recreated at its old time.
 - Fixed 18 Nov 2026: `Referrer-Policy: no-referrer` made Chrome send `Origin: null` on plain form posts (before JavaScript loads), and every server action then failed with a 500 (sign-in included). Now `same-origin` (`next.config.ts`).
 
-- Club logo and colours on the public booking page (26 Nov 2026), see Step 6 notes.
+- Club logo and colours on the public booking page, and a public front page per club (26 Nov 2026), see Step 6 notes.
+- Chat booking with Claude, tested in the app until WhatsApp is connected (26 Nov 2026), see Step 9 notes.
 
 ### Verified so far
 - All migrations and the four SQL test files pass on **real local Supabase** (Postgres 17) via `npm run test:db` (18 Nov 2026).
@@ -196,6 +197,15 @@ Done when: a 200-row file imports with a clear error list for bad rows and no pa
 - Per-club settings: chat autonomy level and who gets hand-offs (owner/managers' WhatsApp numbers).
 - Chat answers should reuse `inquiry_context()` and the reply prompt in `lib/ai.ts` (`buildReplySystemPrompt`), adding tools for booking.
 - Already in place (18 Nov 2026): `members.preferred_channel` (null = automatic) and `public.member_channel(members)`, the single rule for which app to use (staff choice, else LINE for Thai speakers, else WhatsApp). The follow-ups page has **Send on LINE** via LINE's share link (staff pick the chat; no API) next to **Send on WhatsApp**. Outbound sending in this step should use `member_channel()` too.
+
+**Part 1 built, 26 Nov 2026 (chat booking with Claude, without WhatsApp yet).** Migration `20261126010000_chat_booking.sql`, test `chat_booking_test.sql`, `lib/chat.ts`, pages `/chats` and `/chats/[id]`.
+- Tables `chat_conversations` (per contact phone and channel `whatsapp`/`line`/`test`; status `bot` = Claude answers, `staff` = handed off, `closed`) and `chat_messages` (every Claude API message stored exactly, so the next turn replays it unchanged). `chat_open_conversation()` matches the phone number to a member (`phone_key()`: digits, Thai 08x → 668x).
+- Claude's tools: `find_sessions`, `free_court_times`, `book_session`, `book_court`, `hand_off_to_staff`. Booking goes through `chat_book_session` / `chat_book_court`, which use the normal booking functions and then **refuse and undo anything that costs money** (the rule is in Postgres, not the prompt). Claude can only book for the person in the conversation. Visitors can book free sessions, not courts. Claude never cancels or refunds.
+- Per-club setting `orgs.chat_mode` (Settings → Chat): `book` (default: answer and book free / package-covered places) or `answer` (no booking tools at all).
+- Hand-offs: Chats → "Waiting for you" with the reason, plus a banner on the dashboard. Staff reply (takes the chat over), hand back to Claude, or close. Claude also hands off on refusal, API errors and when it can't finish.
+- **Test chat** (Chats page): staff play a member or a visitor. Bookings it makes are real. Tested with live Claude: Russian member booked covered evening open play at 0; Thai visitor got clinic times and prices; a visitor asking to book paid open play was refused by the database and handed off with a clear reason.
+- Learned: Claude's thinking blocks are bound to the exact conversation, so the system prompt must never change between turns. The facts (which change every turn) go in as a mid-conversation system message after the member's message. If old blocks are still rejected (e.g. after the club changes chat settings), the turn retries once without them.
+Left for part 2: WhatsApp Cloud API (Meta Tech Provider, Embedded Signup, webhook, sending, templates), a service identity for the webhook (today the tools run as the signed-in staff member), automatic notices (confirmations, waitlist moves, go / no-go cancellations; needs Julian's OK), notifying owners of hand-offs by WhatsApp (Step 9b). Claude can't cancel a member's own booking yet; ask Julian whether it may (free/covered places before the cut-off).
 
 Done when: a member books a session by WhatsApp chat in Thai or Russian, gets a confirmation, and gets an automatic notice if the session is cancelled for too few players.
 

@@ -70,6 +70,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     .or(`status.eq.requested,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
     .order("created_at", { ascending: false })
     .limit(8);
+  // Chats Claude handed to staff (Chats page).
+  const { count: chatsWaiting } = await supabase
+    .from("chat_conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", org.id)
+    .eq("status", "staff");
   const online = (onlineData ?? []) as { id: string; session_id: string; name: string; phone: string | null; status: string; created_at: string }[];
   const { data: onlineSessions } = online.length
     ? await supabase
@@ -97,6 +103,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </div>
       </div>
       <Banner sp={sp} />
+      {(chatsWaiting ?? 0) > 0 && (
+        <div className="banner warn">
+          {chatsWaiting === 1 ? "1 chat is" : `${chatsWaiting} chats are`} waiting for a person.{" "}
+          <Link href="/chats">Open chats</Link>
+        </div>
+      )}
 
       {all.length === 0 && (
         <div className="card" style={{ marginBottom: 18 }}>

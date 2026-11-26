@@ -33,6 +33,7 @@ export interface Org {
   brand_primary: string | null; // "#rrggbb"; null = standard Courtix colours
   brand_secondary: string | null;
   brand_palette: string[]; // colours found in the logo, offered as suggestions
+  chat_mode: "answer" | "book"; // chat: answer only, or also book free / package-covered places
 }
 
 export interface Court {
@@ -373,4 +374,36 @@ export interface InquiryReply {
     whatsapp: string | null;
     member_channel: MessageChannel;
   } | null;
+}
+
+// ---------------------------------------------------------------- Chat (Step 9)
+
+export type ChatChannel = "whatsapp" | "line" | "test";
+export type ChatStatus = "bot" | "staff" | "closed"; // bot = Claude answers, staff = handed off
+
+export interface ChatConversation {
+  id: string;
+  org_id: string;
+  location_id: string | null;
+  channel: ChatChannel;
+  contact_phone: string;
+  contact_name: string | null;
+  member_id: string | null;
+  status: ChatStatus;
+  handoff_reason: string | null;
+  handed_off_at: string | null;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  org_id: string;
+  conversation_id: string;
+  role: "contact" | "assistant" | "staff" | "tool";
+  body: string | null;
+  api: unknown; // exact Claude API message, replayed next turn
+  event: Record<string, unknown> | null;
+  created_by: string | null;
+  created_at: string;
 }
