@@ -50,12 +50,12 @@ export async function draftInquiryReply(form: FormData) {
   try {
     draft = await draftReply(incoming, facts, senderLabel(facts, contactName), clubVoice(org));
   } catch (e) {
-    back(PAGE, e instanceof Error ? e.message : "Claude couldn't draft a reply. Try again.");
+    back(PAGE, e instanceof Error ? e.message : "The AI assistant couldn't draft a reply. Try again.");
   }
   if (!draft) {
     back(
       PAGE,
-      "Claude isn't connected yet, so it can't draft replies. Add ANTHROPIC_API_KEY to .env.local and restart the app. " +
+      "The AI assistant isn't connected yet, so it can't draft replies. Add ANTHROPIC_API_KEY to .env.local and restart the app. " +
         "Meanwhile, the sessions and prices below are what it would use.",
     );
   }
@@ -97,9 +97,9 @@ export async function rewriteInquiryReply(form: FormData) {
   try {
     draft = await draftReply(row.incoming, facts, senderLabel(facts, row.contact_name), clubVoice(org));
   } catch (e) {
-    back(PAGE, e instanceof Error ? e.message : "Claude couldn't draft a reply. Try again.");
+    back(PAGE, e instanceof Error ? e.message : "The AI assistant couldn't draft a reply. Try again.");
   }
-  if (!draft) back(PAGE, "Claude isn't connected yet. Add ANTHROPIC_API_KEY to .env.local and restart the app.");
+  if (!draft) back(PAGE, "The AI assistant isn't connected yet. Add ANTHROPIC_API_KEY to .env.local and restart the app.");
 
   const { error: upError } = await supabase
     .from("inquiry_replies")

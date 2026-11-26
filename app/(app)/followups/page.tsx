@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireOrg, canManage } from "@/lib/org";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { CopyButton } from "@/components/CopyButton";
-import { aiConfigured, AI_MODEL, whatsappNumber } from "@/lib/ai";
+import { aiConfigured, whatsappNumber } from "@/lib/ai";
 import { formatMoney, localTime } from "@/lib/time";
 import { LANGUAGES } from "@/components/MemberFields";
 import {
@@ -24,6 +24,7 @@ import {
   type FollowupReason,
   type SessionOverview,
 } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 const REASON_BADGE: Record<FollowupReason, string> = {
   renewal: "warn",
@@ -112,7 +113,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
       <Banner sp={sp} />
       {!connected && (
         <div className="banner error">
-          Claude isn&apos;t connected yet, so drafts use simple English templates. Add <code>ANTHROPIC_API_KEY</code> to{" "}
+          The AI assistant isn&apos;t connected yet, so drafts use simple English templates. Add <code>ANTHROPIC_API_KEY</code> to{" "}
           <code>.env.local</code> and restart the app for personal messages in each member&apos;s language.
         </div>
       )}
@@ -238,7 +239,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                     </span>
                   </div>
                   <span className="muted small">
-                    {m.model ? `Written by ${m.model}` : "Template (Claude not connected)"}
+                    {m.model ? `Written by ${ASSISTANT_NAME}` : "Template (AI assistant not connected)"}
                     {" · "}Usually messaged on {prefersLine ? "LINE" : "WhatsApp"}. LINE opens with the message filled in; pick
                     their chat there.
                   </span>
@@ -308,7 +309,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
             </fieldset>
           </form>
           <p className="muted small" style={{ marginTop: 10 }}>
-            {connected ? `Using ${AI_MODEL}.` : "Templates in use until Claude is connected."} Only members who agreed to
+            {connected ? `Written by ${ASSISTANT_NAME}.` : "Templates in use until the AI assistant is connected."} Only members who agreed to
             receive messages are included.
           </p>
         </section>

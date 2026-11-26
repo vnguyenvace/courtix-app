@@ -14,6 +14,7 @@ import {
   sendInquiryOnWhatsApp,
 } from "./actions";
 import type { InquiryReply, SessionOverview } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 function shortDay(iso: string, tz: string) {
   return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz });
@@ -69,7 +70,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
         <div>
           <h1>Reply helper</h1>
           <p className="muted">
-            Paste a message from WhatsApp, LINE or anywhere. Claude drafts an answer from your real sessions, spots and
+            Paste a message from WhatsApp, LINE or anywhere. {ASSISTANT_NAME} drafts an answer from your real sessions, spots and
             prices. You check it and send it.
           </p>
         </div>
@@ -79,7 +80,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
       {!ai && (
         <div className="card" style={{ marginBottom: 14 }}>
           <p className="small">
-            Claude isn&apos;t connected yet, so replies can&apos;t be drafted. Add <code>ANTHROPIC_API_KEY</code> to{" "}
+            The AI assistant isn&apos;t connected yet, so replies can&apos;t be drafted. Add <code>ANTHROPIC_API_KEY</code> to{" "}
             <code>.env.local</code> and restart the app. Until then, the sessions and prices below help you answer by hand.
           </p>
         </div>
@@ -129,7 +130,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
             )}
           </div>
           <p className="muted small">
-            Pick the member if you know them: Claude then knows their package and what they&apos;ve booked.
+            Pick the member if you know them: the assistant then knows their package and what they&apos;ve booked.
           </p>
           <div className="actions">
             <button className="primary" disabled={!ai} data-pending-label="Drafting…">Draft a reply</button>
@@ -187,7 +188,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
                   </span>
                 </div>
                 <span className="muted small">
-                  {r.model ? `Written by ${r.model}` : "Written by hand"} · Claude never books anything: if they say yes,
+                  {r.model ? `Written by ${ASSISTANT_NAME}` : "Written by hand"} · The assistant never books anything: if they say yes,
                   sign them up on the session page.
                 </span>
               </form>
@@ -199,7 +200,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         <section className="card">
           <h2>Next 3 days</h2>
-          <p className="muted small">What Claude sees when it answers (it looks 7 days ahead). Tap a session to sign someone up.</p>
+          <p className="muted small">What the assistant sees when it answers (it looks 7 days ahead). Tap a session to sign someone up.</p>
           {sessions.length === 0 ? (
             <p className="muted small">No sessions in the next 3 days.</p>
           ) : (

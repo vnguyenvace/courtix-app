@@ -8,6 +8,7 @@ import { isValidDate, zonedToUtc } from "@/lib/time";
 import { normalizeHex } from "@/lib/brand";
 import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
 import type { BookingKind, MessageChannel } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 // Every action checks the club from the session. Row-level security in the
 // database is the real guard; these checks just give nicer messages.
@@ -287,8 +288,8 @@ export async function setChatMode(form: FormData) {
   back(
     "/settings#chat",
     mode === "book"
-      ? "Claude now answers chats and books free or package-covered places."
-      : "Claude now answers chats only. Bookings come to you.",
+      ? `${ASSISTANT_NAME} now answers chats and books free or package-covered places.`
+      : `${ASSISTANT_NAME} now answers chats only. Bookings come to you.`,
     "notice",
   );
 }

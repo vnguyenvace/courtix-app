@@ -28,6 +28,7 @@ import {
   updateLocation,
 } from "../actions";
 import { CATEGORY_LABELS, type Court, type Location, type PackageCoverage, type PackageType, type RateRule, type SessionCategory, type SessionType } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TIMEZONES = ["Asia/Bangkok", "Asia/Ho_Chi_Minh", "Asia/Makassar", "Asia/Jakarta", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Manila", "Asia/Tokyo", "Australia/Sydney", "Europe/London", "UTC"];
@@ -229,7 +230,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <section className="card" id="chat">
             <h2>Chat</h2>
             <p className="muted small">
-              What Claude may do when members and visitors message the club. Refunds, complaints, private coaching and
+              What {ASSISTANT_NAME} may do when members and visitors message the club. Refunds, complaints, private coaching and
               anything unclear always come to you (Chats).
             </p>
             <form action={setChatMode} className="form" style={{ marginTop: 8 }}>

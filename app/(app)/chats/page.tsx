@@ -4,6 +4,7 @@ import { Banner, type SearchParams } from "@/components/Banner";
 import { aiConfigured } from "@/lib/ai";
 import { startTestChat } from "./actions";
 import type { ChatConversation } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 type Row = ChatConversation & { members: { full_name: string } | null };
 
@@ -61,7 +62,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
   ]);
   const open = (openData ?? []) as Row[];
   const waiting = open.filter((c) => c.status === "staff");
-  const withClaude = open.filter((c) => c.status === "bot");
+  const withAssistant = open.filter((c) => c.status === "bot");
   const closed = (closedData ?? []) as Row[];
   const members = (memberData ?? []) as { id: string; full_name: string; phone: string }[];
 
@@ -71,7 +72,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
         <div>
           <h1>Chats</h1>
           <p className="muted">
-            Claude answers members and visitors{org.chat_mode === "book" ? " and books free or package-covered places" : ""}.
+            {ASSISTANT_NAME} answers members and visitors{org.chat_mode === "book" ? " and books free or package-covered places" : ""}.
             Anything else comes to you here.
           </p>
         </div>
@@ -80,7 +81,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
 
       {!ai && (
         <div className="banner warn">
-          Claude isn&apos;t connected (no ANTHROPIC_API_KEY), so every chat comes straight to staff.
+          The AI assistant isn&apos;t connected (no ANTHROPIC_API_KEY), so every chat comes straight to staff.
         </div>
       )}
 
@@ -88,11 +89,11 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
         <div className="stack">
           <section className="card">
             <h2>Waiting for you {waiting.length > 0 && <span className="badge warn">{waiting.length}</span>}</h2>
-            <ChatList rows={waiting} tz={tz} empty="Nothing waiting. Claude hands chats here when someone needs a person." />
+            <ChatList rows={waiting} tz={tz} empty="Nothing waiting. The assistant hands chats here when someone needs a person." />
           </section>
           <section className="card">
-            <h2>Claude is answering</h2>
-            <ChatList rows={withClaude} tz={tz} empty="No open chats." />
+            <h2>{ASSISTANT_NAME} is answering</h2>
+            <ChatList rows={withAssistant} tz={tz} empty="No open chats." />
           </section>
           {closed.length > 0 && (
             <section className="card">
@@ -106,7 +107,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
           <section className="card">
             <h2>Try it: test chat</h2>
             <p className="muted small">
-              WhatsApp isn&apos;t connected yet. Play a member or a visitor here to see how Claude answers and books.
+              WhatsApp isn&apos;t connected yet. Play a member or a visitor here to see how {ASSISTANT_NAME} answers and books.
               Bookings it makes are real (they appear on the sessions and courts), so cancel them afterwards.
             </p>
             <form action={startTestChat} className="form">
@@ -137,7 +138,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
             </form>
           </section>
           <section className="card">
-            <h2>What Claude may do</h2>
+            <h2>What the assistant may do</h2>
             <p className="small">
               {org.chat_mode === "book"
                 ? "Answer questions and book places that are free or covered by the member's package. Paid places, refunds, complaints and private coaching come to you."

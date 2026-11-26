@@ -133,9 +133,9 @@ async function callClaude(system: string, user: string): Promise<string> {
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      if (res.status === 401) throw new Error("Claude API key was rejected. Check ANTHROPIC_API_KEY.");
-      if (res.status === 429) throw new Error("Claude API rate limit reached. Try again in a minute.");
-      throw new Error(`Claude API error ${res.status}: ${detail.slice(0, 200)}`);
+      if (res.status === 401) throw new Error("The AI service rejected the API key. Check ANTHROPIC_API_KEY.");
+      if (res.status === 429) throw new Error("The AI service is busy (rate limit). Try again in a minute.");
+      throw new Error(`AI service error ${res.status}: ${detail.slice(0, 200)}`);
     }
 
     const data = (await res.json()) as {
@@ -143,7 +143,7 @@ async function callClaude(system: string, user: string): Promise<string> {
       stop_reason?: string;
     };
     if (data.stop_reason === "refusal") {
-      throw new Error("Claude declined to write this message. Write it yourself, or try different wording.");
+      throw new Error("The AI assistant declined to write this message. Write it yourself, or try different wording.");
     }
     // The response can include thinking blocks; the message is in the text blocks.
     const text = (data.content ?? [])
@@ -152,9 +152,9 @@ async function callClaude(system: string, user: string): Promise<string> {
       .join("\n")
       .trim();
     if (!text && data.stop_reason === "max_tokens") {
-      throw new Error("Claude ran out of room before writing the message. Try again.");
+      throw new Error("The AI assistant ran out of room before writing the message. Try again.");
     }
-    if (!text) throw new Error(`Claude returned an empty message (stop reason: ${data.stop_reason ?? "unknown"}).`);
+    if (!text) throw new Error(`The AI assistant returned an empty message (stop reason: ${data.stop_reason ?? "unknown"}).`);
     return cleanMessage(text);
   } finally {
     clearTimeout(timer);
@@ -189,9 +189,9 @@ export async function claudeMessages(body: Record<string, unknown>, timeoutMs = 
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      if (res.status === 401) throw new Error("Claude API key was rejected. Check ANTHROPIC_API_KEY.");
-      if (res.status === 429) throw new Error("Claude API rate limit reached. Try again in a minute.");
-      throw new Error(`Claude API error ${res.status}: ${detail.slice(0, 200)}`);
+      if (res.status === 401) throw new Error("The AI service rejected the API key. Check ANTHROPIC_API_KEY.");
+      if (res.status === 429) throw new Error("The AI service is busy (rate limit). Try again in a minute.");
+      throw new Error(`AI service error ${res.status}: ${detail.slice(0, 200)}`);
     }
     const data = (await res.json()) as Partial<ApiResponse>;
     return { content: data.content ?? [], stop_reason: data.stop_reason ?? null };

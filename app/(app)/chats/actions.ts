@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/org";
 import { back, friendly, str } from "@/lib/form";
 import { contactApiMessage, runChatTurn, staffApiMessage } from "@/lib/chat";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 // Chats: conversations with members, answered by Claude, handed to staff when needed.
 // Until WhatsApp is connected, staff try it with a test chat where they play the member.
@@ -14,7 +15,7 @@ const MAX_MESSAGE = 2000;
 function afterTurn(id: string, r: { replied: boolean; handedOff: boolean; error?: string }) {
   revalidatePath("/chats");
   revalidatePath(`/chats/${id}`);
-  if (r.error) back(`/chats/${id}`, `Claude couldn't answer, so the chat went to staff. (${r.error})`);
+  if (r.error) back(`/chats/${id}`, `The assistant couldn't answer, so the chat went to staff. (${r.error})`);
   // Handed off: the page itself says why, in the "Why it came to you" banner.
   redirect(`/chats/${id}#latest`);
 }
@@ -96,7 +97,7 @@ export async function takeOver(form: FormData) {
   const { error } = await supabase.rpc("chat_hand_off", { p_conversation: id, p_reason: "Taken over by staff" });
   if (error) back(`/chats/${id}`, friendly(error));
   revalidatePath("/chats");
-  back(`/chats/${id}`, "You're handling this chat. Claude won't answer until you hand it back.", "notice");
+  back(`/chats/${id}`, "You're handling this chat. The assistant won't answer until you hand it back.", "notice");
 }
 
 export async function handBack(form: FormData) {
@@ -112,7 +113,7 @@ export async function handBack(form: FormData) {
   const r = await runChatTurn(supabase, org, locations, id);
   revalidatePath("/chats");
   if (r.replied || r.handedOff || r.error) afterTurn(id, r);
-  back(`/chats/${id}`, "Claude is answering this chat again.", "notice");
+  back(`/chats/${id}`, `${ASSISTANT_NAME} is answering this chat again.`, "notice");
 }
 
 export async function closeChat(form: FormData) {

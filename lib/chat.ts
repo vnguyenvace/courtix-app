@@ -9,6 +9,7 @@ import {
   type ApiMessage,
   type ClubVoice,
 } from "@/lib/ai";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 import { addDays, isValidDate, localTime, slotTimes, todayIn, zonedToUtc } from "@/lib/time";
 import type { ChatConversation, ChatMessage, Location, Org } from "@/lib/types";
 
@@ -29,7 +30,8 @@ type Supabase = SupabaseClient;
 
 export function buildChatSystemPrompt(club: ClubVoice, canBook: boolean): string {
   return [
-    `You are the chat assistant of ${club.clubName}, a ${club.sport} club in Phuket, Thailand. Members and visitors write to the club on WhatsApp or LINE and you answer for the club.`,
+    `You are ${ASSISTANT_NAME}, the chat assistant of ${club.clubName}, a ${club.sport} club in Phuket, Thailand. Members and visitors write to the club on WhatsApp or LINE and you answer for the club.`,
+    `If someone asks who they are talking to, say you are ${club.clubName}'s ${ASSISTANT_NAME}, an AI assistant, and that a person at the club can take over any time.`,
     "",
     "How to answer:",
     "- Reply in the language the person writes in.",
@@ -350,7 +352,7 @@ export async function runChatTurn(
   if (conv.status !== "bot") return { replied: false, handedOff: false };
 
   if (!aiConfigured()) {
-    await handOff(supabase, conv, "Claude isn't connected yet (no API key), so a person needs to answer");
+    await handOff(supabase, conv, "The AI assistant isn't connected yet (no API key), so a person needs to answer");
     return { replied: false, handedOff: true };
   }
 
@@ -409,7 +411,7 @@ export async function runChatTurn(
       }
 
       if (res.stop_reason === "refusal") {
-        await handOff(supabase, conv, "Claude declined to answer this message");
+        await handOff(supabase, conv, "The assistant declined to answer this message");
         return { replied, handedOff: true };
       }
 
@@ -432,7 +434,7 @@ export async function runChatTurn(
       })[];
       if (res.stop_reason !== "tool_use" || calls.length === 0) {
         if (res.stop_reason === "max_tokens" && !text) {
-          await handOff(supabase, conv, "Claude ran out of room before answering");
+          await handOff(supabase, conv, "The assistant ran out of room before answering");
           return { replied, handedOff: true };
         }
         break;
@@ -454,7 +456,7 @@ export async function runChatTurn(
       });
 
       if (round === MAX_ROUNDS - 1) {
-        await handOff(supabase, conv, "Claude couldn't finish answering");
+        await handOff(supabase, conv, "The assistant couldn't finish answering");
         return { replied, handedOff: true };
       }
     }
@@ -474,7 +476,7 @@ export async function runChatTurn(
         }).catch(() => undefined);
       }
     }
-    await handOff(supabase, conv, `Claude couldn't answer: ${message}`.slice(0, 280));
+    await handOff(supabase, conv, `The assistant couldn't answer: ${message}`.slice(0, 280));
     return { replied, handedOff: true, error: message };
   } finally {
     await supabase.from("chat_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conv.id);

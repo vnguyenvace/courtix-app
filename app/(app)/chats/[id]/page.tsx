@@ -4,6 +4,7 @@ import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { closeChat, handBack, sendAsContact, staffReply, takeOver } from "../actions";
 import type { ChatConversation, ChatMessage } from "@/lib/types";
+import { ASSISTANT_NAME } from "@/lib/assistant";
 
 type Conv = ChatConversation & { members: { id: string; full_name: string } | null };
 
@@ -60,7 +61,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
           </p>
         </div>
         <div className="actions">
-          {conv.status === "bot" && <span className="badge ok">Claude is answering</span>}
+          {conv.status === "bot" && <span className="badge ok">{ASSISTANT_NAME} is answering</span>}
           {conv.status === "staff" && <span className="badge warn">Waiting for staff</span>}
           {closed && <span className="badge">Closed</span>}
         </div>
@@ -84,7 +85,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                   {m.body && (
                     <div className={`bubble ${m.role === "contact" ? "contact" : m.role}`}>
                       <span className="who">
-                        {m.role === "contact" ? name : m.role === "assistant" ? "Claude" : "Staff"} · {time(m.created_at, tz)}
+                        {m.role === "contact" ? name : m.role === "assistant" ? ASSISTANT_NAME : "Staff"} · {time(m.created_at, tz)}
                       </span>
                       {m.body}
                     </div>
@@ -107,7 +108,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                 <textarea name="message" rows={3} required placeholder="Yes please, book me in" />
                 <button className="primary" style={{ justifySelf: "start" }}>Send as the member</button>
                 {conv.status === "staff" && (
-                  <span className="muted small">Staff are handling this chat, so Claude won&apos;t answer until you hand it back.</span>
+                  <span className="muted small">Staff are handling this chat, so the assistant won&apos;t answer until you hand it back.</span>
                 )}
               </form>
             </section>
@@ -124,7 +125,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                   {isTest
                     ? "Test chat: nothing is sent anywhere."
                     : "WhatsApp isn't connected yet: send it from your phone too."}{" "}
-                  Replying takes the chat over from Claude.
+                  Replying takes the chat over from the assistant.
                 </span>
               </form>
             </section>
@@ -137,12 +138,12 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                 {conv.status === "bot" ? (
                   <form action={takeOver}>
                     <input type="hidden" name="conversation_id" value={conv.id} />
-                    <button>Take over from Claude</button>
+                    <button>Take over from the assistant</button>
                   </form>
                 ) : (
                   <form action={handBack}>
                     <input type="hidden" name="conversation_id" value={conv.id} />
-                    <button className="primary">Hand back to Claude</button>
+                    <button className="primary">Hand back to the assistant</button>
                   </form>
                 )}
                 <form action={closeChat}>
