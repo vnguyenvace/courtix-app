@@ -32,5 +32,6 @@ export async function signUp(form: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  // On a club's address this is its public front page; on the main site "/" leads to /login.
+  redirect("/");
 }

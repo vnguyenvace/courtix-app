@@ -191,6 +191,16 @@ button.danger { color: var(--danger); }
 .public-crumb { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 13px; }
 .public-crumb .club { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; }
 .brand-band { height: 5px; background: var(--brand-2, transparent); }
+.public-top { display: flex; justify-content: flex-end; min-height: 28px; margin-bottom: 4px; }
+.landing-hero { display: flex; align-items: center; gap: 16px; margin: 8px 0 16px; }
+.landing-hero h1 { font-size: 28px; margin: 0; }
+.landing-hero .muted { margin: 2px 0 0; }
+.landing-hero .club-logo { width: 84px; height: 84px; border-radius: 14px; }
+.landing-actions { margin-bottom: 8px; }
+.landing-section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 24px 0 8px; }
+.public-day .landing-section-head h2 { margin: 0; }
+.landing-locations { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.landing-locations .card p { margin-bottom: 4px; }
 .public-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .public-head h1 { font-size: 26px; }
 .public-head .stat { min-width: 140px; }
