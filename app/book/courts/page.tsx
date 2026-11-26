@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { param, type SearchParams } from "@/components/Banner";
-import { whatsappLink } from "@/lib/ai";
 import { ClubLogo } from "@/components/ClubLogo";
 import { loadMember, loadPublicClub, type PublicCourtSlot } from "@/lib/public";
 import { memberBookCourt } from "../actions";
@@ -37,6 +36,7 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
   const byKey = new Map(slots.map((s) => [`${s.court_id}|${s.slot_start}`, s]));
   const me = await loadMember();
   const error = param(sp, "error");
+  const notice = param(sp, "notice");
   const qs = (d: string) => `?day=${d}${club.locations.length > 1 ? `&location=${location.id}` : ""}`;
 
   return (
@@ -76,10 +76,11 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
       <section className="card">
         <h2>{formatLongDay(day)}</h2>
         {error && <div className="banner error" role="alert">{error}</div>}
+        {notice && <div className="banner notice" role="status">{notice}</div>}
         <p className="muted small">
           {me
             ? `Tap a free time to book it as ${me.first_name} (your package's court price applies).`
-            : "Tap a free time to ask the club on WhatsApp. Members can sign in to book straight away."}{" "}
+            : "Tap a free time to book it. Members can sign in first to book at their package's price."}{" "}
           Times shown are when each court is free right now.
         </p>
         {!me && <p className="small"><Link href="/book/me?next=/book/courts">Member sign in</Link></p>}
@@ -101,10 +102,6 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
                     {courts.map(([id, name]) => {
                       const slot = byKey.get(`${id}|${t}`);
                       if (!slot?.is_free) return <td key={id}><span className="slot-busy">Taken</span></td>;
-                      const link = whatsappLink(
-                        location.whatsapp,
-                        `Hi ${club.name}, can I book ${name} on ${formatLongDay(day)} at ${localTime(t, location.timezone)}?`,
-                      );
                       if (me) {
                         return (
                           <td key={id}>
@@ -118,9 +115,12 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
                           </td>
                         );
                       }
+                      const href = `/book/courts/book?court=${id}&start=${encodeURIComponent(t)}&location=${location.id}&day=${day}`;
                       return (
                         <td key={id}>
-                          {link ? <a className="slot-open" href={link}>Free</a> : <span className="slot-open">Free</span>}
+                          <Link className="slot-open" href={href} aria-label={`Book ${name} at ${localTime(t, location.timezone)}`}>
+                            Free
+                          </Link>
                         </td>
                       );
                     })}

@@ -679,3 +679,15 @@ export async function toggleLocation(form: FormData) {
     "notice",
   );
 }
+
+// Online court requests from visitors (club in "Request, staff approve" mode).
+export async function decideCourtRequest(form: FormData) {
+  const { supabase } = await requireOrg();
+  const approve = str(form, "approve") === "true";
+  const { error } = await supabase.rpc("decide_online_court", { p_booking: str(form, "booking_id"), p_approve: approve });
+  if (error) back("/dashboard", friendly(error));
+  revalidatePath("/dashboard");
+  revalidatePath("/bookings");
+  revalidatePath("/payments");
+  back("/dashboard", approve ? "Court request approved. Let them know it's confirmed." : "Court request declined. The court is free again.", "notice");
+}

@@ -7,6 +7,7 @@ import { formatDate, formatMoney, localTime, todayIn, addDays, zonedToUtc } from
 import { addDemoData, checkIn } from "../actions";
 import { SessionStatusBadge } from "@/components/SessionBits";
 import type { BookingRow, Dashboard, LocationDashboard, MemberStatus, SessionOverview } from "@/lib/types";
+import { decideCourtRequest } from "../actions";
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -101,6 +102,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     .select("id", { count: "exact", head: true })
     .eq("org_id", org.id)
     .eq("status", "staff");
+  // Online court bookings by visitors: waiting for approval, or from the last 3 days.
+  const { data: courtOnlineData } = await supabase
+    .from("bookings")
+    .select("id, guest_name, guest_phone, pending_approval, during, price, created_at, courts(name, location_id, locations(timezone))")
+    .eq("org_id", org.id)
+    .eq("source", "online")
+    .eq("status", "confirmed")
+    .or(`pending_approval.eq.true,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const onlineCourts = (courtOnlineData ?? []) as unknown as {
+    id: string;
+    guest_name: string | null;
+    guest_phone: string | null;
+    pending_approval: boolean;
+    during: string;
+    price: number;
+    courts: { name: string; location_id: string; locations: { timezone: string } | null } | null;
+  }[];
   const online = (onlineData ?? []) as { id: string; session_id: string; name: string; phone: string | null; status: string; created_at: string }[];
   const { data: onlineSessions } = online.length
     ? await supabase
@@ -306,8 +326,48 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             From your public booking page. They pay at the club.
             {org.online_signups === "approve" ? " Requests wait for you to approve them." : ""}
           </p>
+          {onlineCourts.length > 0 && (
+            <ul className="list" style={{ marginBottom: 8 }}>
+              {onlineCourts.map((b) => {
+                // tstzrange text, e.g. ["2026-11-28 03:00:00+00","2026-11-28 04:00:00+00")
+                const start = (b.during.match(/[\[(]"?([^",]+)"?,/)?.[1] ?? "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00");
+                const tz = b.courts?.locations?.timezone ?? org.timezone;
+                return (
+                  <li key={b.id}>
+                    <span>
+                      {b.guest_name}
+                      <span className="muted small">{b.guest_phone ? ` · ${b.guest_phone}` : ""}</span>
+                      <div className="small">
+                        {b.courts?.name ?? "Court"}{" "}
+                        <span className="muted">
+                          {start && new Date(start).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz })}{" "}
+                          {start && localTime(start, tz)} · {formatMoney(b.price, org.currency)} at the club
+                        </span>
+                      </div>
+                    </span>
+                    {b.pending_approval ? (
+                      <span className="actions">
+                        <form action={decideCourtRequest} className="inline">
+                          <input type="hidden" name="booking_id" value={b.id} />
+                          <input type="hidden" name="approve" value="true" />
+                          <button className="primary">Approve</button>
+                        </form>
+                        <form action={decideCourtRequest} className="inline">
+                          <input type="hidden" name="booking_id" value={b.id} />
+                          <input type="hidden" name="approve" value="false" />
+                          <button className="link danger">Decline</button>
+                        </form>
+                      </span>
+                    ) : (
+                      <span className="badge ok">court</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {online.length === 0 ? (
-            <p className="muted small">None yet. Share your booking page link or QR code (Settings).</p>
+            onlineCourts.length === 0 && <p className="muted small">None yet. Share your booking page link or QR code (Settings).</p>
           ) : (
             <ul className="list">
               {online.map((o) => {

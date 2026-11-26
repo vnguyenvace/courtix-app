@@ -131,3 +131,35 @@ export async function memberCancel(form: FormData) {
   if (error) go("/book/me", "error", friendly(error));
   go("/book/me", "notice", "Cancelled.");
 }
+
+/** A visitor books a court as a guest (rules and spam limits in public_book_court). */
+export async function publicBookCourt(form: FormData) {
+  const slug = await clubSlug();
+  const location = str(form, "location");
+  const day = str(form, "day");
+  const formPath = `/book/courts/book?court=${encodeURIComponent(str(form, "court_id"))}&start=${encodeURIComponent(str(form, "start"))}&location=${encodeURIComponent(location)}&day=${encodeURIComponent(day)}`;
+  const back = `/book/courts?location=${encodeURIComponent(location)}&day=${encodeURIComponent(day)}`;
+  // Honeypot: bots fill the hidden field; pretend it worked.
+  if (str(form, "website")) go(back, "notice", "Thanks, your booking is in.");
+
+  const { data, error } = await (await createClient()).rpc("public_book_court", {
+    p_slug: slug,
+    p_court: str(form, "court_id"),
+    p_start: str(form, "start"),
+    p_name: str(form, "name"),
+    p_phone: str(form, "phone"),
+    p_contact_ok: form.get("contact_ok") === "on",
+    p_marketing: form.get("marketing") === "on",
+  });
+  if (error) go(formPath, "error", friendly(error));
+  const r = data as { price: number; pending_approval: boolean };
+  const { club } = await loadPublicClub();
+  const pay = Number(r.price) > 0 ? ` Pay ${formatMoney(Number(r.price), club.currency)} at the club.` : "";
+  go(
+    back,
+    "notice",
+    r.pending_approval
+      ? "Thanks, the court is held for you. The club will confirm on WhatsApp."
+      : `You're booked.${pay} See you on court.`,
+  );
+}

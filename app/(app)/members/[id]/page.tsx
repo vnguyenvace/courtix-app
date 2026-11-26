@@ -274,8 +274,18 @@ export default async function MemberPage({
           <form action={updateMember} className="form">
             <input type="hidden" name="member_id" value={m.id} />
             <MemberFields m={m} locations={locations} />
-            <p className="muted small">
-              LINE: {m.line_user_id ? "connected" : "not connected yet (links when they message the club's LINE account)"}
+            <p className="small">
+              {m.line_user_id ? (
+                <span className="badge ok">Linked on LINE</span>
+              ) : (
+                <>
+                  <span className="badge">Not linked on LINE</span>{" "}
+                  <span className="muted">
+                    When they message the club&apos;s LINE, open that chat in <Link href="/chats">Chats</Link> and use
+                    &quot;Link to member&quot;. Then they get reminders and sign-in codes on LINE.
+                  </span>
+                </>
+              )}
             </p>
             <button className="primary">Save details</button>
           </form>

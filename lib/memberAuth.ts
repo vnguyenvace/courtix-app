@@ -70,14 +70,17 @@ interface MemberRow {
  * the page shows the same answer either way.
  */
 export async function requestMemberCode(slug: string, contact: string): Promise<void> {
+  // Why no code went out is logged for Courtix support (no phone numbers or emails in the log):
+  // the page itself says the same thing either way, so members can't be looked up.
+  const skip = (reason: string) => console.info(`Member sign-in (${slug}): no code sent: ${reason}`);
   const db = serviceClient();
   const raw = contact.trim();
   const isEmail = raw.includes("@");
   const key = isEmail ? null : phoneKey(raw);
-  if (!isEmail && (!key || key.length < 8 || key.length > 15)) return;
+  if (!isEmail && (!key || key.length < 8 || key.length > 15)) return skip("not a phone number or email");
 
   const { data: org } = await db.from("orgs").select("id, name, public_booking").eq("slug", slug).maybeSingle();
-  if (!org?.public_booking) return;
+  if (!org?.public_booking) return skip("club not found or online booking is off");
 
   // Find exactly one member (a number shared by two members can't sign in: ambiguous).
   let q = db.from("members").select("id, language, phone, whatsapp, email, line_user_id").eq("org_id", org.id);
@@ -86,7 +89,7 @@ export async function requestMemberCode(slug: string, contact: string): Promise<
   const matches = ((data ?? []) as MemberRow[]).filter((m) =>
     isEmail ? m.email?.toLowerCase() === raw.toLowerCase() : phoneKey(m.phone) === key || phoneKey(m.whatsapp) === key,
   );
-  if (matches.length !== 1) return;
+  if (matches.length !== 1) return skip(matches.length ? "more than one member has this number or email" : "no member has this number or email");
   const member = matches[0];
 
   // Limits: a few codes per member, and a ceiling per club.
@@ -96,14 +99,19 @@ export async function requestMemberCode(slug: string, contact: string): Promise<
     db.from("member_login_codes").select("id", { count: "exact", head: true }).eq("member_id", member.id).gte("created_at", since15),
     db.from("member_login_codes").select("id", { count: "exact", head: true }).eq("org_id", org.id).gte("created_at", sinceHour),
   ]);
-  if ((mine ?? 0) >= MAX_CODES_PER_MEMBER || (club ?? 0) >= MAX_CODES_PER_CLUB) return;
+  if ((mine ?? 0) >= MAX_CODES_PER_MEMBER || (club ?? 0) >= MAX_CODES_PER_CLUB) return skip("too many codes asked for (wait 15 minutes)");
 
   // Channel: LINE (free, if they're linked), then SMS, then email.
   const line = member.line_user_id ? await loadLine(db, org.id).catch(() => null) : null;
   const phone = phoneKey(member.phone) ?? phoneKey(member.whatsapp);
   const channel: "line" | "sms" | "email" | null =
     line && member.line_user_id ? "line" : smsConfigured() && phone ? "sms" : emailConfigured() && member.email ? "email" : null;
-  if (!channel) return;
+  if (!channel) {
+    return skip(
+      `member ${member.id} has no way to get a code: ${member.line_user_id ? "club LINE not connected or off" : "not linked on LINE"}` +
+        `, SMS ${smsConfigured() ? (phone ? "on" : "on but no phone") : "not set up"}, email ${emailConfigured() ? (member.email ? "on" : "on but no email") : "not set up"}`,
+    );
+  }
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const id = randomUUID();
@@ -114,13 +122,14 @@ export async function requestMemberCode(slug: string, contact: string): Promise<
     channel,
     code_hash: createHash("sha256").update(`${id}:${code}`).digest("hex"),
   });
-  if (error) return;
+  if (error) return skip(`couldn't save the code: ${error.message}`);
 
   const text = (CODE_TEXT[member.language] ?? CODE_TEXT.en).replace("{code}", code).replace("{club}", org.name);
   try {
     if (channel === "line") await linePush(line!.token, member.line_user_id!, [text]);
     else if (channel === "sms") await sendSms(`+${phone}`, text);
     else await sendEmail(member.email!, `${code} is your ${org.name} sign-in code`, text);
+    console.info(`Member sign-in (${slug}): code sent by ${channel}`);
   } catch (e) {
     console.error("Member sign-in: code not sent", e);
   }
