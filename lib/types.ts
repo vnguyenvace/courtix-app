@@ -29,6 +29,10 @@ export interface Org {
   late_cancel_hours: number; // cancel at least this long before a session to get a credit back
   public_booking: boolean; // the public booking page (<slug>.courtix.app/book) is on
   online_signups: "instant" | "approve"; // online sign-ups take the spot, or wait for staff approval
+  logo_path: string | null; // in Storage bucket club-logos, "<org_id>/logo-....png"
+  brand_primary: string | null; // "#rrggbb"; null = standard Courtix colours
+  brand_secondary: string | null;
+  brand_palette: string[]; // colours found in the logo, offered as suggestions
 }
 
 export interface Court {

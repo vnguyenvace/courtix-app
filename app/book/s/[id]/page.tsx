@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { param, type SearchParams } from "@/components/Banner";
 import { StateBadge } from "@/components/PublicBits";
+import { ClubLogo } from "@/components/ClubLogo";
 import { levelText } from "@/components/SessionBits";
 import { whatsappLink } from "@/lib/ai";
 import { loadPublicClub, sessionState, type PublicSession } from "@/lib/public";
@@ -44,9 +45,13 @@ export default async function PublicSessionPage({
 
   return (
     <main className="public">
-      <Link href={`/book${club.locations.length > 1 ? `?location=${s.location_id}` : ""}`} className="small">
-        ← All sessions
-      </Link>
+      <div className="public-crumb">
+        <Link href={`/book${club.locations.length > 1 ? `?location=${s.location_id}` : ""}`}>← All sessions</Link>
+        <span className="club">
+          <ClubLogo path={club.logo_path} name={club.name} small />
+          {club.name}
+        </span>
+      </div>
       <header className="public-head" style={{ marginTop: 8 }}>
         <div>
           <h1>{s.name}</h1>

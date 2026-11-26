@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
 import { isValidDate, zonedToUtc } from "@/lib/time";
+import { normalizeHex } from "@/lib/brand";
+import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
 import type { BookingKind, MessageChannel } from "@/lib/types";
 
 // Every action checks the club from the session. Row-level security in the
@@ -283,6 +285,85 @@ export async function setPublicBooking(form: FormData) {
   if (error) back("/settings", friendly(error));
   revalidatePath("/settings");
   back("/settings", on ? "Online booking is on." : "Online booking is off. The page now says to book by WhatsApp.", "notice");
+}
+
+// ---------------------------------------------------------------- Branding (logo and colours)
+
+// The logo goes to Storage as the signed-in owner/manager (storage RLS checks the club folder),
+// re-encoded as PNG. Colours are picked from it unless the owner unticks "Pick colours".
+export async function uploadLogo(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const file = form.get("logo");
+  if (!(file instanceof File) || file.size === 0) back("/settings#branding", "Choose a logo file first.");
+  if (file.size > LOGO_MAX_BYTES) back("/settings#branding", "That file is over 4 MB. Try a smaller logo.");
+  if (file.type && !LOGO_TYPES.includes(file.type)) {
+    back("/settings#branding", "Use a PNG, JPG, WebP, GIF or SVG image.");
+  }
+
+  let png: Buffer;
+  let colors: Awaited<ReturnType<typeof detectColors>>;
+  try {
+    png = await normalizeLogo(Buffer.from(await file.arrayBuffer()));
+    colors = await detectColors(png);
+  } catch {
+    back("/settings#branding", "That file couldn't be read as an image. Try a PNG or JPG.");
+  }
+
+  const path = `${org.id}/logo-${Date.now()}.png`;
+  const { error: upErr } = await supabase.storage
+    .from("club-logos")
+    .upload(path, png, { contentType: "image/png", cacheControl: "31536000", upsert: false });
+  if (upErr) back("/settings#branding", friendly(upErr));
+
+  const pick = form.get("pick_colors") === "on";
+  const { error } = await supabase
+    .from("orgs")
+    .update({
+      logo_path: path,
+      brand_palette: colors.palette,
+      ...(pick && colors.primary ? { brand_primary: colors.primary, brand_secondary: colors.secondary } : {}),
+    })
+    .eq("id", org.id);
+  if (error) {
+    await supabase.storage.from("club-logos").remove([path]);
+    back("/settings#branding", friendly(error));
+  }
+  // The old file isn't needed any more (each upload gets a new name, so phones don't show a cached old logo).
+  if (org.logo_path && org.logo_path !== path) await supabase.storage.from("club-logos").remove([org.logo_path]);
+
+  revalidatePath("/", "layout");
+  back(
+    "/settings#branding",
+    pick && colors.primary
+      ? "Logo saved, and your booking page now uses colours from it. Change them below if you like."
+      : "Logo saved.",
+    "notice",
+  );
+}
+
+export async function saveBrandColors(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const reset = str(form, "reset") === "true";
+  const primary = reset ? null : normalizeHex(str(form, "brand_primary"));
+  const secondary = reset ? null : normalizeHex(str(form, "brand_secondary"));
+  if (!reset && !primary) back("/settings#branding", "Pick a main colour.");
+  const { error } = await supabase
+    .from("orgs")
+    .update({ brand_primary: primary, brand_secondary: secondary })
+    .eq("id", org.id);
+  if (error) back("/settings#branding", friendly(error));
+  revalidatePath("/", "layout");
+  back("/settings#branding", reset ? "Back to the standard Courtix colours." : "Colours saved.", "notice");
+}
+
+export async function removeLogo() {
+  const { supabase, org } = await requireManager();
+  if (!org.logo_path) back("/settings#branding", "There's no logo to remove.");
+  const { error } = await supabase.from("orgs").update({ logo_path: null, brand_palette: [] }).eq("id", org.id);
+  if (error) back("/settings#branding", friendly(error));
+  await supabase.storage.from("club-logos").remove([org.logo_path]);
+  revalidatePath("/", "layout");
+  back("/settings#branding", "Logo removed. Your colours stay until you change them.", "notice");
 }
 
 export async function addCourt(form: FormData) {

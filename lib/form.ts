@@ -20,8 +20,10 @@ export function num(form: FormData, key: string): number | null {
 
 /** Go back to a page with a message shown in a banner. */
 export function back(path: string, message: string, kind: "error" | "notice" = "error"): never {
-  const sep = path.includes("?") ? "&" : "?";
-  redirect(`${path}${sep}${kind}=${encodeURIComponent(message)}`);
+  // "/settings#branding": the message goes before the #, so the page still scrolls to the section.
+  const [base, hash] = path.split("#", 2);
+  const sep = base.includes("?") ? "&" : "?";
+  redirect(`${base}${sep}${kind}=${encodeURIComponent(message)}${hash ? `#${hash}` : ""}`);
 }
 
 /** Turns database errors into something a front-desk person can read. */

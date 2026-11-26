@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
   // Local club subdomains (raccoon.courtix.localhost:3000) load the dev server's scripts.
   allowedDevOrigins: ["courtix.localhost", "*.courtix.localhost"],
+  // Club logo uploads go through a server action (Settings → Branding). Default limit is 1 MB;
+  // Vercel itself stops at 4.5 MB, and lib/logo.ts refuses files over 4 MB with a clear message.
+  experimental: { serverActions: { bodySizeLimit: "4.5mb" } },
   async headers() {
     return [
       {

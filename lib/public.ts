@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { currentHost } from "@/lib/host";
 import { createClient } from "@/lib/supabase/server";
@@ -25,6 +26,9 @@ export interface PublicClub {
   currency: string;
   public_booking: boolean;
   online_signups: "instant" | "approve"; // approve = sign-ups wait for staff
+  logo_path: string | null;
+  brand_primary: string | null;
+  brand_secondary: string | null;
   locations: PublicLocation[];
 }
 
@@ -57,15 +61,15 @@ export interface PublicCourtSlot {
   is_free: boolean;
 }
 
-/** The club behind this subdomain, or a 404. */
-export async function loadPublicClub() {
+/** The club behind this subdomain, or a 404. Cached per request (layout, metadata and page share it). */
+export const loadPublicClub = cache(async () => {
   const host = await currentHost();
   if (host.kind !== "club") notFound();
   const supabase = await createClient();
   const { data } = await supabase.rpc("public_club", { p_slug: host.slug });
   if (!data) notFound();
   return { supabase, slug: host.slug, club: data as PublicClub };
-}
+});
 
 /** Where a session stands for a visitor right now. */
 export function sessionState(s: PublicSession, now = Date.now()) {

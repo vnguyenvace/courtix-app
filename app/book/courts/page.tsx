@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { param, type SearchParams } from "@/components/Banner";
 import { whatsappLink } from "@/lib/ai";
+import { ClubLogo } from "@/components/ClubLogo";
 import { loadPublicClub, type PublicCourtSlot } from "@/lib/public";
 import { addDays, formatLongDay, isValidDate, localTime, todayIn } from "@/lib/time";
 
@@ -38,9 +39,12 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
   return (
     <main className="public">
       <header className="public-head">
-        <div>
-          <h1>{club.name}</h1>
-          <p className="muted">{location.name}{location.address ? ` · ${location.address}` : ""}</p>
+        <div className="public-brand">
+          <ClubLogo path={club.logo_path} name={club.name} />
+          <div>
+            <h1>{club.name}</h1>
+            <p className="muted">{location.name}{location.address ? ` · ${location.address}` : ""}</p>
+          </div>
         </div>
       </header>
 

@@ -4,6 +4,8 @@ import { currentHost } from "@/lib/host";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { LANGUAGES } from "@/components/MemberFields";
 import { formatMoney } from "@/lib/time";
+import { brandCss } from "@/lib/brand";
+import { ClubLogo } from "@/components/ClubLogo";
 import {
   addCourt,
   addCoverage,
@@ -12,6 +14,9 @@ import {
   addRateRule,
   deleteRateRule,
   removeCoverage,
+  removeLogo,
+  saveBrandColors,
+  uploadLogo,
   setOnlineSignupMode,
   setPublicBooking,
   setPriorityDays,
@@ -216,6 +221,102 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                   </span>
                 </label>
                 {editable && <button style={{ justifySelf: "start" }}>Save</button>}
+              </fieldset>
+            </form>
+          </section>
+
+          <section className="card" id="branding">
+            <h2>Logo and colours</h2>
+            <p className="muted small">
+              Your booking page shows your logo and uses your colours. Upload a logo and Courtix picks the colours from
+              it; change them below if they don&apos;t look right.
+            </p>
+            <div className="actions" style={{ alignItems: "center", margin: "10px 0" }}>
+              {org.logo_path ? (
+                <ClubLogo path={org.logo_path} name={org.name} />
+              ) : (
+                <span className="muted small">No logo yet.</span>
+              )}
+              {editable && org.logo_path && (
+                <form action={removeLogo}>
+                  <button className="danger">Remove logo</button>
+                </form>
+              )}
+            </div>
+            {editable && (
+              <form action={uploadLogo} className="form">
+                <label>
+                  {org.logo_path ? "New logo" : "Logo"}
+                  <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" required />
+                  <span className="muted small">PNG with a transparent background works best. Up to 4 MB.</span>
+                </label>
+                <label className="check">
+                  <input type="checkbox" name="pick_colors" defaultChecked />
+                  Pick colours from the logo
+                </label>
+                <button className="primary" style={{ justifySelf: "start" }}>Upload logo</button>
+              </form>
+            )}
+
+            <form action={saveBrandColors} className="form" style={{ marginTop: 16 }}>
+              <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 10 }}>
+                <legend className="small" style={{ fontWeight: 600, marginBottom: 4 }}>Colours</legend>
+                {org.brand_palette.length > 0 && (
+                  <div className="stack" style={{ gap: 4 }}>
+                    <span className="muted small">Found in your logo:</span>
+                    <div className="swatches">
+                      {org.brand_palette.map((c) => (
+                        <span key={c} className="swatch" style={{ background: c }} title={c} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <datalist id="brand-swatches">
+                  {org.brand_palette.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+                <div className="actions">
+                  <label>
+                    Main colour
+                    <input type="color" name="brand_primary" list="brand-swatches" defaultValue={org.brand_primary ?? "#0f6e56"} />
+                    <span className="muted small">Buttons and links</span>
+                  </label>
+                  <label>
+                    Second colour
+                    <input
+                      type="color"
+                      name="brand_secondary"
+                      list="brand-swatches"
+                      defaultValue={org.brand_secondary ?? org.brand_primary ?? "#0f6e56"}
+                    />
+                    <span className="muted small">Top stripe and session times</span>
+                  </label>
+                </div>
+                <div className="brand-preview" aria-label="Preview of your booking page">
+                  {/* Only validated #rrggbb values reach brandCss. */}
+                  <style dangerouslySetInnerHTML={{ __html: brandCss(org.brand_primary, org.brand_secondary, ".brand-preview") }} />
+                  <div className="row">
+                    <ClubLogo path={org.logo_path} name={org.name} small />
+                    <strong>{org.name}</strong>
+                  </div>
+                  <div className="row">
+                    <span className="public-time">18:00</span>
+                    <span className="tabs" style={{ margin: 0 }}><span className="active">Sessions</span><span>Court times</span></span>
+                  </div>
+                  <div className="row">
+                    <span className="button primary">Sign up</span>
+                    <a href={bookingUrl} target="_blank" rel="noreferrer">See your booking page</a>
+                  </div>
+                </div>
+                {editable && (
+                  <div className="actions">
+                    <button className="primary">Save colours</button>
+                    {org.brand_primary && (
+                      <button name="reset" value="true">Use standard Courtix colours</button>
+                    )}
+                  </div>
+                )}
               </fieldset>
             </form>
           </section>

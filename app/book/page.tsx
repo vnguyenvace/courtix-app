@@ -4,6 +4,7 @@ import { param, type SearchParams } from "@/components/Banner";
 import { levelText } from "@/components/SessionBits";
 import { whatsappLink } from "@/lib/ai";
 import { StateBadge } from "@/components/PublicBits";
+import { ClubLogo } from "@/components/ClubLogo";
 import { loadPublicClub, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 
@@ -35,14 +36,17 @@ export default async function BookPage({ searchParams }: { searchParams: SearchP
   return (
     <main className="public">
       <header className="public-head">
-        <div>
-          <h1>{club.name}</h1>
-          <p className="muted">
-            {location ? `${location.name}${location.address ? ` · ${location.address}` : ""}` : "Sessions at every location"}
-          </p>
+        <div className="public-brand">
+          <ClubLogo path={club.logo_path} name={club.name} />
+          <div>
+            <h1>{club.name}</h1>
+            <p className="muted">
+              {location ? `${location.name}${location.address ? ` · ${location.address}` : ""}` : "Sessions at every location"}
+            </p>
+          </div>
         </div>
         {wa && (
-          <a className="button" href={wa}>WhatsApp the club</a>
+          <a className="button primary" href={wa}>WhatsApp the club</a>
         )}
       </header>
 
