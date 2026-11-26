@@ -259,3 +259,10 @@ input[type="color"] { width: 56px; height: 36px; padding: 2px; cursor: pointer; 
 .chat-event { justify-self: center; font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); text-align: center; }
 .chat-event.ok { background: var(--accent-soft); color: var(--accent); }
 .chat-event.warn { background: var(--warning-soft); color: var(--warning); }
+
+/* Morning page (app/(app)/morning): phone first */
+.morning { max-width: 760px; }
+.morning-section { margin-top: 20px; }
+.morning-section h2 { margin-bottom: 8px; }
+.morning-msg textarea { min-height: 96px; }
+.morning-msg textarea[readonly] { background: var(--surface-2); }

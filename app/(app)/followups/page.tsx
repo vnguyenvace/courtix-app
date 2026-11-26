@@ -6,6 +6,7 @@ import { aiConfigured, whatsappNumber } from "@/lib/ai";
 import { formatMoney, localTime } from "@/lib/time";
 import { LANGUAGES } from "@/components/MemberFields";
 import {
+  approveDraft,
   dismissAll,
   dismissDraft,
   inviteForSession,
@@ -65,7 +66,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
     .from("ai_messages")
     .select("*, members(full_name, phone, whatsapp, member_channel)")
     .eq("org_id", org.id)
-    .eq("status", "draft")
+    .in("status", ["draft", "approved"])
     .order("created_at", { ascending: false });
   if (show !== "all") draftQuery = draftQuery.eq("reason", show);
 
@@ -95,6 +96,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
   const stats = (statsData ?? {}) as Partial<AiFollowupStats>;
   const needPlayers = (needData ?? []) as SessionOverview[];
   const connected = aiConfigured();
+  const approvalOn = org.followup_mode === "approve";
 
   return (
     <>
@@ -197,6 +199,10 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
             const canWhatsApp = Boolean(whatsappNumber(phone));
             const prefersLine = m.members?.member_channel === "line";
             const boxId = `body-${m.id}`;
+            const approved = m.status === "approved";
+            // Morning approval: desk staff send only what an owner or manager approved (the database enforces it).
+            const canSend = !approvalOn || approved || manager;
+            const canEdit = manager || !approved || !approvalOn;
             return (
               <article key={m.id} id={`m-${m.id}`} className="card">
                 <div className="actions" style={{ justifyContent: "space-between", marginBottom: 6 }}>
@@ -206,6 +212,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                     </Link>
                     <span className={`badge ${REASON_BADGE[m.reason]}`}>{REASON_LABELS[m.reason]}</span>
                     <span className="badge">{languageName(m.language)}</span>
+                    {approved && <span className="badge ok">Approved</span>}
                   </span>
                   <span className="muted small">{phone ?? "No phone number"}</span>
                 </div>
@@ -213,9 +220,17 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                 <form className="form">
                   <input type="hidden" name="message_id" value={m.id} />
                   <input type="hidden" name="phone" value={phone ?? ""} />
-                  <textarea id={boxId} name="body" defaultValue={m.body} rows={5} style={{ minHeight: 110 }} />
+                  <textarea id={boxId} name="body" defaultValue={m.body} rows={5} style={{ minHeight: 110 }} readOnly={!canEdit} />
                   <div className="actions" style={{ justifyContent: "space-between" }}>
+                    {!canSend ? (
+                      <span className="muted small">
+                        Waiting for an owner or manager to approve it (<Link href="/morning">Morning</Link>).
+                      </span>
+                    ) : (
                     <span className="actions">
+                      {manager && approvalOn && !approved && (
+                        <button className="primary" formAction={approveDraft}>Approve</button>
+                      )}
                       {prefersLine && (
                         <button className="primary" formAction={sendOnLine}>Send on LINE</button>
                       )}
@@ -231,10 +246,13 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                       {!prefersLine && <button formAction={sendOnLine}>Send on LINE</button>}
                       <CopyButton targetId={boxId} />
                       <button formAction={markSent}>Mark as sent</button>
-                      <button formAction={saveDraft}>Save edit</button>
+                      {canEdit && <button formAction={saveDraft}>Save edit</button>}
                     </span>
+                    )}
                     <span className="actions">
-                      <button className="link" formAction={rewriteDraft} data-pending-label="Rewriting…">Rewrite</button>
+                      {!approved && (
+                        <button className="link" formAction={rewriteDraft} data-pending-label="Rewriting…">Rewrite</button>
+                      )}
                       <button className="link danger" formAction={dismissDraft}>Dismiss</button>
                     </span>
                   </div>
@@ -304,6 +322,17 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
               <label>
                 Don&apos;t message the same person for the same reason within (days)
                 <input type="number" name="followup_cooldown_days" min={1} max={60} defaultValue={org.followup_cooldown_days} />
+              </label>
+              <label>
+                Before messages go out
+                <select name="followup_mode" defaultValue={org.followup_mode}>
+                  <option value="approve">An owner or manager approves them (Morning page)</option>
+                  <option value="desk">Anyone at the desk may send them</option>
+                </select>
+              </label>
+              <label className="check">
+                <input type="checkbox" name="morning_drafts" defaultChecked={org.morning_drafts} />
+                Write drafts automatically every morning
               </label>
               <button>Save message settings</button>
             </fieldset>

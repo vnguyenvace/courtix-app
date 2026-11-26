@@ -34,6 +34,9 @@ export interface Org {
   brand_secondary: string | null;
   brand_palette: string[]; // colours found in the logo, offered as suggestions
   chat_mode: "answer" | "book"; // chat: answer only, or also book free / package-covered places
+  followup_mode: "approve" | "desk"; // approve = owner/manager approves follow-ups before they go out
+  morning_drafts: boolean; // write follow-up drafts automatically every morning
+  morning_run_on: string | null; // club's local date the morning job last ran
 }
 
 export interface Court {
@@ -279,7 +282,7 @@ export interface RosterRow {
 // ---------------------------------------------------------------- AI follow-ups
 
 export type FollowupReason = "at_risk" | "renewal" | "drop_in_lead" | "fill_session";
-export type MessageStatus = "draft" | "sent" | "dismissed";
+export type MessageStatus = "draft" | "approved" | "sent" | "dismissed"; // approved = owner/manager OK'd it (Step 9b)
 
 export const REASON_LABELS: Record<FollowupReason, string> = {
   renewal: "Renewal",
@@ -300,6 +303,8 @@ export interface AiMessage {
   context: Record<string, any>;
   model: string | null;
   status: MessageStatus;
+  approved_at?: string | null;
+  approved_by?: string | null;
   created_at: string;
   sent_at: string | null;
   members?: {
@@ -317,6 +322,7 @@ export interface AiFollowupStats {
   sent_30d: number;
   responded_30d: number;
   package_revenue_30d: number;
+  approved_waiting: number;
 }
 
 // ---------------------------------------------------------------- Locations

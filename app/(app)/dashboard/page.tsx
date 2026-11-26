@@ -70,6 +70,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     .or(`status.eq.requested,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
     .order("created_at", { ascending: false })
     .limit(8);
+  // Follow-ups waiting for an owner/manager to approve (Morning page).
+  const { count: toApprove } =
+    org.followup_mode === "approve" && (role === "owner" || role === "manager")
+      ? await supabase.from("ai_messages").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("status", "draft")
+      : { count: 0 };
   // Chats Claude handed to staff (Chats page).
   const { count: chatsWaiting } = await supabase
     .from("chat_conversations")
@@ -103,6 +108,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </div>
       </div>
       <Banner sp={sp} />
+      {(toApprove ?? 0) > 0 && (
+        <div className="banner notice">
+          {toApprove === 1 ? "1 follow-up is" : `${toApprove} follow-ups are`} waiting for your approval.{" "}
+          <Link href="/morning">Open Morning</Link>
+        </div>
+      )}
       {(chatsWaiting ?? 0) > 0 && (
         <div className="banner warn">
           {chatsWaiting === 1 ? "1 chat is" : `${chatsWaiting} chats are`} waiting for a person.{" "}

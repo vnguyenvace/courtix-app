@@ -19,6 +19,7 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 
 - Club logo and colours on the public booking page, and a public front page per club (26 Nov 2026), see Step 6 notes.
 - Chat booking with Claude, tested in the app until WhatsApp is connected (26 Nov 2026), see Step 9 notes.
+- Morning approval list: automatic morning drafts, owner approves on /morning, approval enforced in the database (26 Nov 2026), see Step 9b notes.
 
 ### Verified so far
 - All migrations and the four SQL test files pass on **real local Supabase** (Postgres 17) via `npm run test:db` (18 Nov 2026).
@@ -219,6 +220,14 @@ Done when: a member books a session by WhatsApp chat in Thai or Russian, gets a 
 - Per-club settings: follow-up mode (morning approval by default; "draft only" for clubs that prefer the desk to send), summary time and recipients.
 
 Done when: drafts appear by themselves each morning, one tap sends them, and nothing goes out without that tap.
+
+**Part 1 built, 26 Nov 2026 (without WhatsApp).** Migrations `20261126020000_approved_status.sql` (enum value on its own) and `20261126020100_morning_approval.sql`, test `morning_approval_test.sql`, page `/morning`, job `app/api/cron/morning/route.ts`.
+- **Morning job:** Vercel Cron (`vercel.json`) calls `/api/cron/morning` daily at 23:00 UTC (06:00 in Phuket) with `CRON_SECRET`. It runs as the service identity (`lib/supabase/service.ts`, server-only, used only by cron routes) and writes up to 20 drafts per club with `followup_candidates` + the same drafting code as the button (`lib/followups.ts`). Each club is claimed for its local date (`orgs.morning_run_on`), so a retry writes nothing twice. Fixed time for now: Vercel's free plan allows daily crons only; a per-club summary time needs an hourly cron (Pro plan) or pg_cron + pg_net.
+- **New message status `approved`.** Settings on AI follow-ups: `orgs.followup_mode` = `approve` (default: owner/manager approves) or `desk` (anyone sends drafts, as before), and `orgs.morning_drafts` (on by default). Enforced by a trigger on `ai_messages`: in approve mode desk staff can't send an unapproved draft or change an approved one; only owners/managers approve (`approve_all_drafts()`). An approved-but-unsent message counts as open (no second draft, not a candidate again).
+- **Morning page** (sidebar → Morning, phone first): sessions today and which are short of players, court bookings today, packages sold yesterday, chats and online requests waiting, drafts to approve (edit, Approve, Skip, **Approve all**), and approved messages ready to send by one-tap WhatsApp/LINE (anyone at the club). Dashboard shows owners "N follow-ups waiting for your approval".
+- Tested locally with live Claude: 10 drafts in English, Russian and Thai for the demo club; approve one edited, approve all, send.
+- **To go live:** add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project settings → API keys, the service_role / secret key) and `CRON_SECRET` (any long random string) to Vercel → Settings → Environment Variables (Production), then deploy. Check the first run in Vercel → Cron Jobs.
+Left for part 2 (needs Step 9 WhatsApp): send approved messages automatically through the WhatsApp Cloud API (templates), the owner's morning WhatsApp message from Courtix's own number with a link to /morning, instant WhatsApp notices of chat hand-offs, per-club summary time and recipients ("money in" waits for Step 3 orders; for now: packages sold yesterday).
 
 ## Step 10a: Deploy with club subdomains  ☐
 

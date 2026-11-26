@@ -11,12 +11,14 @@ import {
   MessagesSquare,
   Settings,
   Sparkles,
+  Sunrise,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
 const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", icon: House },
+  { href: "/morning", label: "Morning", icon: Sunrise },
   { href: "/sessions", label: "Sessions", icon: CalendarDays },
   { href: "/bookings", label: "Courts", icon: LayoutGrid },
   { href: "/members", label: "Members", icon: Users },

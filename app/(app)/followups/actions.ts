@@ -4,68 +4,50 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, optStr, str } from "@/lib/form";
-import { clubVoice, draftMessage, lineShareLink, mapLimit, whatsappLink, type ClubVoice, type FollowupReason } from "@/lib/ai";
+import { clubVoice, draftMessage, lineShareLink, whatsappLink, type ClubVoice, type FollowupReason } from "@/lib/ai";
+import { draftAndSave as draftAndSaveFor, type Candidate } from "@/lib/followups";
 import type { Org } from "@/lib/types";
 
 const PAGE = "/followups";
+const MORNING = "/morning";
+
+/** The page to go back to: the Morning page sends return_to=/morning. */
+function pageOf(form: FormData) {
+  return str(form, "return_to") === MORNING ? MORNING : PAGE;
+}
+
+function refresh() {
+  revalidatePath(PAGE);
+  revalidatePath(MORNING);
+  revalidatePath("/dashboard");
+}
 
 const voiceOf = (org: Org): ClubVoice => clubVoice(org);
 
-interface Candidate {
-  member_id: string;
-  reason?: FollowupReason;
-  language: string;
-  context: Record<string, unknown>;
-}
-
-/** Drafts messages for a list of candidates and saves them. Returns counts. */
-async function draftAndSave(
+/** Drafts for the signed-in staff member's club (RLS applies). */
+function draftAndSave(
   ctx: Awaited<ReturnType<typeof requireOrg>>,
   candidates: Candidate[],
   reasonOverride?: FollowupReason,
   sessionId?: string,
 ) {
-  const club = voiceOf(ctx.org);
-  let saved = 0;
-  const errors: string[] = [];
-
-  await mapLimit(candidates, 4, async (c) => {
-    const reason = reasonOverride ?? c.reason!;
-    try {
-      const draft = await draftMessage(reason, c.context, club);
-      const { error } = await ctx.supabase.from("ai_messages").insert({
-        org_id: ctx.org.id,
-        member_id: c.member_id,
-        reason,
-        session_id: sessionId ?? null,
-        language: c.language,
-        body: draft.body,
-        context: c.context,
-        model: draft.model,
-      });
-      if (error && error.code !== "23505") errors.push(friendly(error)); // 23505 = draft already exists
-      if (!error) saved++;
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : "Couldn't write a message.");
-    }
-  });
-
-  return { saved, errors: [...new Set(errors)] };
+  return draftAndSaveFor(ctx.supabase, ctx.org, candidates, reasonOverride, sessionId);
 }
 
-export async function writeDrafts() {
+export async function writeDrafts(form?: FormData) {
   const ctx = await requireOrg();
+  const page = form ? pageOf(form) : PAGE;
   const { data, error } = await ctx.supabase.rpc("followup_candidates", { p_org: ctx.org.id, p_limit: 20 });
-  if (error) back(PAGE, friendly(error));
+  if (error) back(page, friendly(error));
 
   const candidates = (data ?? []) as Candidate[];
   if (candidates.length === 0) {
-    back(PAGE, "Nobody needs a follow-up right now. Everyone flagged already has a draft or was messaged recently.", "notice");
+    back(page, "Nobody needs a follow-up right now. Everyone flagged already has a draft or was messaged recently.", "notice");
   }
 
   const { saved, errors } = await draftAndSave(ctx, candidates);
-  revalidatePath(PAGE);
-  if (saved === 0 && errors.length) back(PAGE, errors[0]);
+  refresh();
+  if (saved === 0 && errors.length) back(page, errors[0]);
   back(
     PAGE,
     `Wrote ${saved} draft${saved === 1 ? "" : "s"}.` + (errors.length ? ` ${errors.length} failed: ${errors[0]}` : ""),
@@ -119,57 +101,61 @@ export async function rewriteDraft(form: FormData) {
 }
 
 export async function saveDraft(form: FormData) {
+  const page = pageOf(form);
   const { supabase } = await requireOrg();
   const id = str(form, "message_id");
   const body = str(form, "body");
-  if (!body) back(PAGE, "The message can't be empty.");
-  const { error } = await supabase.from("ai_messages").update({ body }).eq("id", id).eq("status", "draft");
-  if (error) back(PAGE, friendly(error));
-  revalidatePath(PAGE);
-  back(PAGE, "Saved.", "notice");
+  if (!body) back(page, "The message can't be empty.");
+  const { error } = await supabase.from("ai_messages").update({ body }).eq("id", id).in("status", ["draft", "approved"]);
+  if (error) back(page, friendly(error));
+  refresh();
+  back(page, "Saved.", "notice");
 }
 
 /** Saves any edits, marks the message sent, then opens WhatsApp with it filled in. */
 export async function sendOnWhatsApp(form: FormData) {
+  const page = pageOf(form);
   const { supabase, userId } = await requireOrg();
   const id = str(form, "message_id");
   const body = str(form, "body");
   const phone = optStr(form, "phone");
-  if (!body) back(PAGE, "The message can't be empty.");
+  if (!body) back(page, "The message can't be empty.");
 
   const link = whatsappLink(phone, body);
-  if (!link) back(PAGE, "This member has no valid phone or WhatsApp number. Add one on their page first.");
+  if (!link) back(page, "This member has no valid phone or WhatsApp number. Add one on their page first.");
 
   const { error } = await supabase
     .from("ai_messages")
     .update({ body, status: "sent", sent_at: new Date().toISOString(), sent_by: userId, channel: "whatsapp" })
     .eq("id", id)
-    .eq("status", "draft");
-  if (error) back(PAGE, friendly(error));
+    .in("status", ["draft", "approved"]);
+  if (error) back(page, friendly(error));
 
-  revalidatePath(PAGE);
+  refresh();
   redirect(link);
 }
 
 /** Opens LINE with the message filled in; staff pick the member's chat there. */
 export async function sendOnLine(form: FormData) {
+  const page = pageOf(form);
   const { supabase, userId } = await requireOrg();
   const id = str(form, "message_id");
   const body = str(form, "body");
-  if (!body) back(PAGE, "The message can't be empty.");
+  if (!body) back(page, "The message can't be empty.");
 
   const { error } = await supabase
     .from("ai_messages")
     .update({ body, status: "sent", sent_at: new Date().toISOString(), sent_by: userId, channel: "line" })
     .eq("id", id)
-    .eq("status", "draft");
-  if (error) back(PAGE, friendly(error));
+    .in("status", ["draft", "approved"]);
+  if (error) back(page, friendly(error));
 
-  revalidatePath(PAGE);
+  refresh();
   redirect(lineShareLink(body));
 }
 
 export async function markSent(form: FormData) {
+  const page = pageOf(form);
   const { supabase, userId } = await requireOrg();
   const { error } = await supabase
     .from("ai_messages")
@@ -181,22 +167,23 @@ export async function markSent(form: FormData) {
       channel: str(form, "channel") || "other",
     })
     .eq("id", str(form, "message_id"))
-    .eq("status", "draft");
-  if (error) back(PAGE, friendly(error));
-  revalidatePath(PAGE);
-  back(PAGE, "Marked as sent.", "notice");
+    .in("status", ["draft", "approved"]);
+  if (error) back(page, friendly(error));
+  refresh();
+  back(page, "Marked as sent.", "notice");
 }
 
 export async function dismissDraft(form: FormData) {
+  const page = pageOf(form);
   const { supabase } = await requireOrg();
   const { error } = await supabase
     .from("ai_messages")
     .update({ status: "dismissed" })
     .eq("id", str(form, "message_id"))
-    .eq("status", "draft");
-  if (error) back(PAGE, friendly(error));
-  revalidatePath(PAGE);
-  back(PAGE, "Dismissed. They'll come up again next time they're flagged.", "notice");
+    .in("status", ["draft", "approved"]);
+  if (error) back(page, friendly(error));
+  refresh();
+  back(page, "Dismissed. They'll come up again next time they're flagged.", "notice");
 }
 
 export async function dismissAll() {
@@ -212,6 +199,35 @@ export async function dismissAll() {
   back(PAGE, "All drafts cleared.", "notice");
 }
 
+/** Owner/manager: approve one message (with any edits). The database checks the role. */
+export async function approveDraft(form: FormData) {
+  const { supabase, role } = await requireOrg();
+  const page = pageOf(form);
+  if (!canManage(role)) back(page, "Only an owner or manager can approve messages.");
+  const body = str(form, "body");
+  if (!body) back(page, "The message can't be empty.");
+  const { error } = await supabase
+    .from("ai_messages")
+    .update({ body, status: "approved" })
+    .eq("id", str(form, "message_id"))
+    .eq("status", "draft");
+  if (error) back(page, friendly(error));
+  refresh();
+  back(page, "Approved. It's ready to send.", "notice");
+}
+
+/** Owner/manager: approve every waiting draft as it is. */
+export async function approveAll(form: FormData) {
+  const { supabase, org, role } = await requireOrg();
+  const page = pageOf(form);
+  if (!canManage(role)) back(page, "Only an owner or manager can approve messages.");
+  const { data, error } = await supabase.rpc("approve_all_drafts", { p_org: org.id });
+  if (error) back(page, friendly(error));
+  refresh();
+  const n = Number(data ?? 0);
+  back(page, n === 0 ? "Nothing was waiting." : `Approved ${n} message${n === 1 ? "" : "s"}. They're ready to send.`, "notice");
+}
+
 export async function saveVoice(form: FormData) {
   const { supabase, org, role } = await requireOrg();
   if (!canManage(role)) back(PAGE, "Only owners and managers can change how messages sound.");
@@ -223,9 +239,11 @@ export async function saveVoice(form: FormData) {
       ai_sign_off: optStr(form, "ai_sign_off"),
       ai_offers: optStr(form, "ai_offers"),
       followup_cooldown_days: Number.isFinite(days) && days >= 1 && days <= 60 ? days : org.followup_cooldown_days,
+      followup_mode: str(form, "followup_mode") === "desk" ? "desk" : "approve",
+      morning_drafts: form.get("morning_drafts") === "on",
     })
     .eq("id", org.id);
   if (error) back(PAGE, friendly(error));
-  revalidatePath(PAGE);
+  refresh();
   back(PAGE, "Message settings saved. New drafts will use them.", "notice");
 }
