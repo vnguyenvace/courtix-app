@@ -6,6 +6,7 @@ import { ClubLogo } from "@/components/ClubLogo";
 import { loadMember, loadPublicClub } from "@/lib/public";
 import { formatLongDay, localTime } from "@/lib/time";
 import { memberBookCourt, publicBookCourt } from "../../actions";
+import { PublicFooter } from "@/components/PublicFooter";
 
 // A visitor books one court time as a guest: name, WhatsApp number, consent. Pay at the club.
 // Signed-in members book with one tap at their package's price instead.
@@ -103,7 +104,7 @@ export default async function BookCourtPage({ searchParams }: { searchParams: Se
             </label>
             <label className="check">
               <input type="checkbox" name="contact_ok" required />
-              {club.name} may contact me about this booking
+              {club.name} may contact me about this booking (<Link href="/privacy">privacy</Link>)
             </label>
             <label className="check">
               <input type="checkbox" name="marketing" />
@@ -113,7 +114,7 @@ export default async function BookCourtPage({ searchParams }: { searchParams: Se
           </form>
         </section>
       )}
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

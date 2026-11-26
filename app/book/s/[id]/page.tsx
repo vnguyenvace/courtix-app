@@ -9,6 +9,7 @@ import { whatsappLink } from "@/lib/ai";
 import { loadMember, loadPublicClub, sessionState, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 import { memberBookSession, publicSignUp } from "../../actions";
+import { PublicFooter } from "@/components/PublicFooter";
 
 async function load(id: string) {
   const { supabase, slug, club } = await loadPublicClub();
@@ -180,7 +181,7 @@ export default async function PublicSessionPage({
                     <span className="small muted">With country code if you&apos;re not on a Thai number.</span>
                   </label>
                   <label className="check">
-                    <input type="checkbox" name="contact_ok" required /> The club may contact me on WhatsApp about this booking
+                    <input type="checkbox" name="contact_ok" required /> The club may contact me on WhatsApp about this booking (<Link href="/privacy">privacy</Link>)
                   </label>
                   <label className="check">
                     <input type="checkbox" name="marketing" /> Send me news and offers from {club.name} (optional)
@@ -201,7 +202,7 @@ export default async function PublicSessionPage({
           </section>
         )}
       </div>
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

@@ -8,6 +8,7 @@ import { promptPayKind, promptPayPayload } from "@/lib/promptpay";
 import { loadPublicClub } from "@/lib/public";
 import { formatMoney } from "@/lib/time";
 import { sendPayerSlip } from "../../actions";
+import { PublicFooter } from "@/components/PublicFooter";
 
 // Pay page for one unpaid booking or package: a PromptPay QR with the exact amount (scan in any
 // Thai banking app; the money goes straight to the club), plus "send your slip". Reached by its
@@ -97,7 +98,7 @@ export default async function PayPage({ params, searchParams }: { params: Promis
           </form>
         </section>
       )}
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

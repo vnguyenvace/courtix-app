@@ -5,6 +5,7 @@ import { ClubLogo } from "@/components/ClubLogo";
 import { loadMember, loadPublicClub } from "@/lib/public";
 import { formatMoney } from "@/lib/time";
 import { memberCancel, memberSignOut, requestCode, verifyCode } from "../actions";
+import { PublicFooter } from "@/components/PublicFooter";
 
 // A member's own page on the club's booking site: sign in with a one-time code (LINE, SMS or
 // email), then see their package, what they owe, and their upcoming bookings, and cancel.
@@ -164,7 +165,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Searc
           </form>
         </>
       )}
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

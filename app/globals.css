@@ -328,3 +328,16 @@ input[type="color"] { width: 56px; height: 36px; padding: 2px; cursor: pointer; 
 .pay-qr svg { width: 100%; height: 100%; display: block; }
 .slip-check { background: var(--warning-soft); color: var(--warning); padding: 6px 10px; border-radius: 8px; }
 .slip-check form { display: inline; margin-left: 8px; }
+
+/* Privacy and Terms pages (app/privacy, app/terms) */
+.legal { max-width: 760px; line-height: 1.65; }
+.legal h1 { font-size: 30px; margin-top: 8px; }
+.legal h2 { font-size: 19px; margin: 28px 0 8px; }
+.legal h3 { font-size: 16px; margin: 18px 0 6px; }
+.legal p, .legal li { font-size: 15px; }
+.legal ul { padding-left: 22px; display: grid; gap: 4px; margin: 6px 0 12px; }
+.legal-intro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin: 12px 0 8px; }
+.legal-nav { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; }
+.legal table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 14px; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+@media print { .legal-nav { display: none; } }

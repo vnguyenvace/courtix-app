@@ -53,7 +53,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
               Setting up a new club? <a href={host.rootUrl("/login")}>Start at Courtix</a>.
             </p>
           )}
-          {clubName && <p className="muted small" style={{ marginTop: 4 }}>Powered by Courtix</p>}
+          <p className="muted small" style={{ marginTop: 4 }}>
+            {clubName ? "Powered by Courtix · " : ""}
+            <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
+          </p>
         </div>
       </main>
     </>

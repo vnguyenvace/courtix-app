@@ -8,7 +8,8 @@ import { cookieDomain, requestHost } from "@/lib/tenant";
 // /api/cron: scheduled jobs, protected by CRON_SECRET in the route itself (no user session).
 // /api/line: LINE webhooks, protected by LINE's signature with the club's channel secret.
 // /guides: help pages for club owners (no sign-in, so they can be sent to new clubs).
-const PUBLIC_PATHS = ["/login", "/auth", "/book", "/guides", "/api/cron", "/api/line"];
+// /privacy, /terms: legal pages, readable by anyone on any Courtix address.
+const PUBLIC_PATHS = ["/login", "/auth", "/book", "/guides", "/privacy", "/terms", "/api/cron", "/api/line"];
 
 // Keeps the Supabase session fresh and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {

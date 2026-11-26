@@ -5,6 +5,7 @@ import { ClubLogo } from "@/components/ClubLogo";
 import { loadMember, loadPublicClub, type PublicCourtSlot } from "@/lib/public";
 import { memberBookCourt } from "../actions";
 import { addDays, formatLongDay, isValidDate, localTime, todayIn } from "@/lib/time";
+import { PublicFooter } from "@/components/PublicFooter";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { club } = await loadPublicClub();
@@ -131,7 +132,7 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
           </div>
         )}
       </section>
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

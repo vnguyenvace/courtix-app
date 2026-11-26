@@ -7,6 +7,7 @@ import { StateBadge } from "@/components/PublicBits";
 import { ClubLogo } from "@/components/ClubLogo";
 import { loadPublicClub, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
+import { PublicFooter } from "@/components/PublicFooter";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { club } = await loadPublicClub();
@@ -102,7 +103,7 @@ export default async function BookPage({ searchParams }: { searchParams: SearchP
           </section>
         ))
       )}
-      <p className="muted small public-foot">Booking by Courtix</p>
+      <PublicFooter />
     </main>
   );
 }

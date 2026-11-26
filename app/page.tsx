@@ -9,6 +9,7 @@ import { whatsappLink } from "@/lib/ai";
 import { currentHost } from "@/lib/host";
 import { loadPublicClub, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
+import { PublicFooter } from "@/components/PublicFooter";
 
 // <slug>.courtix.app/ is the club's public front page: who they are, where, what's on, and how to
 // book. Staff sign in from a link on it. On the main site (courtix.app/) this still goes to the
@@ -140,9 +141,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <p className="muted small public-foot">
-          Booking by Courtix · {signedIn ? <Link href="/dashboard">Dashboard</Link> : <Link href="/login">Staff sign in</Link>}
-        </p>
+        <PublicFooter />
       </main>
     </>
   );

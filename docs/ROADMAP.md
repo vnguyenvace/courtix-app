@@ -22,6 +22,8 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 - Morning approval list: automatic morning drafts, owner approves on /morning, approval enforced in the database (26 Nov 2026), see Step 9b notes.
 - Orders and payments: every paid booking, place and package becomes an order; staff mark payments (with slip photos); booking confirmations say what's due (26 Nov 2026), see Step 3 notes.
 
+- Privacy policy and terms (26 Nov 2026): public pages `/privacy` and `/terms` (any Courtix address), written from what Courtix actually does (data held, sub-processors Supabase/Vercel/Anthropic/LINE/EasySlip/Twilio/Resend, Singapore hosting, cookies, PDPA roles: club = controller, Courtix = processor). Linked from every booking page footer, the front page, staff sign-in and the guest consent ticks. Facts in `lib/legal.ts`: **add the legal entity name and address there** once registered. **Needs review by a Thai lawyer before relying on it, and a Thai version** (PDPA notices should be in a language members understand).
+
 ### Verified so far
 - All migrations and the four SQL test files pass on **real local Supabase** (Postgres 17) via `npm run test:db` (18 Nov 2026).
 - `lib/time.ts` and `lib/ai.ts` were unit-tested with tsx (time zones, WhatsApp numbers, prompts, a simulated Claude API response).
