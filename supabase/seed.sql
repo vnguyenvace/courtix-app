@@ -181,3 +181,22 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', 'd0000000-0000-4000-8000-000000000002', false);
 select public.create_org('Chalong Padel', 'chalong');
 reset role;
+
+-- Payments (Step 3): the database made an order for every demo sale above. Make the demo
+-- realistic: package sales were paid (cash, transfer, PromptPay), and past court bookings and
+-- session places were paid at the desk. Upcoming ones stay unpaid, to collect when they come.
+-- The seed runs as one transaction: make the order triggers (deferred) run now, before this.
+set constraints all immediate;
+update public.orders o
+   set status = 'paid',
+       method = (array['cash', 'transfer', 'promptpay'])[1 + (abs(hashtext(o.id::text)) % 3)],
+       paid_amount = o.total,
+       paid_at = o.created_at
+ where o.status = 'pending'
+   and (exists (select 1 from public.order_items i where i.order_id = o.id and i.kind = 'package')
+        or exists (select 1 from public.order_items i
+                     join public.booking_calendar b on b.id = i.booking_id
+                    where i.order_id = o.id and b.start_at < now())
+        or exists (select 1 from public.order_items i
+                     join public.session_overview s on s.id = (select r.session_id from public.session_registrations r where r.id = i.registration_id)
+                    where i.order_id = o.id and s.starts_at < now()));

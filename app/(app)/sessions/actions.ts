@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
 import { formatMoney, isValidDate, zonedToUtc } from "@/lib/time";
+import { sendPendingNotices } from "@/lib/notices";
 
 function refresh() {
   revalidatePath("/sessions", "layout");
@@ -34,6 +35,8 @@ export async function runMinimumCheck(form: FormData) {
   const { supabase, org } = await requireOrg();
   const { data, error } = await supabase.rpc("check_session_minimums", { p_org: org.id });
   if (error) back(returnTo, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   const rows = (data ?? []) as { outcome: string }[];
   const confirmed = rows.filter((r) => r.outcome === "confirmed").length;
   const cancelled = rows.filter((r) => r.outcome === "cancelled").length;
@@ -76,6 +79,8 @@ export async function registerForSession(form: FormData) {
     p_ignore_level: form.get("ignore_level") === "on",
   });
   if (error) back(path, friendly(error));
+  await notifyMembers(supabase); // the member's booking confirmation
+  revalidatePath("/payments");
 
   const { data: reg } = await supabase
     .from("session_roster")
@@ -99,6 +104,8 @@ export async function cancelRegistration(form: FormData) {
     p_registration: registrationId,
   });
   if (error) back(path, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   const { data: after } = await supabase
     .from("session_registrations")
     .select("credit_used")
@@ -137,6 +144,8 @@ export async function cancelSession(form: FormData) {
     p_reason: optStr(form, "reason"),
   });
   if (error) back(path, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   refresh();
   back(
     path,
@@ -214,6 +223,8 @@ export async function approveRequest(form: FormData) {
   const { supabase } = await requireOrg();
   const { data, error } = await supabase.rpc("approve_online_request", { p_registration: str(form, "registration_id") });
   if (error) back(path, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   refresh();
   revalidatePath("/dashboard");
   back(
@@ -362,6 +373,8 @@ export async function updateSession(form: FormData) {
     p_courts: form.getAll("court_ids").map(String),
   });
   if (error) back(editPath, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   refresh();
   const r = (data ?? {}) as { moved_up?: number; court_note?: string | null };
   let message = "Session saved. People already booked keep the price they signed up at.";
@@ -399,6 +412,8 @@ export async function updateSessionType(form: FormData) {
   if (form.get("apply_upcoming") === "on") {
     const { data, error: applyError } = await supabase.rpc("apply_session_type", { p_type: typeId });
     if (applyError) back(path, friendly(applyError));
+    // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+    await notifyMembers(supabase);
     const r = (data ?? {}) as { updated?: number; kept_max?: number; moved_up?: number };
     message += ` ${r.updated ?? 0} upcoming ${r.updated === 1 ? "session" : "sessions"} updated (sessions you edited by hand were left alone).`;
     if (r.kept_max) message += ` ${r.kept_max} already had more people than the new maximum, so they keep a higher limit.`;
@@ -433,6 +448,8 @@ export async function updateScheduleEntry(form: FormData) {
     p_valid_until: isValidDate(validUntil) ? validUntil : null,
   });
   if (error) back(path, friendly(error));
+  // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
+  await notifyMembers(supabase);
   refresh();
 
   const r = (data ?? {}) as { rebuilt?: number; created?: number; kept?: { id: string; starts_at: string }[] };
@@ -449,4 +466,14 @@ export async function updateScheduleEntry(form: FormData) {
     message += ` ${kept.length} ${kept.length === 1 ? "session already has" : "sessions already have"} people signed up and stayed at the old time (${when}). Open each one to move it, or cancel it, and let the players know.`;
   }
   back(path, message, "notice");
+}
+
+/** Sends the automatic notices a change just queued (waitlist moved up, session cancelled). Never fails the action. */
+async function notifyMembers(supabase: Awaited<ReturnType<typeof requireOrg>>["supabase"]) {
+  try {
+    const { data } = await supabase.from("member_notices").select("org_id").eq("status", "pending").limit(500);
+    for (const orgId of new Set((data ?? []).map((r) => r.org_id as string))) await sendPendingNotices(supabase, orgId);
+  } catch (e) {
+    console.error("Notices: couldn't send after a session change", e);
+  }
 }

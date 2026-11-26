@@ -7,6 +7,7 @@ import { SessionStatusBadge, Spots, levelText } from "@/components/SessionBits";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession } from "../actions";
 import { CATEGORY_LABELS, type MemberStatus, type RosterRow, type SessionOverview } from "@/lib/types";
+import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
 
 const STATUS_BADGE: Record<string, string> = {
   booked: "ok",
@@ -78,6 +79,18 @@ export default async function SessionPage({
   const s = sData as SessionOverview;
 
   const roster = (rData ?? []) as RosterRow[];
+  // Payment for each paid place (orders are made by the database; Step 3).
+  const { data: payData } = roster.length
+    ? await supabase
+        .from("order_items")
+        .select("registration_id, orders(id, status, method)")
+        .in("registration_id", roster.map((r) => r.id))
+    : { data: [] };
+  const payments = new Map(
+    ((payData ?? []) as unknown as { registration_id: string; orders: { id: string; status: string; method: string | null } | null }[])
+      .filter((p) => p.orders)
+      .map((p) => [p.registration_id, p.orders!]),
+  );
   const members = (mData ?? []) as Pick<MemberStatus, "member_id" | "full_name" | "membership_status" | "package_name">[];
   const tz = s.location_timezone;
   const day = new Date(s.starts_at).toLocaleDateString("en-CA", { timeZone: tz });
@@ -145,7 +158,7 @@ export default async function SessionPage({
             {playing.length === 0 ? (
               <p className="muted small">Nobody yet.</p>
             ) : (
-              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} />
+              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} payments={payments} />
             )}
           </section>
 
@@ -178,7 +191,7 @@ export default async function SessionPage({
             <section className="card">
               <h2>Waitlist ({waiting.length})</h2>
               <p className="muted small">The first person moves up automatically when someone cancels.</p>
-              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable currency={org.currency} />
+              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable currency={org.currency} payments={payments} />
             </section>
           )}
 
@@ -290,12 +303,14 @@ function RosterList({
   started,
   cancellable,
   currency,
+  payments,
 }: {
   rows: RosterRow[];
   sessionId: string;
   started: boolean;
   cancellable: boolean;
   currency: string;
+  payments: Map<string, { id: string; status: string; method: string | null }>;
 }) {
   return (
     <ul className="list">
@@ -310,7 +325,14 @@ function RosterList({
               {r.language ? ` · ${r.language.toUpperCase()}` : ""}
               {r.phone ? ` · ${r.phone}` : ""}
             </span>
-            <div className="small muted">{paymentText(r, currency)}</div>
+            <div className="small muted">
+              {paymentText(r, currency)}
+              {payments.get(r.id)?.status === "paid" && ` · paid (${METHOD_LABELS[payments.get(r.id)!.method ?? ""] ?? "paid"})`}
+              {payments.get(r.id)?.status === "refund_due" && " · paid, refund to check (Payments)"}
+            </div>
+            {payments.get(r.id)?.status === "pending" && (
+              <MarkPaidForm orderId={payments.get(r.id)!.id} returnTo={`/sessions/${sessionId}`} compact />
+            )}
           </span>
           <span className="actions">
             <span className={`badge ${STATUS_BADGE[r.status] ?? ""}`}>{r.status.replace("_", "-")}</span>

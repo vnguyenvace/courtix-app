@@ -14,6 +14,8 @@ import {
   updateMember,
 } from "../../actions";
 import type { BookingRow, Member, MemberStatus, Membership, PackageType } from "@/lib/types";
+import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
+import type { Order } from "@/lib/types";
 
 export default async function MemberPage({
   params,
@@ -27,7 +29,7 @@ export default async function MemberPage({
   const { supabase, org, locations } = await requireOrg();
   const today = todayIn(org.timezone);
 
-  const [member, status, memberships, packages, checkIns, bookings] = await Promise.all([
+  const [member, status, memberships, packages, checkIns, bookings, orderData] = await Promise.all([
     supabase.from("members").select("*").eq("id", id).eq("org_id", org.id).maybeSingle(),
     supabase.from("member_status").select("*").eq("member_id", id).maybeSingle(),
     supabase
@@ -48,6 +50,14 @@ export default async function MemberPage({
       .eq("member_id", id)
       .order("start_at", { ascending: false })
       .limit(10),
+    // Payments (Step 3): what they owe, and what they paid lately.
+    supabase
+      .from("orders")
+      .select("id, status, total, paid_amount, method, paid_at, created_at, order_items(description, cancelled_at)")
+      .eq("member_id", id)
+      .in("status", ["pending", "paid", "refund_due"])
+      .order("created_at", { ascending: false })
+      .limit(15),
   ]);
 
   if (!member.data) notFound();
@@ -57,6 +67,9 @@ export default async function MemberPage({
   const pkgs = (packages.data ?? []) as PackageType[];
   const visits = (checkIns.data ?? []) as { id: string; checked_in_at: string; source: string; location_id: string | null }[];
   const locName = new Map(locations.map((l) => [l.id, l.name]));
+  const orders = (orderData.data ?? []) as unknown as (Pick<Order, "id" | "status" | "total" | "paid_amount" | "method" | "paid_at" | "created_at"> & {
+    order_items: { description: string; cancelled_at: string | null }[];
+  })[];
   const books = (bookings.data ?? []) as BookingRow[];
   const current = ms.find((x) => x.status === "active");
   const path = `/members/${m.id}`;
@@ -147,8 +160,41 @@ export default async function MemberPage({
                   <input type="number" name="price" min="0" step="1" placeholder="List price" />
                 </label>
               </div>
+              <label>
+                Payment
+                <select name="paid_with" defaultValue="">
+                  <option value="">Not paid yet (pay later)</option>
+                  {Object.entries(METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>Paid now: {v}</option>
+                  ))}
+                </select>
+              </label>
               <button className="primary">Sell package</button>
             </form>
+          </section>
+
+          <section className="card">
+            <h2>Payments</h2>
+            {orders.length === 0 ? (
+              <p className="muted small">Nothing to pay, no payments yet.</p>
+            ) : (
+              orders.map((o) => (
+                <div key={o.id} className="order-row">
+                  <div className="order-head">
+                    <span className="small">{o.order_items.map((i) => i.description).join(" · ")}</span>
+                    <span className="order-amount">{formatMoney(o.status === "pending" ? o.total : o.paid_amount ?? o.total, org.currency)}</span>
+                  </div>
+                  {o.status === "pending" ? (
+                    <MarkPaidForm orderId={o.id} returnTo={`/members/${m.id}`} compact />
+                  ) : (
+                    <span className="muted small">
+                      {o.status === "refund_due" ? "Paid, then cancelled: refund to check (Payments)" : `Paid · ${METHOD_LABELS[o.method ?? ""] ?? o.method}`}
+                      {o.paid_at ? ` · ${new Date(o.paid_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: org.timezone })}` : ""}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
           </section>
 
           {current && (

@@ -3,6 +3,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { currentHost } from "@/lib/host";
 import { createClient } from "@/lib/supabase/server";
+import { memberToken } from "@/lib/memberAuth";
 import type { SessionCategory } from "@/lib/types";
 
 // The public booking page (<slug>.courtix.app/book). Visitors aren't signed in, so every
@@ -78,3 +79,35 @@ export function sessionState(s: PublicSession, now = Date.now()) {
   if (s.spots_left === 0) return "full" as const;
   return "open" as const;
 }
+
+// ---------------------------------------------------------------- Signed-in member (public pages)
+
+export interface MemberMe {
+  name: string;
+  first_name: string;
+  package: { name: string; status?: string; ends_on?: string; sessions_left?: number } | null;
+  late_cancel_hours: number;
+  sessions: {
+    id: string;
+    session_id: string;
+    name: string;
+    location: string;
+    starts_at: string;
+    ends_at: string;
+    timezone: string;
+    status: "booked" | "waitlisted" | "requested";
+    price: number;
+    covered: boolean;
+  }[];
+  courts: { id: string; court: string; location: string; starts_at: string; ends_at: string; timezone: string; price: number }[];
+  to_pay: number;
+}
+
+/** The member signed in on this browser (cookie), or null. Cached per request. */
+export const loadMember = cache(async (): Promise<MemberMe | null> => {
+  const token = await memberToken();
+  if (!token) return null;
+  const { supabase, slug } = await loadPublicClub();
+  const { data, error } = await supabase.rpc("member_me", { p_slug: slug, p_token: token });
+  return error || !data ? null : (data as MemberMe);
+});

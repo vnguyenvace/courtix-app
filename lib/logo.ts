@@ -123,3 +123,12 @@ function hueGap(a: number, b: number) {
   const d = Math.abs(a - b) % 360;
   return d > 180 ? 360 - d : d;
 }
+
+/** A transfer slip photo: JPEG, at most 1600px, photo metadata (GPS) removed. */
+export async function normalizeSlip(input: Buffer): Promise<Buffer> {
+  return sharp(input, { limitInputPixels: 60_000_000 })
+    .rotate()
+    .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+}

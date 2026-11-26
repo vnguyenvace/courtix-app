@@ -13,6 +13,7 @@ import {
   Sparkles,
   Sunrise,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/sessions", label: "Sessions", icon: CalendarDays },
   { href: "/bookings", label: "Courts", icon: LayoutGrid },
   { href: "/members", label: "Members", icon: Users },
+  { href: "/payments", label: "Payments", icon: Wallet },
   { href: "/chats", label: "Chats", icon: MessagesSquare },
   { href: "/replies", label: "Reply helper", icon: MessageSquareReply },
   { href: "/followups", label: "AI follow-ups", icon: Sparkles },

@@ -9,6 +9,7 @@ import { normalizeHex } from "@/lib/brand";
 import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
 import { encryptSecret, secretsConfigured } from "@/lib/secrets";
 import { LineError, lineBotInfo } from "@/lib/line";
+import { sendPendingNotices } from "@/lib/notices";
 import type { BookingKind, MessageChannel } from "@/lib/types";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
@@ -42,6 +43,7 @@ export async function createMember(form: FormData) {
       usual_play_time: optStr(form, "usual_play_time"),
       notes: optStr(form, "notes"),
       marketing_consent: consent,
+      notices_opt_out: form.get("notices_opt_out") === "on",
       consent_at: consent ? new Date().toISOString() : null,
       home_location_id: optStr(form, "home_location_id"),
     })
@@ -88,6 +90,7 @@ export async function updateMember(form: FormData) {
       usual_play_time: optStr(form, "usual_play_time"),
       notes: optStr(form, "notes"),
       marketing_consent: consent,
+      notices_opt_out: form.get("notices_opt_out") === "on",
       home_location_id: optStr(form, "home_location_id"),
       ...(consent && !current?.marketing_consent ? { consent_at: new Date().toISOString() } : {}),
       ...(!consent ? { consent_at: null } : {}),
@@ -123,16 +126,26 @@ export async function sellPackage(form: FormData) {
   const startsOn = str(form, "starts_on");
   const price = num(form, "price");
 
-  const { error } = await supabase.rpc("sell_membership", {
+  const { data: membershipId, error } = await supabase.rpc("sell_membership", {
     p_member: memberId,
     p_package: str(form, "package_id"),
     p_starts_on: isValidDate(startsOn) ? startsOn : null,
     p_price: price,
   });
-
   if (error) back(path, friendly(error));
+
+  // Paid on the spot: record it on the order the sale just made.
+  const paidWith = str(form, "paid_with");
+  if (paidWith && membershipId) {
+    const { data: item } = await supabase.from("order_items").select("order_id").eq("membership_id", membershipId).maybeSingle();
+    if (item) {
+      const { error: payErr } = await supabase.rpc("mark_order_paid", { p_order: item.order_id, p_method: paidWith });
+      if (payErr) back(path, `Package sold, but the payment wasn't recorded: ${friendly(payErr)}`);
+    }
+  }
   revalidatePath(path);
-  back(path, "Package sold.", "notice");
+  revalidatePath("/payments");
+  back(path, paidWith ? "Package sold and paid." : "Package sold. It's on the list to pay (Payments).", "notice");
 }
 
 export async function pauseMembership(form: FormData) {
@@ -168,7 +181,7 @@ export async function cancelMembership(form: FormData) {
 // ---------------------------------------------------------------- Bookings
 
 export async function createBooking(form: FormData) {
-  const { supabase, locations, workLocation } = await requireOrg();
+  const { supabase, org, locations, workLocation } = await requireOrg();
   const date = str(form, "date");
   const time = str(form, "time");
   const { data: court } = await supabase.from("courts").select("location_id").eq("id", str(form, "court_id")).maybeSingle();
@@ -198,7 +211,9 @@ export async function createBooking(form: FormData) {
   });
 
   if (error) back(formPath, friendly(error));
+  await sendPendingNotices(supabase, org.id); // the member's booking confirmation
   revalidatePath("/bookings");
+  revalidatePath("/payments");
   back(path, "Court booked.", "notice");
 }
 
@@ -358,6 +373,21 @@ export async function disconnectLine() {
   if (error) back(MESSAGING, friendly(error));
   revalidatePath("/settings");
   back(MESSAGING, "LINE disconnected and its keys deleted. Remove the webhook address in LINE Developers too.", "notice");
+}
+
+// Automatic service messages: which kinds the club sends (lib/notices.ts).
+const NOTICE_KINDS = ["booking_confirmed", "booking_reminder", "package_ending", "waitlist_moved_up", "session_cancelled"];
+
+export async function saveAutoNotices(form: FormData) {
+  const { supabase, org } = await requireManager();
+  const kinds = NOTICE_KINDS.filter((k) => form.get(k) === "on");
+  const { error } = await supabase
+    .from("orgs")
+    .update({ auto_notices: kinds, payment_note: str(form, "payment_note").slice(0, 300) || null })
+    .eq("id", org.id);
+  if (error) back("/settings#notices", friendly(error));
+  revalidatePath("/settings");
+  back("/settings#notices", kinds.length ? "Automatic messages saved." : "Automatic messages are off.", "notice");
 }
 
 // The public booking page (<slug>.courtix.app/book) on or off.

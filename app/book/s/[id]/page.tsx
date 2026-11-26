@@ -6,9 +6,9 @@ import { StateBadge } from "@/components/PublicBits";
 import { ClubLogo } from "@/components/ClubLogo";
 import { levelText } from "@/components/SessionBits";
 import { whatsappLink } from "@/lib/ai";
-import { loadPublicClub, sessionState, type PublicSession } from "@/lib/public";
+import { loadMember, loadPublicClub, sessionState, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
-import { publicSignUp } from "../../actions";
+import { memberBookSession, publicSignUp } from "../../actions";
 
 async function load(id: string) {
   const { supabase, slug, club } = await loadPublicClub();
@@ -38,6 +38,8 @@ export default async function PublicSessionPage({
   const state = sessionState(s);
   const approve = club.online_signups === "approve";
   const done = param(sp, "done");
+  const me = await loadMember();
+  const already = me?.sessions.find((r) => r.session_id === s.id);
   const error = param(sp, "error");
   const location = club.locations.find((l) => l.id === s.location_id);
   const when = `${formatLongDay(day)} ${localTime(s.starts_at, tz)}`;
@@ -71,6 +73,20 @@ export default async function PublicSessionPage({
         </div>
       </header>
 
+      {done === "member" && (
+        <div className="banner notice" role="status">
+          {param(sp, "status") === "waitlisted"
+            ? `You're on the waitlist for ${s.name} on ${when}. We'll let you know if a place opens up.`
+            : `You're booked for ${s.name} on ${when}. ${
+                param(sp, "covered") === "1"
+                  ? "Covered by your package."
+                  : Number(param(sp, "price") ?? 0) > 0
+                    ? `Please pay ${formatMoney(Number(param(sp, "price")), club.currency)} at the club.`
+                    : ""
+              } See you on court.`}{" "}
+          <Link href="/book/me">My bookings</Link>
+        </div>
+      )}
       {done === "booked" && (
         <div className="banner notice" role="status">
           You&apos;re booked for {s.name} on {when}. Pay {formatMoney(s.price, club.currency)} at the club. See you on court.
@@ -122,6 +138,29 @@ export default async function PublicSessionPage({
               </>
             ) : (
               <>
+                {me ? (
+                  already ? (
+                    <>
+                      <h2>You&apos;re {already.status === "booked" ? "booked" : already.status === "waitlisted" ? "on the waitlist" : "waiting for the club"}</h2>
+                      <p className="small"><Link href="/book/me">See or cancel it in My bookings</Link></p>
+                    </>
+                  ) : (
+                    <>
+                      <h2>{state === "full" ? "Join the waitlist" : `Book as ${me.first_name}`}</h2>
+                      <p className="muted small">
+                        {me.package ? `With your ${me.package.name} if it covers this session; otherwise pay at the club.` : "You pay at the club."}
+                      </p>
+                      <form action={memberBookSession}>
+                        <input type="hidden" name="session_id" value={s.id} />
+                        <button className="primary">{state === "full" ? "Join the waitlist" : "Book my place"}</button>
+                      </form>
+                    </>
+                  )
+                ) : (
+                <>
+                <p className="small member-hint">
+                  Member? <Link href={`/book/me?next=/book/s/${s.id}`}>Sign in to book with your package</Link>
+                </p>
                 <h2>{approve ? "Request a place" : state === "full" ? "Join the waitlist" : "Sign up"}</h2>
                 {approve && <p className="muted small">The club confirms each place on WhatsApp.</p>}
                 <form action={publicSignUp} className="form">
@@ -154,6 +193,8 @@ export default async function PublicSessionPage({
                   </button>
                   <p className="muted small">No account needed. You pay at the club.</p>
                 </form>
+                </>
+                )}
               </>
             )}
           </section>

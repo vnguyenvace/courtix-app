@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { draftAndSave, type Candidate } from "@/lib/followups";
+import { autoSendFollowups, draftAndSave, type Candidate } from "@/lib/followups";
+import { sendPendingNotices } from "@/lib/notices";
 import { serviceClient } from "@/lib/supabase/service";
 import { todayIn } from "@/lib/time";
 import type { Org } from "@/lib/types";
@@ -49,12 +50,16 @@ export async function GET(request: Request) {
       const { data, error: candErr } = await db.rpc("followup_candidates", { p_org: org.id, p_limit: PER_CLUB });
       if (candErr) throw new Error(candErr.message);
       const { saved, errors } = await draftAndSave(db, org, (data ?? []) as Candidate[]);
-      results.push({ club: org.slug, drafts: saved, ...(errors.length ? { errors } : {}) });
+      // Clubs that chose automatic follow-ups: approve and send them now (LINE members).
+      const auto = org.followup_mode === "auto" ? await autoSendFollowups(db, org) : undefined;
+      results.push({ club: org.slug, drafts: saved, ...(auto ? { auto } : {}), ...(errors.length ? { errors } : {}) });
     } catch (e) {
       // Let a later run retry this club today.
       await db.from("orgs").update({ morning_run_on: null }).eq("id", org.id);
       results.push({ club: org.slug, errors: [e instanceof Error ? e.message : String(e)] });
     }
   }
+  // Any notices still waiting (e.g. queued overnight) go out too.
+  for (const org of (orgs ?? []) as Org[]) await sendPendingNotices(db, org.id);
   return NextResponse.json({ ran_at: new Date().toISOString(), clubs: results });
 }

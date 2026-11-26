@@ -328,6 +328,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                 <select name="followup_mode" defaultValue={org.followup_mode}>
                   <option value="approve">An owner or manager approves them (Morning page)</option>
                   <option value="desk">Anyone at the desk may send them</option>
+                  <option value="auto">Send them automatically each morning (members on LINE)</option>
                 </select>
               </label>
               <label className="check">

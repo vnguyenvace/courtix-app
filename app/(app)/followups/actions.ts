@@ -273,7 +273,7 @@ export async function saveVoice(form: FormData) {
       ai_sign_off: optStr(form, "ai_sign_off"),
       ai_offers: optStr(form, "ai_offers"),
       followup_cooldown_days: Number.isFinite(days) && days >= 1 && days <= 60 ? days : org.followup_cooldown_days,
-      followup_mode: str(form, "followup_mode") === "desk" ? "desk" : "approve",
+      followup_mode: (["desk", "auto"].includes(str(form, "followup_mode")) ? str(form, "followup_mode") : "approve") as "approve" | "desk" | "auto",
       morning_drafts: form.get("morning_drafts") === "on",
     })
     .eq("id", org.id);

@@ -75,3 +75,12 @@ export function lineReply(token: string, replyToken: string, texts: string[]) {
 export function linePush(token: string, to: string, texts: string[]) {
   return call(token, "/v2/bot/message/push", { method: "POST", body: { to, messages: textMessages(texts) } });
 }
+
+/** This month's message allowance and use (push messages count; replies don't). */
+export async function lineQuota(token: string): Promise<{ limit: number | null; used: number }> {
+  const [quota, usage] = await Promise.all([
+    call<{ type: string; value?: number }>(token, "/v2/bot/message/quota"),
+    call<{ totalUsage: number }>(token, "/v2/bot/message/quota/consumption"),
+  ]);
+  return { limit: quota.type === "limited" ? quota.value ?? null : null, used: usage.totalUsage ?? 0 };
+}

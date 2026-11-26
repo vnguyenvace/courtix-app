@@ -20,6 +20,7 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 - Club logo and colours on the public booking page, and a public front page per club (26 Nov 2026), see Step 6 notes.
 - Chat booking with Claude, tested in the app until WhatsApp is connected (26 Nov 2026), see Step 9 notes.
 - Morning approval list: automatic morning drafts, owner approves on /morning, approval enforced in the database (26 Nov 2026), see Step 9b notes.
+- Orders and payments: every paid booking, place and package becomes an order; staff mark payments (with slip photos); booking confirmations say what's due (26 Nov 2026), see Step 3 notes.
 
 ### Verified so far
 - All migrations and the four SQL test files pass on **real local Supabase** (Postgres 17) via `npm run test:db` (18 Nov 2026).
@@ -122,7 +123,7 @@ Done when: an unlimited-evenings member signs up for 18:00 open play at 0 THB, p
 App: Settings → Packages → "Sessions it covers" (rules, priority days), late-cancel cut-off in club settings, sign-up window per session type (Sessions → Set up), coverage hints in the session sign-up picker, "Covered by…" / "1 credit (9 left)" / "Pays 500" on the roster, and credit messages on sign-up and cancel.
 Left open: Raccoon's priority-booking days are a **placeholder (2)** until the club confirms; the demo's sample members have the old starter packages, which cover no sessions. The reply helper and AI follow-ups don't yet tell members their package covers a session (prices shown are drop-in prices).
 
-## Step 3: Orders and payments (staff-marked)  ☐
+## Step 3: Orders and payments (staff-marked)  ☑
 
 Every sale becomes an order so the club can see what's paid and what's owed.
 
@@ -133,6 +134,14 @@ Every sale becomes an order so the club can see what's paid and what's owed.
 - Move "package sales this month" and the location revenue figures onto orders, so revenue is counted once and correctly.
 
 Done when: every paid thing has an order, unpaid ones are listed, totals per location match the orders, and the SQL test covers it. **Check with Julian before changing any revenue figure the owner already sees.**
+
+**Notes, 26 Nov 2026.** Built: migrations `20261126060000_orders_payments.sql`, `20261126060100_orders_triggers_definer.sql`, test `orders_test.sql`, page `/payments`, `components/Payments.tsx`. Decided with Julian: **full orders** (order + items), **booking confirmations with the amount due**, and **revenue figures owners already see keep their meaning** ("Received today / this month" and "Unpaid" shown next to them).
+- The database makes the orders (deferred triggers that read the final row, so a package-covered sign-up makes none): court bookings (member / drop-in, price > 0), session places once booked, package sales. Desk, chat assistant and the public page all count. Cancelling before payment cancels the order; after payment the order becomes **refund_due** for an owner/manager to mark **Refunded** or **Keep**. A paid amount never changes afterwards. The triggers run with the owner's rights (`security definer`): as the visitor, an online sign-up failed.
+- Recording: `mark_order_paid` (cash, transfer, PromptPay, card, other; note; optional slip photo in the private bucket `payment-slips/<org_id>/`, shrunk to a 1600px JPEG, opened via a 5-minute signed link). Owners/managers can undo a payment. On the Payments page (To pay / Paid / Refunds to check, per location plus club-wide packages), the session roster (quick Mark paid) and the member page (Payments card); selling a package can record "Paid now".
+- Booking confirmation (`booking_confirmed`, an automatic message like the others, on by default): when the desk books a member in, they get "You're booked … To pay: THB 600. <the club's How members pay note>" or "Covered by your package". Chat and online bookings don't get it (already confirmed there).
+- Orders start from this migration: earlier sales have none (no backfill, so live clubs don't get a long false "unpaid" list). The local demo seed marks demo package sales and past bookings paid.
+- Tested locally (fake LINE): desk booked a court for Dmitri → LINE confirmation in Russian with "THB 600" and the PromptPay note; marked paid by transfer with a slip; dashboard and Payments figures moved together; roster quick Mark paid.
+- Left open: PromptPay QR / payment links (Step 7); partial payments; one order per item for now (the schema allows combining items into one order later); staff names on "received by" (shows "by you" only).
 
 ## Step 4: Event ticket tiers  ☐
 
@@ -171,6 +180,14 @@ Staff side: Settings → Booking page (link, QR code for flyers, on/off), Sessio
 **Club front page (added 26 Nov 2026, Julian's request):** `<slug>.courtix.app/` is now a public landing page instead of the staff sign-in: logo and colours, Book a session / Court times / WhatsApp buttons, the next 6 sessions, and each location's address (Google Maps link), hours and WhatsApp (`app/page.tsx`). A small "Staff sign in" link (top right and footer) goes to `/login`, which now has the club's colours and a link back. Signed-in staff see "Open dashboard" instead. Signing out lands on the front page. Staff pages still send signed-out people to `/login`, and the main site `courtix.app/` behaves as before.
 Left open: the colour preview in Settings updates after **Save colours**, not while picking (no client JavaScript). Local dev needs Storage and its schema on the same version: if uploads fail with "database error, code: 42P10", run `supabase stop && supabase start`.
 Left open: members recognised by phone with a one-time WhatsApp code (needs Step 9), so members can use their package online; visitors can't cancel online yet (they message the club); IP-based rate limiting (only per number and per club for now); no confirmation message is sent (needs Step 9).
+
+**Member sign-in on the booking page (added 26 Nov 2026, Julian's request).** Migrations `20261126070000_member_sign_in.sql`, `20261126070100_member_code_attempts.sql`, test `member_sign_in_test.sql`, `lib/memberAuth.ts`, `lib/sms.ts`, `lib/email.ts`, page `/book/me`. Decided with Julian: codes by **LINE, SMS and email**; signed-in members **book, see and cancel** their own bookings.
+- A member enters the phone number or email the club has; Courtix sends a 6-digit code by LINE (if linked, free), else SMS (Twilio, if `TWILIO_*` is set), else email (Resend, if `RESEND_API_KEY` + `EMAIL_FROM` are set). Same answer whether or not the contact is a member's. Codes: hash only, 10 minutes, 5 tries (a wrong code returns null instead of raising, so the try is counted), 3 per member per 15 minutes, 200 per club per hour. A correct code gives a sign-in token (stored hashed, 90 days) in an http-only cookie on the club's subdomain.
+- Members then book sessions (`member_book_session`: package coverage and every desk rule; paid places become orders to pay at the club) and courts (`member_book_court`: their package's court price and booking limits), see their package, upcoming bookings and what they owe, and cancel their own (`member_cancel`: session credits by the usual cut-off; courts until they start). All through security-definer functions that take the token; the code sender is the only part using the service identity. Online member places don't wait for staff approval even in "Request, staff approve" mode (the approval was for strangers).
+- Pages: "Member sign in" / "Hi Dmitri · My bookings" on every booking page and the front page; "Book my place" on a session; "Book" on free court times for signed-in members (guests still get the WhatsApp link).
+- Tested locally (fake LINE): stranger's number got the same answer and no code; Dmitri's code came on LINE in Russian; wrong code refused; signed in back to the session; booked covered open play at 0 and a court at THB 600; cancelled the court; signed out.
+- **To switch on SMS:** a Twilio account with a sender for Thailand; set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM` (or `TWILIO_MESSAGING_SERVICE_SID`) in Vercel. **Email:** a Resend account with courtix.app verified; set `RESEND_API_KEY` and `EMAIL_FROM`. Until then only members linked on LINE get codes; others can't sign in yet and book as guests. A Thai SMS provider (cheaper) can replace `lib/sms.ts`.
+- Open: members can't see past bookings or pay online (Step 7); no "send by WhatsApp" option for codes until Step 9 part 2.
 
 ## Step 7: PromptPay checkout  ☐
 
@@ -237,6 +254,14 @@ Done when: drafts appear by themselves each morning, one tap sends them, and not
 - Tested locally with live Claude: 10 drafts in English, Russian and Thai for the demo club; approve one edited, approve all, send.
 - **To go live:** add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project settings → API keys, the service_role / secret key) and `CRON_SECRET` (any long random string) to Vercel → Settings → Environment Variables (Production), then deploy. Check the first run in Vercel → Cron Jobs.
 Left for part 2 (needs Step 9 WhatsApp): send approved messages automatically through the WhatsApp Cloud API (templates), the owner's morning WhatsApp message from Courtix's own number with a link to /morning, instant WhatsApp notices of chat hand-offs, per-club summary time and recipients ("money in" waits for Step 3 orders; for now: packages sold yesterday).
+
+**Automatic member messages, 26 Nov 2026 (Julian chose all four, plus auto-send for follow-ups).** Migrations `20261126050000_member_notices.sql`, `20261126050100_notice_window.sql`, test `member_notices_test.sql`, `lib/notices.ts`, job `app/api/cron/evening/route.ts`.
+- **Service messages**, sent by themselves: booking reminders (18:00 the evening before, sessions and courts), package ending (within 3 days, or 1 session credit left), waitlist moved up and session cancelled (straight away). Fixed wording in all six member languages (en, th, ru, zh, de, fr), not AI-written, so times and places are always right; each ends "just reply to this message" (on LINE that reaches the assistant).
+- How: the outbox `member_notices` (each notice once, by `dedupe_key`). Waitlist and cancellation notices are queued by a trigger on `session_registrations`, so every path counts (desk cancel, raised limit, approval, go / no-go). The evening job (Vercel Cron 11:00 UTC = 18:00 Phuket) runs `queue_evening_notices()` for every club. Sending: LINE push to members linked on LINE; everyone else is listed on Morning → Automatic messages for a one-tap WhatsApp/LINE send (Mark as sent / Skip). Session actions send right after the change.
+- Per club: Settings → Automatic messages (each kind on/off) with this month's LINE message use (warns at 80%). Per member: "No automatic reminders or notices" on the member page. Service messages don't need marketing consent; marketing still does.
+- **Marketing follow-ups:** third option "Send them automatically each morning" (`followup_mode = 'auto'`): the morning job approves the drafts and sends them on LINE; members not on LINE wait in Morning → Ready to send. Consent and cooldown still apply.
+- Tested locally (fake LINE): desk cancels a place → the waitlisted member got the Russian notice on LINE within a second; evening job sent a Russian reminder on LINE and listed 12 others (not on LINE) on Morning in Thai/Russian/English; rerun queued nothing.
+- Open: WhatsApp sending (needs Meta, Step 9 part 2), so members without LINE need a tap; LINE push messages count toward the club's monthly allowance (free plans are small: a busy club may need a paid LINE plan); a package-ending notice and an AI renewal follow-up can both reach the same member (consider skipping the AI renewal draft when the notice went out).
 
 ## Step 10a: Deploy with club subdomains  ☐
 

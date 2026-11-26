@@ -50,6 +50,7 @@ export default async function Home() {
       <ClubBrandStyle club={club} />
       <main className="public">
         <div className="public-top">
+          {club.public_booking && <Link href="/book/me" className="small">Member sign in</Link>}
           {signedIn ? (
             <Link href="/dashboard" className="button small-button">Open dashboard</Link>
           ) : (

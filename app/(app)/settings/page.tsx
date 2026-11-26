@@ -6,6 +6,8 @@ import { LANGUAGES } from "@/components/MemberFields";
 import { formatMoney } from "@/lib/time";
 import { brandCss } from "@/lib/brand";
 import { secretsConfigured } from "@/lib/secrets";
+import { lineQuota } from "@/lib/line";
+import { loadLine } from "@/lib/messaging";
 import { ClubLogo } from "@/components/ClubLogo";
 import {
   addCourt,
@@ -19,6 +21,7 @@ import {
   saveBrandColors,
   uploadLogo,
   setChatMode,
+  saveAutoNotices,
   connectLine,
   disconnectLine,
   setLineEnabled,
@@ -116,6 +119,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const lineChannel = lineData as { account_name: string | null; account_id: string | null; is_enabled: boolean; webhook_key: string; last_event_at: string | null } | null;
   const lineWebhook = lineChannel ? host.rootUrl(`/api/line/${lineChannel.webhook_key}`) : null;
   const canStoreKeys = secretsConfigured();
+  // This month's LINE messages (automatic notices and late replies use them; quick replies don't).
+  let quota: { limit: number | null; used: number } | null = null;
+  if (lineChannel?.is_enabled && canStoreKeys) {
+    try {
+      const line = await loadLine(supabase, org.id);
+      if (line) quota = await lineQuota(line.token);
+    } catch {
+      quota = null;
+    }
+  }
   const bookingQr = await QRCode.toString(bookingUrl, { type: "svg", margin: 1, width: 180 });
 
   return (
@@ -321,6 +334,52 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                 </fieldset>
               </form>
             )}
+          </section>
+
+          <section className="card" id="notices">
+            <h2>Automatic messages</h2>
+            <p className="muted small">
+              Sent by themselves, in each member&apos;s language, to members linked on LINE. Members not on LINE are listed
+              on the Morning page to send with one tap. You can opt a member out on their page.
+            </p>
+            {quota && (
+              <p className="small">
+                LINE messages this month: <strong>{quota.used}</strong>
+                {quota.limit !== null ? ` of ${quota.limit}` : " (no monthly limit on your LINE plan)"}
+                {quota.limit !== null && quota.used >= quota.limit * 0.8 && (
+                  <span className="badge warn" style={{ marginLeft: 6 }}>Almost used up</span>
+                )}
+              </p>
+            )}
+            <form action={saveAutoNotices} className="form" style={{ marginTop: 8 }}>
+              <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                {[
+                  ["booking_confirmed", "Booking confirmations", "Straight away, when the desk books a member in. Says what's due (or that their package covers it)."],
+                  ["booking_reminder", "Booking reminders", "18:00 the evening before a session place or court booking."],
+                  ["package_ending", "Package ending soon", "When a package ends within 3 days, or a session pack has 1 credit left."],
+                  ["waitlist_moved_up", "Waitlist moved up", "Straight away, when someone cancels and they get the place."],
+                  ["session_cancelled", "Session cancelled", "Straight away, when you cancel a session (credits are returned)."],
+                ].map(([key, title, help]) => (
+                  <label key={key} className="check" style={{ alignItems: "flex-start" }}>
+                    <input type="checkbox" name={key} defaultChecked={org.auto_notices.includes(key)} />
+                    <span>
+                      <strong>{title}</strong>
+                      <span className="muted small" style={{ display: "block" }}>{help}</span>
+                    </span>
+                  </label>
+                ))}
+                <label>
+                  How members pay (added to confirmations when something is due)
+                  <input
+                    name="payment_note"
+                    maxLength={300}
+                    defaultValue={org.payment_note ?? ""}
+                    placeholder="Pay at the desk, or PromptPay 081-234-5678 (Raccoon Pickleball Co.)"
+                  />
+                </label>
+                {editable && <button style={{ justifySelf: "start" }}>Save</button>}
+              </fieldset>
+            </form>
           </section>
 
           <section className="card" id="chat">

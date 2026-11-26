@@ -70,6 +70,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     .or(`status.eq.requested,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
     .order("created_at", { ascending: false })
     .limit(8);
+  // Money (Step 3): received today / this month and still to collect. Shown next to the figures
+  // owners already know, which keep their meaning (Julian, 26 Nov 2026).
+  const moneyTz = location?.timezone ?? org.timezone;
+  const moneyToday = todayIn(moneyTz);
+  const locOr = location ? `location_id.eq.${location.id},location_id.is.null` : null;
+  let recQ = supabase.from("orders").select("paid_amount, paid_at").eq("org_id", org.id).not("paid_at", "is", null)
+    .gte("paid_at", zonedToUtc(`${moneyToday.slice(0, 8)}01`, "00:00", moneyTz).toISOString());
+  let dueQ = supabase.from("orders").select("total").eq("org_id", org.id).eq("status", "pending");
+  if (locOr) {
+    recQ = recQ.or(locOr);
+    dueQ = dueQ.or(locOr);
+  }
+  const [{ data: recData }, { data: dueData }] = await Promise.all([recQ, dueQ]);
+  const dayStartMs = zonedToUtc(moneyToday, "00:00", moneyTz).getTime();
+  const received = (recData ?? []) as { paid_amount: number; paid_at: string }[];
+  const receivedMonth = received.reduce((n, o) => n + Number(o.paid_amount ?? 0), 0);
+  const receivedToday = received.filter((o) => new Date(o.paid_at).getTime() >= dayStartMs).reduce((n, o) => n + Number(o.paid_amount ?? 0), 0);
+  const unpaid = ((dueData ?? []) as { total: number }[]).reduce((n, o) => n + Number(o.total ?? 0), 0);
+  const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+
   // Follow-ups waiting for an owner/manager to approve (Morning page).
   const { count: toApprove } =
     org.followup_mode === "approve" && (role === "owner" || role === "manager")
@@ -144,6 +164,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <Stat label="Sessions today" value={here ? here.sessions_today : d.sessions_today ?? 0} />
         <Stat label="Court bookings today" value={here ? here.bookings_today : d.bookings_today ?? 0} />
         <Stat label="Package sales this month" unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
+        <Stat label="Received today" unit={org.currency} value={fmt(receivedToday)} />
+        <Stat label="Received this month" unit={org.currency} value={fmt(receivedMonth)} />
+        <Link href="/payments" className="stat stat-link">
+          <div className="label">Unpaid</div>
+          <div className="value"><span className="unit">{org.currency}</span>{fmt(unpaid)}</div>
+        </Link>
       </div>
 
       {multiLocation && byLocation.length > 0 && (

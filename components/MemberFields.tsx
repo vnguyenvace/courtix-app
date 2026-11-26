@@ -87,6 +87,10 @@ export function MemberFields({
         <input type="checkbox" name="marketing_consent" defaultChecked={m?.marketing_consent ?? false} />
         Agreed to receive messages from the club (needed before any AI follow-ups)
       </label>
+      <label className="check">
+        <input type="checkbox" name="notices_opt_out" defaultChecked={m?.notices_opt_out ?? false} />
+        No automatic reminders or notices (bookings, package ending, waitlist, cancellations)
+      </label>
     </>
   );
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireOrg, canManage } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
-import { whatsappNumber } from "@/lib/ai";
+import { lineShareLink, whatsappLink, whatsappNumber } from "@/lib/ai";
+import { NOTICE_LABELS, noticeText, type NoticeKind, type NoticePayload } from "@/lib/notices";
+import { markNoticeDone } from "./actions";
 import { addDays, formatLongDay, formatMoney, localTime, todayIn, zonedToUtc } from "@/lib/time";
 import { approveAll, approveDraft, dismissDraft, markSent, sendOnLine, sendOnWhatsApp, writeDrafts } from "../followups/actions";
 import { REASON_LABELS, type AiMessage, type SessionOverview } from "@/lib/types";
@@ -96,6 +98,26 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
     supabase.from("ai_messages").select(messageSelect).eq("org_id", org.id).eq("status", "draft").order("created_at"),
     supabase.from("ai_messages").select(messageSelect).eq("org_id", org.id).eq("status", "approved").order("approved_at"),
   ]);
+  // Automatic notices: what went out in the last day, and what needs sending by hand.
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const [{ count: autoSent }, { data: manualData }] = await Promise.all([
+    supabase.from("member_notices").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("status", "sent").gte("sent_at", since),
+    supabase
+      .from("member_notices")
+      .select("id, kind, payload, error, created_at, members(id, full_name, language, phone, whatsapp, member_channel)")
+      .eq("org_id", org.id)
+      .in("status", ["manual", "failed"])
+      .gte("created_at", new Date(Date.now() - 3 * 24 * 3600_000).toISOString())
+      .order("created_at"),
+  ]);
+  type ManualNotice = {
+    id: string;
+    kind: NoticeKind;
+    payload: NoticePayload;
+    error: string | null;
+    members: { id: string; full_name: string; language: string; phone: string | null; whatsapp: string | null; member_channel: string | null } | null;
+  };
+  const manual = (manualData ?? []) as unknown as ManualNotice[];
   const sessions = (sessionData ?? []) as SessionOverview[];
   const short = sessions.filter((s) => s.booked < s.min_players);
   const sales = (salesData ?? []) as { price_paid: number | null }[];
@@ -191,7 +213,10 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
           </div>
         ) : !approvalOn ? (
           <p className="muted small">
-            Your club lets the desk send drafts without approval. They&apos;re on <Link href="/followups">AI follow-ups</Link>.
+            {org.followup_mode === "auto"
+              ? "Your club sends follow-ups automatically each morning. Members not on LINE wait below in Ready to send."
+              : "Your club lets the desk send drafts without approval."}{" "}
+            They&apos;re also on <Link href="/followups">AI follow-ups</Link>.
           </p>
         ) : manager ? (
           <div className="stack">
@@ -203,6 +228,50 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
               {drafts.length} draft{drafts.length === 1 ? " is" : "s are"} waiting for an owner or manager to approve.
             </p>
           </div>
+        )}
+      </section>
+
+      <section className="morning-section">
+        <h2>Automatic messages</h2>
+        <p className="muted small">
+          {autoSent ?? 0} sent by themselves on LINE in the last 24 hours (reminders, waitlist and cancellation notices,
+          packages ending).{" "}
+          <Link href="/settings#notices">Settings</Link>
+        </p>
+        {manual.length > 0 && (
+          <>
+            <p className="small">These members aren&apos;t on LINE yet, so send these by hand:</p>
+            <div className="stack">
+              {manual.map((n) => {
+                const m = n.members;
+                const text = noticeText(n.kind, n.payload, m?.language ?? "en", { name: org.name, currency: org.currency, paymentNote: org.payment_note });
+                const wa = whatsappLink(m?.whatsapp ?? m?.phone, text);
+                return (
+                  <article key={n.id} className="card morning-msg">
+                    <div className="actions" style={{ justifyContent: "space-between" }}>
+                      {m ? <Link href={`/members/${m.id}`}><strong>{m.full_name}</strong></Link> : <strong>Member</strong>}
+                      <span className="badge">{NOTICE_LABELS[n.kind]}</span>
+                    </div>
+                    <p className="small" style={{ whiteSpace: "pre-wrap" }}>{text}</p>
+                    {n.error && <p className="small" style={{ color: "var(--danger)" }}>LINE: {n.error}</p>}
+                    <div className="actions">
+                      {wa && <a className="button primary" href={wa}>Send on WhatsApp</a>}
+                      <a className="button" href={lineShareLink(text)}>LINE</a>
+                      <form action={markNoticeDone}>
+                        <input type="hidden" name="notice_id" value={n.id} />
+                        <button className="link">Mark as sent</button>
+                      </form>
+                      <form action={markNoticeDone}>
+                        <input type="hidden" name="notice_id" value={n.id} />
+                        <input type="hidden" name="skip" value="true" />
+                        <button className="link danger">Skip</button>
+                      </form>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
 

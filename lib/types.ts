@@ -34,9 +34,11 @@ export interface Org {
   brand_secondary: string | null;
   brand_palette: string[]; // colours found in the logo, offered as suggestions
   chat_mode: "answer" | "book"; // chat: answer only, or also book free / package-covered places
-  followup_mode: "approve" | "desk"; // approve = owner/manager approves follow-ups before they go out
+  followup_mode: "approve" | "desk" | "auto"; // approve = owner/manager approves first; auto = morning job sends them
   morning_drafts: boolean; // write follow-up drafts automatically every morning
   morning_run_on: string | null; // club's local date the morning job last ran
+  auto_notices: string[]; // automatic service messages the club sends (see lib/notices.ts)
+  payment_note: string | null; // how members pay, in the club's words (booking confirmations)
 }
 
 export interface Court {
@@ -105,6 +107,7 @@ export interface Member {
   home_location_id: string | null;
   /** null = automatic; see member_channel() in the database */
   preferred_channel: MessageChannel | null;
+  notices_opt_out?: boolean; // no automatic service messages
 }
 
 export type MessageChannel = "whatsapp" | "line";
@@ -434,4 +437,27 @@ export interface MessagingChannel {
   last_event_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------- Orders and payments (Step 3)
+
+export type OrderStatus = "pending" | "paid" | "cancelled" | "refund_due" | "refunded";
+
+export interface Order {
+  id: string;
+  org_id: string;
+  location_id: string | null;
+  member_id: string | null;
+  guest_name: string | null;
+  guest_phone: string | null;
+  status: OrderStatus;
+  total: number;
+  currency: string;
+  method: "cash" | "transfer" | "promptpay" | "card" | "other" | null;
+  paid_amount: number | null;
+  paid_at: string | null;
+  received_by: string | null;
+  note: string | null;
+  slip_path: string | null; // private Storage bucket payment-slips
+  created_at: string;
 }
