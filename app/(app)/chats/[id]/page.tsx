@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { closeChat, handBack, linkMember, sendAsContact, staffReply, takeOver } from "../actions";
+import { isPaused } from "@/lib/chat";
 import type { ChatConversation, ChatMessage } from "@/lib/types";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
@@ -51,6 +52,9 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
     : { data: [] };
   const linkable = (memberData ?? []) as { id: string; full_name: string }[];
   const live = conv.channel !== "test";
+  // A person is answering: the assistant stays quiet until this time ("infinity" = until handed back).
+  const pausedUntil = conv.assistant_paused_until;
+  const paused = isPaused(pausedUntil);
   const msgs = (msgData ?? []) as ChatMessage[];
   const name = conv.members?.full_name ?? conv.contact_name ?? conv.contact_phone ?? "LINE user";
   const isTest = conv.channel === "test";
@@ -71,13 +75,24 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
         </div>
         <div className="actions">
           {conv.status === "bot" && <span className="badge ok">{ASSISTANT_NAME} is answering</span>}
-          {conv.status === "staff" && <span className="badge warn">Waiting for staff</span>}
+          {conv.status === "staff" && <span className="badge warn">Needs staff</span>}
+          {paused && !closed && <span className="badge">Assistant paused</span>}
           {closed && <span className="badge">Closed</span>}
         </div>
       </div>
       <Banner sp={sp} />
       {conv.status === "staff" && conv.handoff_reason && (
-        <div className="banner warn">Why it came to you: {conv.handoff_reason}</div>
+        <div className="banner warn">
+          Why it came to you: {conv.handoff_reason}.{" "}
+          {paused ? "" : `${ASSISTANT_NAME} keeps answering their other questions meanwhile.`}
+        </div>
+      )}
+      {paused && !closed && (
+        <div className="banner info">
+          {pausedUntil === "infinity"
+            ? `You took this chat over: ${ASSISTANT_NAME} stays quiet until you hand it back.`
+            : `A person replied, so ${ASSISTANT_NAME} stays quiet until ${time(pausedUntil!, tz)}, then answers again.`}
+        </div>
       )}
 
       <div className="grid grid-2">
@@ -141,8 +156,8 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                 <input type="hidden" name="conversation_id" value={conv.id} />
                 <textarea name="message" rows={3} required placeholder="Yes please, book me in" />
                 <button className="primary" style={{ justifySelf: "start" }}>Send as the member</button>
-                {conv.status === "staff" && (
-                  <span className="muted small">Staff are handling this chat, so the assistant won&apos;t answer until you hand it back.</span>
+                {paused && (
+                  <span className="muted small">The assistant is paused here, so it won&apos;t answer this until the pause ends.</span>
                 )}
               </form>
             </section>
@@ -157,7 +172,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                 <button style={{ justifySelf: "start" }}>{conv.channel === "line" ? "Send on LINE" : "Add reply"}</button>
                 <span className="muted small">
                   {isTest ? "Test chat: nothing is sent anywhere." : conv.channel === "line" ? "Sent on LINE straight away." : "WhatsApp isn't connected yet: send it from your phone too."}{" "}
-                  Replying takes the chat over from the assistant.
+                  Replying pauses the assistant here for 30 minutes.
                 </span>
               </form>
             </section>
@@ -167,7 +182,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
             <section className="card">
               <h2>Who answers</h2>
               <div className="actions">
-                {conv.status === "bot" ? (
+                {conv.status === "bot" && !paused ? (
                   <form action={takeOver}>
                     <input type="hidden" name="conversation_id" value={conv.id} />
                     <button>Take over from the assistant</button>
@@ -175,7 +190,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
                 ) : (
                   <form action={handBack}>
                     <input type="hidden" name="conversation_id" value={conv.id} />
-                    <button className="primary">Hand back to the assistant</button>
+                    <button className="primary">{conv.status === "staff" ? "Done: hand back to the assistant" : "Hand back to the assistant"}</button>
                   </form>
                 )}
                 <form action={closeChat}>

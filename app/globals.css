@@ -161,6 +161,7 @@ button.danger { color: var(--danger); }
 .banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
 .banner.error { background: var(--danger-soft); color: var(--danger); }
 .banner.warn { background: var(--warning-soft); color: var(--warning); }
+.banner.info { background: var(--info-soft); color: var(--info); }
 .banner.notice { background: var(--accent-soft); color: var(--accent); }
 
 /* Booking calendar */
@@ -271,3 +272,28 @@ input[type="color"] { width: 56px; height: 36px; padding: 2px; cursor: pointer; 
 
 /* Numbered set-up steps (Settings → Messaging) */
 .steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* Guides for club owners (app/guides): one readable column, prints on paper */
+.guide { max-width: 720px; }
+.guide h1 { font-size: 26px; margin-bottom: 8px; }
+.guide h2 { font-size: 18px; margin: 24px 0 10px; }
+.guide-top { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.guide-intro { font-size: 15px; }
+.guide-need { margin-top: 14px; }
+.guide-need h2 { margin-top: 0; }
+.guide-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.guide-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 12px; }
+.guide-steps > li { counter-increment: step; position: relative; padding: 14px 16px 14px 56px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.guide-steps > li::before { content: counter(step); position: absolute; left: 14px; top: 13px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-fill, var(--accent)); color: var(--on-accent, #fff); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.guide-steps h3 { margin: 2px 0 4px; font-size: 16px; }
+.guide-steps p { margin: 0 0 6px; }
+.guide-steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.guide-trouble { margin: 0; display: grid; gap: 10px; }
+.guide-trouble dt { font-weight: 600; }
+.guide-trouble dd { margin: 2px 0 0; color: var(--muted); }
+@media print {
+  .guide-top, .brand-band { display: none; }
+  .guide { max-width: none; padding: 0; }
+  .guide-steps > li { break-inside: avoid; }
+  .guide a { color: inherit; }
+}

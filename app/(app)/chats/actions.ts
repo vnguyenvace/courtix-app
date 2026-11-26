@@ -12,6 +12,8 @@ import { ASSISTANT_NAME } from "@/lib/assistant";
 // Until WhatsApp is connected, staff try it with a test chat where they play the member.
 
 const MAX_MESSAGE = 2000;
+// After a staff reply the assistant stays quiet this long, so two voices don't overlap.
+const STAFF_PAUSE_MINUTES = 30;
 
 function afterTurn(id: string, r: { replied: boolean; handedOff: boolean; error?: string }) {
   revalidatePath("/chats");
@@ -83,7 +85,11 @@ export async function staffReply(form: FormData) {
   if (error) back(`/chats/${id}`, friendly(error));
   await supabase
     .from("chat_conversations")
-    .update({ status: "staff", last_message_at: new Date().toISOString() })
+    .update({
+      status: "staff",
+      last_message_at: new Date().toISOString(),
+      assistant_paused_until: new Date(Date.now() + STAFF_PAUSE_MINUTES * 60_000).toISOString(),
+    })
     .eq("id", id)
     .neq("status", "closed");
   // LINE chats: send it now (push). Test chats: nothing is sent anywhere.
@@ -100,6 +106,8 @@ export async function takeOver(form: FormData) {
   const id = str(form, "conversation_id");
   const { error } = await supabase.rpc("chat_hand_off", { p_conversation: id, p_reason: "Taken over by staff" });
   if (error) back(`/chats/${id}`, friendly(error));
+  // Paused until someone hands it back.
+  await supabase.from("chat_conversations").update({ assistant_paused_until: "infinity" }).eq("id", id);
   revalidatePath("/chats");
   back(`/chats/${id}`, "You're handling this chat. The assistant won't answer until you hand it back.", "notice");
 }
@@ -109,7 +117,7 @@ export async function handBack(form: FormData) {
   const id = str(form, "conversation_id");
   const { error } = await supabase
     .from("chat_conversations")
-    .update({ status: "bot", handoff_reason: null, handed_off_at: null })
+    .update({ status: "bot", handoff_reason: null, handed_off_at: null, assistant_paused_until: null })
     .eq("id", id)
     .neq("status", "closed");
   if (error) back(`/chats/${id}`, friendly(error));

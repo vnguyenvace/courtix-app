@@ -74,12 +74,15 @@ select court_id as free_court, slot_start as free_start from public_court_slots(
 select chat_book_court(:'c_eve', :'free_court', :'free_start');
 select test_check((select count(*) from bookings where member_id = :'eve') = 0, 'no court booking left behind');
 
-\echo '--- 6. Handed off: Claude can no longer book in that chat'
+\echo '--- 6. Waiting for staff: the assistant still books free places; paused by staff: it cannot'
 select chat_hand_off(:'c_eve', 'Asked about a refund');
 select test_check((select status = 'staff' and handoff_reason = 'Asked about a refund' from chat_conversations where id = :'c_eve'), 'chat waits for staff');
-\echo 'expect: staff are handling this chat'
-select chat_book_session(:'c_eve', :'clinic2');
-update chat_conversations set status = 'bot' where id = :'c_eve';
+select chat_book_session(:'c_eve', :'clinic2') as r3 \gset
+select test_check((:'r3'::jsonb)->>'status' = 'booked', 'free place still booked while the chat waits for staff');
+update chat_conversations set assistant_paused_until = now() + interval '30 minutes' where id = :'c_eve';
+\echo 'expect: a person is answering this chat right now'
+select chat_book_session(:'c_eve', :'evening_open');
+update chat_conversations set status = 'bot', assistant_paused_until = null where id = :'c_eve';
 
 \echo '--- 7. "Answer only" clubs: no booking by chat'
 update orgs set chat_mode = 'answer' where id = :'org';

@@ -248,6 +248,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
               Connect your club&apos;s own LINE Official Account. Messages to it appear in Chats, {ASSISTANT_NAME} answers
               them (see Chat below), and your replies go out on LINE.
             </p>
+            <p className="small">
+              <a href="/guides/line" target="_blank" rel="noreferrer">Step-by-step guide</a> ·{" "}
+              <a href="/guides/line?lang=th" target="_blank" rel="noreferrer">คู่มือภาษาไทย</a>
+            </p>
             {lineChannel ? (
               <div className="stack" style={{ gap: 10, marginTop: 8 }}>
                 <div className="actions">

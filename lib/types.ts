@@ -399,6 +399,7 @@ export interface ChatConversation {
   status: ChatStatus;
   handoff_reason: string | null;
   handed_off_at: string | null;
+  assistant_paused_until: string | null; // a person is answering: the assistant stays quiet until then
   last_message_at: string;
   created_at: string;
 }
