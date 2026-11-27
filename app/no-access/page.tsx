@@ -11,6 +11,11 @@ export default async function NoAccessPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Invited but never finished joining (e.g. the confirmation email didn't lead back to the invite
+  // link): join now and go in. The database only does this for a confirmed, invited email.
+  const { data: joined } = await supabase.rpc("accept_my_invites");
+  if (joined && (joined as unknown[]).length > 0) redirect("/dashboard?notice=" + encodeURIComponent("Welcome to the team."));
+
   const host = await currentHost();
   let clubName = "this club";
   if (host.kind === "club") {

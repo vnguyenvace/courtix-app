@@ -54,7 +54,7 @@ export async function requireOrg(): Promise<OrgContext> {
 
   if (error) throw new Error(error.message);
 
-  const memberships = (rows ?? []) as unknown as { role: StaffRole; location_ids: string[] | null; orgs: Org }[];
+  let memberships = (rows ?? []) as unknown as { role: StaffRole; location_ids: string[] | null; orgs: Org }[];
   const host = await currentHost();
   const jar = await cookies();
   const chosen = jar.get(ORG_COOKIE)?.value;
@@ -62,13 +62,27 @@ export async function requireOrg(): Promise<OrgContext> {
   let current: (typeof memberships)[number] | undefined;
   if (host.kind === "club") {
     current = memberships.find((m) => m.orgs.slug === host.slug);
+    // Invited here but never finished joining (e.g. came back from the confirmation email
+    // somewhere other than the invite link): join now. The database checks the email is confirmed.
+    if (!current) {
+      const { data: joined } = await supabase.rpc("accept_my_invites");
+      if (joined && (joined as unknown[]).length > 0) {
+        const { data: again } = await supabase.from("org_staff").select("role, location_ids, orgs(*)").eq("user_id", user.id).order("created_at");
+        memberships = (again ?? []) as unknown as typeof memberships;
+        current = memberships.find((m) => m.orgs.slug === host.slug);
+      }
+    }
     if (!current) {
       const { data: club } = await supabase.rpc("club_by_slug", { p_slug: host.slug });
       if (!club || club.length === 0) notFound();
       redirect("/no-access");
     }
   } else {
-    if (memberships.length === 0) redirect("/onboarding");
+    if (memberships.length === 0) {
+      const { data: joined } = await supabase.rpc("accept_my_invites");
+      if (joined && (joined as unknown[]).length > 0) redirect("/dashboard");
+      redirect("/onboarding");
+    }
     current = memberships.find((m) => m.orgs.id === chosen) ?? memberships[0];
     // The main site isn't a club: go to this person's club subdomain.
     if (host.kind === "root") redirect(host.clubUrl(current.orgs.slug, "/dashboard"));

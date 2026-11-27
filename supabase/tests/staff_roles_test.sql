@@ -128,6 +128,22 @@ set role authenticated; set request.jwt.claim.sub = '77777777-7777-7777-7777-777
 \echo 'expect: invite expired'
 select accept_staff_invite(:'tok_unconf');
 
+\echo '--- 5b. Joining without the link (came back from the confirmation email elsewhere)'
+reset role;
+insert into auth.users (id, email) values ('88888888-8888-8888-8888-888888888888','late@raccoon.test');
+set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+select invite_staff(:'org', 'late@raccoon.test', 'manager') is not null as invited;
+set request.jwt.claim.sub = '88888888-8888-8888-8888-888888888888';
+select test_check((select count(*) from accept_my_invites()) = 0, 'unconfirmed email joins nothing');
+reset role;
+update auth.users set email_confirmed_at = now() where id = '88888888-8888-8888-8888-888888888888';
+set role authenticated; set request.jwt.claim.sub = '88888888-8888-8888-8888-888888888888';
+select test_check((select array_agg(x) from accept_my_invites() x) = array[:'org'::uuid], 'confirmed email joins the inviting club');
+select test_check((select role = 'manager' from org_staff where org_id = :'org' and user_id = '88888888-8888-8888-8888-888888888888'), 'joined as admin');
+select test_check((select count(*) from accept_my_invites()) = 0, 'nothing left to join');
+set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+select test_check((select count(*) from accept_my_invites()) = 0, 'other people join nothing');
+
 \echo '--- 6. A club keeps an owner'
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 \echo 'expect: last owner cannot step down'
