@@ -19,7 +19,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Sear
   const sp = await searchParams;
   const q = param(sp, "q")?.trim() ?? "";
   const filter = param(sp, "filter") ?? "all";
-  const { supabase, org } = await requireOrg();
+  const { supabase, org, can } = await requireOrg();
 
   let query = supabase.from("member_status").select("*").eq("org_id", org.id).order("full_name");
   if (q) query = query.ilike("full_name", `%${q.replace(/[%_]/g, "")}%`);
@@ -40,7 +40,10 @@ export default async function MembersPage({ searchParams }: { searchParams: Sear
           <h1>Members</h1>
           <p className="muted">{rows.length} shown</p>
         </div>
-        <Link className="button primary" href="/members/new">Add member</Link>
+        <div className="actions">
+          {can("club.setup") && <Link className="button" href="/members/import">Import from a spreadsheet</Link>}
+          <Link className="button primary" href="/members/new">Add member</Link>
+        </div>
       </div>
       <Banner sp={sp} />
       {error && <div className="banner error">{error.message}</div>}

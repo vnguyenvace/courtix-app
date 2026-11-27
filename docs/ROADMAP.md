@@ -246,12 +246,21 @@ Left open: members recognised by phone with a one-time WhatsApp code (needs Step
 
 Done when: a test-mode PromptPay payment marks an order paid via webhook, and an expired one frees the spot.
 
-## Step 8: Spreadsheet import  ☐
+## Step 8: Spreadsheet import  ☑
 
 - Upload CSV/XLSX of members (name, phone, language, package, start/end date, sessions left, home location). Preview, map columns, validate, then import in one transaction.
 - Normalise Thai phone numbers (`0…` → `+66…`), skip duplicates by phone.
 
 Done when: a 200-row file imports with a clear error list for bad rows and no partial imports.
+
+**Done 27 Nov 2026** (migration `20261128000000_member_import.sql`, test `member_import_test.sql`). Julian decided: marketing consent comes from a consent column (yes/no, default no); imported packages count as already paid (price_paid 0, nothing in Payments).
+- **Members → Import from a spreadsheet** (`/members/import`, owner and admins: club.setup). Upload .xlsx (first sheet) or CSV (comma, semicolon or tab), up to 2,000 rows / 3 MB. Read by `lib/spreadsheet.ts` (no library: .xlsx is unzipped with Node's zlib). Old .xls is refused with "save as .xlsx or CSV".
+- **Match columns** (`lib/importFields.ts` guesses from English/Thai/Russian column names): name or first + last name, phone, email, language, level, package, start, end, sessions left, home location, consent, notes.
+- **Check before import:** `import_members(import, mapping)` returns every row as ready / already a member (same phone, skipped) / problem, with plain reasons ("No package called \"Gold VIP\". Yours: …", "Same phone as row 2", "Start date can't be read"). Notes on good rows (unknown language set to the club's, package already ended → saved as expired).
+- **Import:** one transaction. Problems stop it unless the owner ticks "Leave out the N rows with problems". The upload's rows are cleared after import; each upload imports once.
+- Dates: 15/12/2026 (day first), ISO, 15 Dec 2026, Buddhist years (2569 / 69), Excel day numbers. Phones: Thai 08x → +668x, and Excel's lost leading 0 (812223333 → +66812223333). Packages: end date from the package length if blank, sessions left from the pack if blank.
+- Tested: a 200-row Excel file (Thai header, Excel date, rich text) and a semicolon CSV with quotes, in the browser.
+- **Left open:** importing past visits or payment history; editing a row in the browser (fix the file and upload again).
 
 ## Step 9: WhatsApp and LINE messaging APIs  ☐
 
