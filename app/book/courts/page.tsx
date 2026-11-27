@@ -87,7 +87,7 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
             : "Tap a free time to book it. Members can sign in first to book at their package's price."}{" "}
           Times shown are when each court is free right now.
         </p>
-        {!me && <p className="small"><Link href="/book/me?next=/book/courts">Member sign in</Link></p>}
+        {!me && <p className="small"><Link href={`/book/me?next=${encodeURIComponent(`/book/courts${qs(day)}`)}`}>Member sign in</Link></p>}
         {courts.length === 0 ? (
           <p className="muted">No more court times today. Try tomorrow.</p>
         ) : (

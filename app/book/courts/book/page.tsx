@@ -81,7 +81,7 @@ export default async function BookCourtPage({ searchParams }: { searchParams: Se
       ) : (
         <section className="card">
           <p className="small member-hint">
-            Member? <Link href={`/book/me?next=${encodeURIComponent(`/book/courts?location=${location.id}&day=${day}`)}`}>Sign in to book with your package</Link>
+            Member? <Link href={`/book/me?next=${encodeURIComponent(`/book/courts/book?${new URLSearchParams({ court: courtId, start: slot.slot_start, location: location.id, day })}`)}`}>Sign in to book with your package</Link>
           </p>
           <h2>{approve ? "Request this court" : "Book this court"}</h2>
           {approve && <p className="muted small">The club holds the court for you and confirms on WhatsApp.</p>}

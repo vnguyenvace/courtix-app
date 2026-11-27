@@ -5,7 +5,7 @@ import { currentHost } from "@/lib/host";
 import { createClient } from "@/lib/supabase/server";
 import { friendly, str } from "@/lib/form";
 import { clearMemberCookie, memberToken, requestMemberCode, setMemberCookie } from "@/lib/memberAuth";
-import { loadPublicClub } from "@/lib/public";
+import { loadPublicClub, safeBookPath } from "@/lib/public";
 import { savePayerSlip } from "@/lib/payerSlip";
 import { formatMoney } from "@/lib/time";
 
@@ -66,8 +66,8 @@ export async function requestCode(form: FormData) {
   if (!contact) go("/book/me", "error", "Enter your phone number or email.");
   await requestMemberCode(slug, contact);
   // Keep where they came from (e.g. a session page), so signing in takes them back there.
-  const next = str(form, "next");
-  const nextQs = /^\/book(\/[\w/-]*)?$/.test(next) ? `&next=${encodeURIComponent(next)}` : "";
+  const next = safeBookPath(str(form, "next"));
+  const nextQs = next ? `&next=${encodeURIComponent(next)}` : "";
   redirect(`/book/me?step=code&contact=${encodeURIComponent(contact)}${nextQs}`);
 }
 
@@ -75,7 +75,7 @@ export async function verifyCode(form: FormData) {
   const slug = await clubSlug();
   const contact = str(form, "contact").slice(0, 120);
   const nextField = str(form, "next");
-  const safeNext = /^\/book(\/[\w/-]*)?$/.test(nextField) ? nextField : "";
+  const safeNext = safeBookPath(nextField);
   // A wrong code keeps them on the code step, still remembering where to go afterwards.
   const back = `/book/me?step=code&contact=${encodeURIComponent(contact)}${safeNext ? `&next=${encodeURIComponent(safeNext)}` : ""}`;
   const supabase = await createClient();
@@ -119,7 +119,7 @@ export async function memberBookCourt(form: FormData) {
   const slug = await clubSlug();
   const back = `/book/courts?location=${encodeURIComponent(str(form, "location"))}&day=${encodeURIComponent(str(form, "day"))}`;
   const token = await memberToken();
-  if (!token) redirect(`/book/me?next=/book/courts`);
+  if (!token) redirect(`/book/me?next=${encodeURIComponent(back)}`);
   const { data, error } = await (await createClient()).rpc("member_book_court", {
     p_slug: slug,
     p_token: token,

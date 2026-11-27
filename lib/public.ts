@@ -121,3 +121,21 @@ export interface PublicCoach {
   location_ids: string[] | null;
   prices: { minutes: number; group_size: number; price: number }[];
 }
+
+/**
+ * Where to go after a member signs in: a booking page path, with its query (the coach, time and
+ * so on they had picked). Anything else (other sites, odd paths, the sign-in page itself) gives "".
+ */
+export function safeBookPath(next: string): string {
+  if (!next || next.length > 600 || !next.startsWith("/book") || next.includes("\\")) return "";
+  try {
+    const url = new URL(next, "http://club.invalid");
+    if (url.origin !== "http://club.invalid") return "";
+    if (!/^\/book(\/[\w/-]*)?$/.test(url.pathname) || url.pathname.startsWith("/book/me")) return "";
+    url.searchParams.delete("error");
+    url.searchParams.delete("notice");
+    return url.pathname + url.search;
+  } catch {
+    return "";
+  }
+}
