@@ -112,3 +112,12 @@ export const loadMember = cache(async (): Promise<MemberMe | null> => {
   const { data, error } = await supabase.rpc("member_me", { p_slug: slug, p_token: token });
   return error || !data ? null : (data as MemberMe);
 });
+
+/** A coach on the booking page, with their lesson prices (public_lessons). */
+export interface PublicCoach {
+  id: string;
+  name: string;
+  about: string | null;
+  location_ids: string[] | null;
+  prices: { minutes: number; group_size: number; price: number }[];
+}

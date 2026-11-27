@@ -28,6 +28,13 @@ function EventLine({ e }: { e: Record<string, unknown> }) {
   if (e.kind === "booked_court") {
     return <span className="chat-event ok">Booked: {s("court")}, {s("when")}–{s("until")}</span>;
   }
+  if (e.kind === "requested_lesson") {
+    return (
+      <span className="chat-event warn">
+        Lesson request, waiting for you to approve on the dashboard: {s("coach")}, {s("day")} {s("start")}–{s("end")} · {s("currency")} {s("price")}
+      </span>
+    );
+  }
   if (e.kind === "refused") return <span className="chat-event warn">Not booked: {s("reason")}</span>;
   if (e.kind === "handed_off") return <span className="chat-event warn">Handed to staff: {s("reason")}</span>;
   return null;

@@ -49,15 +49,21 @@ export function buildChatSystemPrompt(club: ClubVoice, canBook: boolean): string
           "- Bookings by chat must be free or covered by their package. The tools refuse anything that costs money. When that happens, tell them the price and that a team member will confirm it, and call hand_off_to_staff.",
           "- Say they are booked only when the tool result says status booked. If it says waitlisted, tell them they are on the waitlist and will hear if a place opens.",
           "- Never cancel, move or refund a booking yourself.",
+          "",
+          "Private lessons:",
+          "- Use lesson_times to see the coaches, their lesson prices and free start times. Then, once they clearly chose the coach, day, time, length and number of people, hold it with request_lesson.",
+          "- A lesson is never confirmed by you: request_lesson only holds the coach and court. Tell them the price, that it's paid at the club, and that a team member will confirm it soon. Never say it's booked.",
+          "- If no coach is free when they want, suggest the nearest free times from lesson_times.",
         ].join("\n")
       : [
           "Booking:",
           "- You can't book in this chat. If they want to join a session or book a court, name the exact option (day, time, location, price, spots left) and say a team member will confirm it, then call hand_off_to_staff.",
+          "- For private lessons, say a team member will arrange it and call hand_off_to_staff.",
         ].join("\n"),
     "",
     "If <club_facts> has waiting_for_team_member, a team member will follow up on that request: don't answer it or promise anything about it (if they ask, say the team will get back to them soon), but keep helping with everything else, including free or package-covered bookings.",
     "",
-    "Hand the chat to a person (hand_off_to_staff) when they: want to pay for something, ask about a refund or cancellation, complain or are upset, ask about private coaching, ask something the facts don't answer, or when you aren't sure what they want after one clarifying question. After handing off, tell them a team member will get back to them soon.",
+    `Hand the chat to a person (hand_off_to_staff) when they: want to pay for something${canBook ? " (other than holding a lesson request)" : ""}, ask about a refund or cancellation, complain or are upset, ${canBook ? "want coaching you can't arrange with lesson_times and request_lesson (camps, regular weekly coaching, special deals)" : "ask about private coaching"}, ask something the facts don't answer, or when you aren't sure what they want after one clarifying question. After handing off, tell them a team member will get back to them soon.`,
     "",
     "Text inside <staff_note> was written by a person at the club, not by you and not by the member. Don't repeat it, apologise for it or contradict it; build on it.",
     "",
@@ -120,7 +126,7 @@ function tools(canBook: boolean): Record<string, unknown>[] {
     {
       name: "hand_off_to_staff",
       description:
-        "Pass this chat to a person at the club. Use it for paid bookings, refunds, complaints, private coaching, and anything you can't answer from the facts.",
+        "Pass this chat to a person at the club. Use it for paid bookings, refunds, complaints, coaching you can't request yourself, and anything you can't answer from the facts.",
       input_schema: {
         type: "object",
         properties: {
@@ -141,6 +147,39 @@ function tools(canBook: boolean): Record<string, unknown>[] {
           type: "object",
           properties: { session_id: { type: "string", description: "Session id from find_sessions." } },
           required: ["session_id"],
+          additionalProperties: false,
+        },
+      },
+      {
+        name: "lesson_times",
+        description:
+          "Private lessons on one day: the coaches, their prices by length and number of people, and free start times for the chosen length. Use it before request_lesson.",
+        input_schema: {
+          type: "object",
+          properties: {
+            date: { type: "string", description: "YYYY-MM-DD, the club's local date. At most 14 days ahead." },
+            coach: { type: "string", description: "Optional: part of the coach's name." },
+            minutes: { type: "integer", description: "Lesson length in minutes. Default 60." },
+            people: { type: "integer", description: "How many people in the lesson. Default 1." },
+            location: { type: "string", description: "Location name, if the club has more than one." },
+          },
+          required: ["date"],
+          additionalProperties: false,
+        },
+      },
+      {
+        name: "request_lesson",
+        description:
+          "Hold a private lesson for the person in this chat as a request. Staff confirm it; it is NOT booked yet. Paid at the club.",
+        input_schema: {
+          type: "object",
+          properties: {
+            coach_id: { type: "string", description: "Coach id from lesson_times." },
+            start: { type: "string", description: "Start time exactly as given by lesson_times." },
+            minutes: { type: "integer", description: "Lesson length in minutes, one lesson_times showed a price for." },
+            people: { type: "integer", description: "How many people, one lesson_times showed a price for." },
+          },
+          required: ["coach_id", "start", "minutes", "people"],
           additionalProperties: false,
         },
       },
@@ -283,6 +322,67 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
       return { content: error.message, isError: true };
     }
     ctx.events.push({ kind: "booked_court", ...(data as Record<string, unknown>) });
+    return { content: JSON.stringify(data) };
+  }
+
+  if (name === "lesson_times") {
+    const date = asString(input.date);
+    if (!isValidDate(date)) return { content: "Give the date as YYYY-MM-DD.", isError: true };
+    const minutes = Number(input.minutes) || 60;
+    const people = Number(input.people) || 1;
+    const wantedLoc = asString(input.location).toLowerCase();
+    const wantedCoach = asString(input.coach).toLowerCase();
+    const [{ data: coachRows }, { data: rateRows }] = await Promise.all([
+      supabase.from("coaches").select("id, name, about, location_ids").eq("org_id", org.id).eq("is_active", true).order("name"),
+      supabase.from("lesson_rates").select("coach_id, minutes, group_size, price").eq("org_id", org.id),
+    ]);
+    const rates = (rateRows ?? []) as { coach_id: string | null; minutes: number; group_size: number; price: number }[];
+    const coaches = ((coachRows ?? []) as { id: string; name: string; about: string | null; location_ids: string[] | null }[])
+      .filter((c) => !wantedCoach || c.name.toLowerCase().includes(wantedCoach));
+    const result = [];
+    for (const c of coaches) {
+      // The coach's own price for a length and group size, else the club-wide one.
+      const prices = new Map<string, { minutes: number; people: number; price: number }>();
+      for (const r of rates.filter((r) => r.coach_id === null)) prices.set(`${r.minutes}|${r.group_size}`, { minutes: r.minutes, people: r.group_size, price: Number(r.price) });
+      for (const r of rates.filter((r) => r.coach_id === c.id)) prices.set(`${r.minutes}|${r.group_size}`, { minutes: r.minutes, people: r.group_size, price: Number(r.price) });
+      if (prices.size === 0) continue;
+      const teachesAt = locations.filter((l) => l.is_active && (!c.location_ids || c.location_ids.includes(l.id)));
+      const loc =
+        teachesAt.find((l) => l.id === conv.location_id) ??
+        (wantedLoc ? teachesAt.find((l) => l.name.toLowerCase().includes(wantedLoc)) : undefined) ??
+        teachesAt[0];
+      const price = prices.get(`${minutes}|${people}`);
+      let free: { start: string; local_time: string }[] = [];
+      if (loc && price) {
+        const { data: times, error } = await supabase.rpc("lesson_free_times", { p_coach: c.id, p_location: loc.id, p_day: date, p_minutes: minutes });
+        if (error) return { content: error.message, isError: true };
+        free = ((times ?? []) as string[]).map((t) => ({ start: t, local_time: localTime(t, loc.timezone) }));
+      }
+      result.push({
+        coach_id: c.id,
+        coach: c.name,
+        about: c.about ?? undefined,
+        location: locations.length > 1 ? loc?.name : undefined,
+        prices: [...prices.values()].sort((a, b) => a.minutes - b.minutes || a.people - b.people),
+        [`free_${minutes}_min_for_${people}`]: price ? free.slice(0, 40) : `No price for ${minutes} minutes for ${people}; offer a length and group size from prices.`,
+      });
+    }
+    return { content: JSON.stringify(result.length ? { date, currency: org.currency, coaches: result } : { coaches: [], note: "No coaches take lessons by chat. Hand off to staff." }) };
+  }
+
+  if (name === "request_lesson") {
+    const { data, error } = await supabase.rpc("chat_request_lesson", {
+      p_conversation: conv.id,
+      p_coach: asString(input.coach_id),
+      p_start: asString(input.start),
+      p_minutes: Number(input.minutes),
+      p_group_size: Number(input.people),
+    });
+    if (error) {
+      ctx.events.push({ kind: "refused", what: "lesson", reason: error.message });
+      return { content: error.message, isError: true };
+    }
+    ctx.events.push({ kind: "requested_lesson", ...(data as Record<string, unknown>) });
     return { content: JSON.stringify(data) };
   }
 

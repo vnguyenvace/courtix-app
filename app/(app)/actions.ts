@@ -683,14 +683,22 @@ export async function toggleLocation(form: FormData) {
 
 // Online court requests from visitors (club in "Request, staff approve" mode).
 export async function decideCourtRequest(form: FormData) {
-  const { supabase } = await requireOrg();
+  const { supabase, org } = await requireOrg();
   const approve = str(form, "approve") === "true";
   const { error } = await supabase.rpc("decide_online_court", { p_booking: str(form, "booking_id"), p_approve: approve });
   if (error) back("/dashboard", friendly(error));
+  if (approve) await sendPendingNotices(supabase, org.id); // the member's confirmation (LINE when linked)
   revalidatePath("/dashboard");
   revalidatePath("/bookings");
   revalidatePath("/payments");
-  back("/dashboard", approve ? "Court request approved. Let them know it's confirmed." : "Court request declined. The court is free again.", "notice");
+  revalidatePath("/coaches");
+  back(
+    "/dashboard",
+    approve
+      ? "Request approved. Members get the confirmation automatically; let guests know on WhatsApp."
+      : "Request declined. The court (and coach) are free again.",
+    "notice",
+  );
 }
 
 // The club's PromptPay, for QR codes on pay pages (lib/promptpay.ts).

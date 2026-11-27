@@ -104,7 +104,7 @@ export default async function BookCourtPage({ searchParams }: { searchParams: Se
             </label>
             <label className="check">
               <input type="checkbox" name="contact_ok" required />
-              {club.name} may contact me about this booking (<Link href="/privacy">privacy</Link>)
+              <span>{club.name} may contact me about this booking (<Link href="/privacy">privacy</Link>)</span>
             </label>
             <label className="check">
               <input type="checkbox" name="marketing" />

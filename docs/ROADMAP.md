@@ -46,7 +46,7 @@ Courtix is a SaaS that Julian sells to many clubs; each club gets its own subdom
 
 ### Automation defaults (Julian, 18 Nov 2026)
 These are **product defaults**. Each club can change them in its settings (per-club columns on `orgs`, not hard-coded):
-- **Chat autonomy, default "answer and book free spots":** in WhatsApp/LINE chat, Claude answers questions **and books** sessions and courts that are free or covered by the member's package. Paid bookings, refunds, complaints, private coaching and anything unclear go to the club's owner/managers. Other settings to offer: "answer only", and later "also send a PromptPay link for paid spots" (Step 7, check with Julian first).
+- **Chat autonomy, default "answer and book free spots":** in WhatsApp/LINE chat, Claude answers questions **and books** sessions and courts that are free or covered by the member's package. Paid bookings, refunds, complaints, private coaching and anything unclear go to the club's owner/managers. *(27 Nov 2026, Julian: Claude may now hold a private lesson as a request with the price; staff approve it. It never confirms a paid lesson itself.)* Other settings to offer: "answer only", and later "also send a PromptPay link for paid spots" (Step 7, check with Julian first).
 - **Follow-ups, default "morning approval":** not sent automatically. Every morning the club's owner (and managers who opt in) get a list on their phone and tap **Approve all** (or edit or skip single ones); approved messages then go out by WhatsApp.
 - **WhatsApp first, LINE after.** Each club connects **its own** WhatsApp number; Courtix acts as a Meta Tech Provider (Embedded Signup), see Step 9.
 
@@ -183,7 +183,16 @@ Done when: a private lesson books a coach and a court in one step, clashes are r
 - **No double-booked coaches:** `coach_busy` (exclusion constraint), filled by triggers from lessons and from sessions with a coach. Cancelling a lesson or a session frees the coach.
 - **Payments:** a paid lesson becomes an order ("Lesson with Coach Kimo (2 people), Court 3, Sat 28 Nov 18:00"), and cancelling cancels the order, like court bookings.
 - **Sessions:** the edit page can pick a coach from the list (`set_session_coach`). `coach_name` is filled from the coach and still works for coaches not on the list. Generated sessions don't take a coach automatically yet.
-- **Left open:** hour packages / lesson credits (changes how packages are paid for: decide with Julian first); members booking lessons themselves (public page, chat); a confirmation message to the member for lessons; a coach's own sign-in to see their schedule; coach pay reports.
+- **Left open:** hour packages / lesson credits (changes how packages are paid for: decide with Julian first); a coach's own sign-in to see their schedule; coach pay reports.
+
+**Members book lessons themselves, done 27 Nov 2026** (migration `20261127050000_lessons_online.sql`, test `lessons_online_test.sql`). Julian decided: the booking page follows the club's online setting; in chat Claude only holds a lesson **request** that staff approve.
+- **Booking page:** a **Lessons** tab (shown once a coach has a price): pick coach, length and number of people (only combinations with a price), a day, then a free start time (`public_lesson_times`: coach free and a court free, every 30 minutes, within opening hours). Guests give name, WhatsApp number and consent (`public_book_lesson`, same spam limits as online courts); signed-in members book with one tap (`member_book_lesson`). "Instant" clubs: booked, with the PromptPay pay page; "approve" clubs: held as a request.
+- **Chat:** tools `lesson_times` and `request_lesson` (`chat_request_lesson`, only in "answer and book" mode). The lesson is held (coach and court) with `pending_approval`, at most 3 waiting per contact. Claude tells the price and says a team member will confirm. Answer-only clubs: handed to staff as before.
+- **Approving:** lesson requests from the booking page and chat are on the dashboard (Online sign-ups) with Approve / Decline (`decide_online_court`). Approving a member's request sends the usual "booking confirmed" notice; guests are told by staff. Declining frees the coach and court.
+- **Confirmations:** lessons booked at the desk for a member now send the "booking confirmed" notice too ("Lesson with Coach Kimo (Court 1)").
+- `create_lesson()` holds the lesson rules for every channel; `book_lesson()` (desk) adds the staff permission check.
+- Members see their lessons on /book/me as "Lesson with Coach Kimo (Court 3)" and can cancel them there, like court bookings (the coach is freed).
+- **Left open:** no automatic reply in the chat when staff approve a visitor's (non-member's) request; staff tell them.
 
 ## Step 6: Public booking page per location  ☑
 

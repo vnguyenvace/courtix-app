@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
 import { isValidDate, zonedToUtc } from "@/lib/time";
+import { sendPendingNotices } from "@/lib/notices";
 
 const PATH = "/coaches";
 
@@ -67,7 +68,7 @@ export async function deleteRate(form: FormData) {
 }
 
 export async function bookLesson(form: FormData) {
-  const { supabase, locations, workLocation } = await requirePermission("bookings.manage", PATH);
+  const { supabase, org, locations, workLocation } = await requirePermission("bookings.manage", PATH);
   const court = optStr(form, "court_id");
   const loc = locations.find((l) => l.id === str(form, "location_id")) ?? workLocation;
   const date = str(form, "date");
@@ -85,5 +86,6 @@ export async function bookLesson(form: FormData) {
     p_notes: optStr(form, "notes"),
   });
   if (error) back(PATH, friendly(error));
+  await sendPendingNotices(supabase, org.id); // the member's confirmation (LINE when linked)
   done("Lesson booked. It's on the court calendar, and the payment is in Payments.");
 }

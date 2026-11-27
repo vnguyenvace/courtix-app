@@ -181,7 +181,7 @@ export default async function PublicSessionPage({
                     <span className="small muted">With country code if you&apos;re not on a Thai number.</span>
                   </label>
                   <label className="check">
-                    <input type="checkbox" name="contact_ok" required /> The club may contact me on WhatsApp about this booking (<Link href="/privacy">privacy</Link>)
+                    <input type="checkbox" name="contact_ok" required /> <span>The club may contact me on WhatsApp about this booking (<Link href="/privacy">privacy</Link>)</span>
                   </label>
                   <label className="check">
                     <input type="checkbox" name="marketing" /> Send me news and offers from {club.name} (optional)

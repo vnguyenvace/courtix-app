@@ -201,3 +201,67 @@ export async function sendPayerSlip(form: FormData) {
   }
   go(path, "notice", verified ? "Payment confirmed. Thank you, see you on court." : "Slip sent. The club will check it and confirm.");
 }
+
+// ---------------------------------------------------------------- Private lessons
+
+function lessonFormPath(form: FormData) {
+  const q = new URLSearchParams({
+    coach: str(form, "coach_id"),
+    start: str(form, "start"),
+    minutes: str(form, "minutes"),
+    size: str(form, "group_size"),
+    location: str(form, "location"),
+  });
+  return `/book/lessons/book?${q.toString()}`;
+}
+
+/** After a lesson is booked or requested online: the pay page, or a thank-you message. */
+async function afterLesson(slug: string, r: { booking_id: string; price: number; pending_approval: boolean }, back: string) {
+  const { club } = await loadPublicClub();
+  const price = Number(r.price);
+  if (r.pending_approval) go(back, "notice", "Thanks, the coach and court are held for you. The club will confirm on WhatsApp.");
+  if (price > 0) {
+    const pay = await orderFor(slug, { booking: r.booking_id });
+    if (pay) go(`/book/pay/${pay}`, "notice", `Lesson booked. ${formatMoney(price, club.currency)} to pay: by PromptPay below, or at the club.`);
+  }
+  go(back, "notice", `Lesson booked.${price > 0 ? ` Pay ${formatMoney(price, club.currency)} at the club.` : ""} See you on court.`);
+}
+
+/** A visitor books (or requests) a lesson as a guest (rules and spam limits in public_book_lesson). */
+export async function publicBookLesson(form: FormData) {
+  const slug = await clubSlug();
+  const back = `/book/lessons?location=${encodeURIComponent(str(form, "location"))}`;
+  if (str(form, "website")) go(back, "notice", "Thanks, your lesson request is in.");
+  const { data, error } = await (await createClient()).rpc("public_book_lesson", {
+    p_slug: slug,
+    p_coach: str(form, "coach_id"),
+    p_start: str(form, "start"),
+    p_minutes: Number(str(form, "minutes")),
+    p_group_size: Number(str(form, "group_size")),
+    p_location: str(form, "location"),
+    p_name: str(form, "name"),
+    p_phone: str(form, "phone"),
+    p_contact_ok: form.get("contact_ok") === "on",
+    p_marketing: form.get("marketing") === "on",
+  });
+  if (error) go(lessonFormPath(form), "error", friendly(error));
+  await afterLesson(slug, data as { booking_id: string; price: number; pending_approval: boolean }, back);
+}
+
+/** A signed-in member books (or requests) a lesson. */
+export async function memberBookLesson(form: FormData) {
+  const slug = await clubSlug();
+  const token = await memberToken();
+  if (!token) redirect(`/book/me?next=${encodeURIComponent(lessonFormPath(form))}`);
+  const { data, error } = await (await createClient()).rpc("member_book_lesson", {
+    p_slug: slug,
+    p_token: token,
+    p_coach: str(form, "coach_id"),
+    p_start: str(form, "start"),
+    p_minutes: Number(str(form, "minutes")),
+    p_group_size: Number(str(form, "group_size")),
+    p_location: str(form, "location"),
+  });
+  if (error) go(lessonFormPath(form), "error", friendly(error));
+  await afterLesson(slug, data as { booking_id: string; price: number; pending_approval: boolean }, "/book/me");
+}

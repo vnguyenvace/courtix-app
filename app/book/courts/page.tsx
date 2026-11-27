@@ -36,6 +36,8 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
   const times = [...new Set(slots.map((s) => s.slot_start))].sort();
   const byKey = new Map(slots.map((s) => [`${s.court_id}|${s.slot_start}`, s]));
   const me = await loadMember();
+  const { data: lessonData } = club.public_booking ? await supabase.rpc("public_lessons", { p_slug: slug }) : { data: [] };
+  const hasLessons = ((lessonData ?? []) as unknown[]).length > 0;
   const error = param(sp, "error");
   const notice = param(sp, "notice");
   const qs = (d: string) => `?day=${d}${club.locations.length > 1 ? `&location=${location.id}` : ""}`;
@@ -64,6 +66,7 @@ export default async function PublicCourtsPage({ searchParams }: { searchParams:
       <nav className="tabs" aria-label="What to book">
         <Link href={`/book${club.locations.length > 1 ? `?location=${location.id}` : ""}`}>Sessions</Link>
         <span className="active">Court times</span>
+        {hasLessons && <Link href={`/book/lessons${club.locations.length > 1 ? `?location=${location.id}` : ""}`}>Lessons</Link>}
       </nav>
 
       <nav className="tabs days" aria-label="Day">

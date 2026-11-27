@@ -106,18 +106,24 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   // Online court bookings by visitors: waiting for approval, or from the last 3 days.
   const { data: courtOnlineData } = await supabase
     .from("bookings")
-    .select("id, guest_name, guest_phone, pending_approval, during, price, created_at, courts(name, location_id, locations(timezone))")
+    .select("id, source, guest_name, guest_phone, pending_approval, during, price, created_at, coach_id, group_size, coaches(name), members(full_name), courts(name, location_id, locations(timezone))")
     .eq("org_id", org.id)
-    .eq("source", "online")
+    .in("source", ["online", "chat"])
     .eq("status", "confirmed")
-    .or(`pending_approval.eq.true,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()}`)
+    // Requests waiting for a decision (booking page or chat), and online bookings from the last 3 days.
+    .or(`pending_approval.eq.true,and(source.eq.online,created_at.gte.${new Date(Date.now() - 3 * 86_400_000).toISOString()})`)
     .order("created_at", { ascending: false })
     .limit(20);
   const onlineCourts = (courtOnlineData ?? []) as unknown as {
     id: string;
+    source: "online" | "chat";
     guest_name: string | null;
     guest_phone: string | null;
     pending_approval: boolean;
+    coach_id: string | null;
+    group_size: number | null;
+    coaches: { name: string } | null;
+    members: { full_name: string } | null;
     during: string;
     price: number;
     courts: { name: string; location_id: string; locations: { timezone: string } | null } | null;
@@ -332,7 +338,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <Link href="/settings" className="small">Booking page →</Link>
           </div>
           <p className="muted small">
-            From your public booking page. They pay at the club.
+            From your public booking page, and lesson requests from chat. They pay at the club.
             {org.online_signups === "approve" ? " Requests wait for you to approve them." : ""}
           </p>
           {onlineCourts.length > 0 && (
@@ -344,10 +350,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 return (
                   <li key={b.id}>
                     <span>
-                      {b.guest_name}
-                      <span className="muted small">{b.guest_phone ? ` · ${b.guest_phone}` : ""}</span>
+                      {b.guest_name ?? b.members?.full_name ?? "Member"}
+                      <span className="muted small">
+                        {b.guest_phone ? ` · ${b.guest_phone}` : ""}
+                        {b.source === "chat" ? " · via chat" : ""}
+                      </span>
                       <div className="small">
-                        {b.courts?.name ?? "Court"}{" "}
+                        {b.coach_id
+                          ? `Lesson with ${b.coaches?.name ?? "coach"}${b.group_size && b.group_size > 1 ? ` (${b.group_size} people)` : ""}, ${b.courts?.name ?? "court"}`
+                          : (b.courts?.name ?? "Court")}{" "}
                         <span className="muted">
                           {start && new Date(start).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz })}{" "}
                           {start && localTime(start, tz)} · {formatMoney(b.price, org.currency)} at the club
@@ -368,7 +379,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         </form>
                       </span>
                     ) : (
-                      <span className="badge ok">court</span>
+                      <span className="badge ok">{b.coach_id ? "lesson" : "court"}</span>
                     )}
                   </li>
                 );

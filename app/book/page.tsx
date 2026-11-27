@@ -24,6 +24,8 @@ export default async function BookPage({ searchParams }: { searchParams: SearchP
     ? await supabase.rpc("public_sessions", { p_slug: slug, p_location: location?.id ?? null, p_days: 14 })
     : { data: [] };
   const sessions = (data ?? []) as PublicSession[];
+  const { data: lessonData } = club.public_booking ? await supabase.rpc("public_lessons", { p_slug: slug }) : { data: [] };
+  const hasLessons = ((lessonData ?? []) as unknown[]).length > 0;
 
   // Group by day in each session's own time zone.
   const days = new Map<string, PublicSession[]>();
@@ -65,6 +67,7 @@ export default async function BookPage({ searchParams }: { searchParams: SearchP
       <nav className="tabs" aria-label="What to book">
         <span className="active">Sessions</span>
         <Link href={`/book/courts${location ? `?location=${location.id}` : ""}`}>Court times</Link>
+        {hasLessons && <Link href={`/book/lessons${location ? `?location=${location.id}` : ""}`}>Lessons</Link>}
       </nav>
 
       {!club.public_booking ? (
