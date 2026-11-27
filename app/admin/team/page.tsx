@@ -5,38 +5,38 @@ import { removeTeamMember, setTeamMember } from "../actions";
 
 export default async function AdminTeamPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, userId } = await requirePlatform(["super_admin"]);
+  const { supabase, userId, t, locale } = await requirePlatform(["super_admin"]);
   const { data, error } = await supabase.rpc("platform_team");
   if (error) throw new Error(error.message);
   const team = (data ?? []) as { user_id: string; email: string; role: PlatformRole; created_at: string }[];
 
   return (
     <>
-      <h1>Courtix team</h1>
-      <p className="muted" style={{ marginBottom: 12 }}>Your own team. Club staff are managed by each club on its Staff page.</p>
+      <h1>{t("Courtix team")}</h1>
+      <p className="muted" style={{ marginBottom: 12 }}>{t("Your own team. Club staff are managed by each club on its Staff page.")}</p>
       <Banner sp={sp} />
       <section className="card" style={{ marginBottom: 16 }}>
         <ul className="list">
-          {team.map((t) => (
-            <li key={t.user_id} style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+          {team.map((ty) => (
+            <li key={ty.user_id} style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <strong>{t.email}</strong>
-                {t.user_id === userId && <span className="muted small"> (you)</span>}
-                <div className="muted small">{PLATFORM_ROLE_LABELS[t.role]}</div>
+                <strong>{ty.email}</strong>
+                {ty.user_id === userId && <span className="muted small">{" "}{t("(you)")}</span>}
+                <div className="muted small">{t(PLATFORM_ROLE_LABELS[ty.role])}</div>
               </div>
               <div className="actions">
                 <form action={setTeamMember} className="inline actions">
-                  <input type="hidden" name="email" value={t.email} />
-                  <select name="role" defaultValue={t.role} aria-label={`Role for ${t.email}`}>
+                  <input type="hidden" name="email" value={ty.email} />
+                  <select name="role" defaultValue={ty.role} aria-label={t("Role for {email}", { email: ty.email })}>
                     {PLATFORM_ROLES.map((r) => (
-                      <option key={r} value={r}>{PLATFORM_ROLE_LABELS[r]}</option>
+                      <option key={r} value={r}>{t(PLATFORM_ROLE_LABELS[r])}</option>
                     ))}
                   </select>
-                  <button>Save</button>
+                  <button>{t("Save")}</button>
                 </form>
                 <form action={removeTeamMember} className="inline">
-                  <input type="hidden" name="user_id" value={t.user_id} />
-                  <button className="danger">Remove</button>
+                  <input type="hidden" name="user_id" value={ty.user_id} />
+                  <button className="danger">{t("Remove")}</button>
                 </form>
               </div>
             </li>
@@ -44,29 +44,29 @@ export default async function AdminTeamPage({ searchParams }: { searchParams: Se
         </ul>
       </section>
       <section className="card">
-        <h2>Add someone</h2>
+        <h2>{t("Add someone")}</h2>
         <form action={setTeamMember} className="form">
           <label>
-            Email of their Courtix account
+            {t("Email of their Courtix account")}
             <input name="email" type="email" required placeholder="name@courtix.app" />
           </label>
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }}>
-            <legend className="small muted" style={{ marginBottom: 6 }}>Role</legend>
+            <legend className="small muted" style={{ marginBottom: 6 }}>{t("Role")}</legend>
             {PLATFORM_ROLES.map((r) => (
               <label key={r} className="check" style={{ alignItems: "flex-start" }}>
                 <input type="radio" name="role" value={r} defaultChecked={r === "support"} />
                 <span>
-                  <strong>{PLATFORM_ROLE_LABELS[r]}</strong>
-                  <span className="muted small" style={{ display: "block" }}>{PLATFORM_ROLE_DESCRIPTIONS[r]}</span>
+                  <strong>{t(PLATFORM_ROLE_LABELS[r])}</strong>
+                  <span className="muted small" style={{ display: "block" }}>{t(PLATFORM_ROLE_DESCRIPTIONS[r])}</span>
                 </span>
               </label>
             ))}
           </fieldset>
           <div className="actions">
-            <button className="primary">Add to the team</button>
+            <button className="primary">{t("Add to the team")}</button>
           </div>
           <p className="muted small">
-            They need a Courtix account first: ask them to create one at courtix.app (they don&apos;t need to set up a club).
+            {t("They need a Courtix account first: ask them to create one at courtix.app (they don't need to set up a club).")}
           </p>
         </form>
       </section>

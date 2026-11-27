@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { currentHost } from "@/lib/host";
 import type { PlatformRole } from "@/lib/permissions";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * The Courtix admin area (courtix.app/admin): signed-in members of the Courtix team only.
@@ -19,5 +20,5 @@ export async function requirePlatform(roles?: PlatformRole[]) {
   if (!user) redirect("/login");
   const { data: role } = await supabase.rpc("platform_role");
   if (!role || (roles && !roles.includes(role as PlatformRole))) notFound();
-  return { supabase, userId: user.id, email: user.email ?? null, role: role as PlatformRole, host };
+  return { ...(await getI18n()), supabase, userId: user.id, email: user.email ?? null, role: role as PlatformRole, host };
 }

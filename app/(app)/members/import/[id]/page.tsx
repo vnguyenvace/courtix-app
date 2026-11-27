@@ -20,7 +20,7 @@ interface RowResult {
 export default async function ImportPreviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase } = await requirePermission("club.setup", "/members");
+  const { supabase, t, locale } = await requirePermission("club.setup", "/members");
   const { data: imp } = await supabase
     .from("member_imports")
     .select("id, file_name, headers, rows, imported_at")
@@ -30,9 +30,9 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
   if (imp.imported_at) {
     return (
       <>
-        <Link href="/members/import" className="small">← Import members</Link>
-        <h1>Already imported</h1>
-        <p className="muted">This file was imported. <Link href="/members">See your members</Link>.</p>
+        <Link href="/members/import" className="small">{t("← Import members")}</Link>
+        <h1>{t("Already imported")}</h1>
+        <p className="muted">{t("This file was imported.")}{" "}<Link href="/members">{t("See your members")}</Link>.</p>
       </>
     );
   }
@@ -64,23 +64,23 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
     <>
       <div className="page-head">
         <div>
-          <Link href="/members/import" className="small">← Import members</Link>
-          <h1>Check the import</h1>
-          <p className="muted">{imp.file_name ?? "File"} · {rows.length} rows. Nothing is saved until you press Import.</p>
+          <Link href="/members/import" className="small">{t("← Import members")}</Link>
+          <h1>{t("Check the import")}</h1>
+          <p className="muted">{imp.file_name ?? t("File")} · {t("{n} rows. Nothing is saved until you press Import.", { n: rows.length })}</p>
         </div>
       </div>
       <Banner sp={sp} />
 
       <section className="card" style={{ marginBottom: 16 }}>
-        <h2>2. Match your columns</h2>
-        <p className="muted small" style={{ marginBottom: 8 }}>We guessed from the column names. Change any that are wrong, then check again.</p>
+        <h2>{t("2. Match your columns")}</h2>
+        <p className="muted small" style={{ marginBottom: 8 }}>{t("We guessed from the column names. Change any that are wrong, then check again.")}</p>
         <form method="get" className="form">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 12 }}>
             {IMPORT_FIELDS.map((f) => (
               <label key={f.key} style={{ minWidth: 0 }}>
-                {f.label}
+                {t(f.label)}
                 <select name={`map_${f.key}`} style={{ width: "100%" }} defaultValue={mapping[f.key] !== undefined ? String(mapping[f.key]) : ""}>
-                  <option value="">Not in my file</option>
+                  <option value="">{t("Not in my file")}</option>
                   {headers.map((h, i) => (
                     <option key={i} value={i}>
                       {h}
@@ -92,33 +92,33 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
             ))}
           </div>
           <div className="actions">
-            <button>Check again</button>
+            <button>{t("Check again")}</button>
           </div>
         </form>
       </section>
 
       {!hasName ? (
         <section className="card">
-          <p>Choose the column with the member&apos;s name (or first and last name) to continue.</p>
+          <p>{t("Choose the column with the member's name (or first and last name) to continue.")}</p>
         </section>
       ) : error ? (
         <div className="banner error">{friendly(error)}</div>
       ) : result && (
         <>
           <div className="stats" style={{ marginBottom: 16 }}>
-            <div className="stat"><div className="label">Ready to import</div><div className="value">{result.counts.ok}</div></div>
-            <div className="stat"><div className="label">Already members</div><div className="value">{result.counts.skip}</div></div>
-            <div className="stat"><div className="label">With problems</div><div className="value">{result.counts.error}</div></div>
+            <div className="stat"><div className="label">{t("Ready to import")}</div><div className="value">{result.counts.ok}</div></div>
+            <div className="stat"><div className="label">{t("Already members")}</div><div className="value">{result.counts.skip}</div></div>
+            <div className="stat"><div className="label">{t("With problems")}</div><div className="value">{result.counts.error}</div></div>
           </div>
 
           {problems.length > 0 && (
             <section className="card" style={{ marginBottom: 16 }}>
-              <h2>Rows with problems ({problems.length})</h2>
-              <p className="muted small" style={{ marginBottom: 8 }}>Fix these in your file and upload it again, or leave them out below.</p>
+              <h2>{t("Rows with problems ({n})", { n: problems.length })}</h2>
+              <p className="muted small" style={{ marginBottom: 8 }}>{t("Fix these in your file and upload it again, or leave them out below.")}</p>
               <ul className="list small">
                 {problems.map((r) => (
                   <li key={r.row}>
-                    <span><strong>Row {r.row}</strong> · {r.name || "no name"}</span>
+                    <span><strong>{t("Row {row}", { row: r.row })}</strong> · {r.name || "no name"}</span>
                     <span className="danger-text" style={{ color: "var(--danger)" }}>{r.message}</span>
                   </li>
                 ))}
@@ -129,10 +129,10 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
           {skipped.length > 0 && (
             <section className="card" style={{ marginBottom: 16 }}>
               <details>
-                <summary>Already members, skipped ({skipped.length})</summary>
+                <summary>{t("Already members, skipped ({length})", { length: skipped.length })}</summary>
                 <ul className="list small" style={{ marginTop: 8 }}>
                   {skipped.map((r) => (
-                    <li key={r.row}><span>Row {r.row} · {r.name} · {r.phone}</span><span className="muted">{r.message}</span></li>
+                    <li key={r.row}><span>{t("Row {row} · {name} · {phone}", { row: r.row, name: r.name, phone: r.phone })}</span><span className="muted">{r.message}</span></li>
                   ))}
                 </ul>
               </details>
@@ -141,17 +141,17 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
 
           {okRows.length > 0 && (
             <section className="card" style={{ marginBottom: 16 }}>
-              <h2>Ready to import ({okRows.length})</h2>
+              <h2>{t("Ready to import ({length})", { length: okRows.length })}</h2>
               {noted.length > 0 && (
                 <ul className="list small" style={{ marginBottom: 8 }}>
                   {noted.slice(0, 30).map((r) => (
-                    <li key={r.row}><span>Row {r.row} · {r.name}</span><span className="muted">{r.message}</span></li>
+                    <li key={r.row}><span>{t("Row {row} · {name}", { row: r.row, name: r.name })}</span><span className="muted">{r.message}</span></li>
                   ))}
                 </ul>
               )}
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Row</th><th>Name</th><th>Phone</th><th>Package</th></tr></thead>
+                  <thead><tr><th>{t("Row")}</th><th>{t("Name")}</th><th>{t("Phone")}</th><th>{t("Package")}</th></tr></thead>
                   <tbody>
                     {okRows.slice(0, 15).map((r) => (
                       <tr key={r.row}><td>{r.row}</td><td>{r.name}</td><td>{r.phone ?? "—"}</td><td>{r.package ?? "—"}</td></tr>
@@ -159,13 +159,13 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
                   </tbody>
                 </table>
               </div>
-              {okRows.length > 15 && <p className="muted small">…and {okRows.length - 15} more.</p>}
+              {okRows.length > 15 && <p className="muted small">{t("…and {n} more.", { n: okRows.length - 15 })}</p>}
             </section>
           )}
 
           {okRows.length > 0 && (
             <section className="card">
-              <h2>3. Import</h2>
+              <h2>{t("3. Import")}</h2>
               <form action={runImport} className="form">
                 <input type="hidden" name="import_id" value={id} />
                 {Object.entries(mapping).map(([k, v]) => (
@@ -174,21 +174,19 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
                 {problems.length > 0 && (
                   <label className="check">
                     <input type="checkbox" name="skip_bad" required />
-                    <span>Leave out the {problems.length} rows with problems and import the other {okRows.length}</span>
+                    <span>{t("Leave out the {length} rows with problems and import the other {length2}", { length: problems.length, length2: okRows.length })}</span>
                   </label>
                 )}
                 {mapping.marketing_consent !== undefined && (
                   <p className="muted small">
-                    Members marked &quot;yes&quot; for consent will get offers and AI follow-ups. Only import consent the
-                    club actually has on record (Thailand&apos;s PDPA).
+                    {t("Members marked \"yes\" for consent will get offers and AI follow-ups. Only import consent the club actually has on record (Thailand's PDPA).")}
                   </p>
                 )}
                 <p className="muted small">
-                  Everything goes in together, or nothing does. Packages count as already paid: nothing is added to
-                  Payments.
+                  {t("Everything goes in together, or nothing does. Packages count as already paid: nothing is added to Payments.")}
                 </p>
                 <div className="actions">
-                  <button className="primary">Import {okRows.length} {okRows.length === 1 ? "member" : "members"}</button>
+                  <button className="primary">{okRows.length === 1 ? t("Import 1 member") : t("Import {n} members", { n: okRows.length })}</button>
                 </div>
               </form>
             </section>

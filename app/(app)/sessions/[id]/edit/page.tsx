@@ -15,7 +15,7 @@ export default async function EditSessionPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, role } = await requireOrg();
+  const { supabase, org, role, t, locale } = await requireOrg();
   const { data } = await supabase.from("session_overview").select("*").eq("id", id).eq("org_id", org.id).maybeSingle();
   if (!data) notFound();
   const s = data as SessionOverview;
@@ -35,13 +35,13 @@ export default async function EditSessionPage({
     return (
       <>
         {back}
-        <h1>Edit session</h1>
+        <h1>{t("Edit session")}</h1>
         <p className="muted">
           {!canManage(role)
-            ? "Only the owner or an admin can edit sessions."
+            ? t("Only the owner or an admin can edit sessions.")
             : s.status === "cancelled"
-              ? "This session has been cancelled, so it can't be edited."
-              : "This session has finished, so it can't be edited."}
+              ? t("This session has been cancelled, so it can't be edited.")
+              : t("This session has finished, so it can't be edited.")}
         </p>
       </>
     );
@@ -60,7 +60,7 @@ export default async function EditSessionPage({
       <div className="page-head">
         <div>
           {back}
-          <h1>Edit session</h1>
+          <h1>{t("Edit session")}</h1>
           <p className="muted">
             {s.name} · {formatLongDay(day)} · {localTime(s.starts_at, tz)}–{localTime(s.ends_at, tz)}
           </p>
@@ -73,59 +73,59 @@ export default async function EditSessionPage({
                 <input type="hidden" name="timezone" value={tz} />
                 <input type="hidden" name="original_title" value={s.name} />
                 <label>
-                  Title
+                  {t("Title")}
                   <input name="title" defaultValue={s.name} />
                 </label>
                 <div className="form-row">
                   <label>
-                    Date
+                    {t("Date")}
                     <input type="date" name="date" required defaultValue={day} />
                   </label>
                   <label>
-                    Starts
+                    {t("Starts")}
                     <input type="time" name="start_time" required defaultValue={localTime(s.starts_at, tz)} />
                   </label>
                   <label>
-                    Ends
+                    {t("Ends")}
                     <input type="time" name="end_time" required defaultValue={localTime(s.ends_at, tz)} />
                   </label>
                 </div>
                 {endDay !== day && (
                   <label>
-                    End date (multi-day event)
+                    {t("End date (multi-day event)")}
                     <input type="date" name="end_date" defaultValue={endDay} />
                   </label>
                 )}
                 <div className="form-row">
                   <label>
-                    Price per person
+                    {t("Price per person")}
                     <input type="number" name="price" min="0" required defaultValue={s.price} />
                   </label>
                   <label>
-                    Minimum players
+                    {t("Minimum players")}
                     <input type="number" name="min_players" min="1" required defaultValue={s.min_players} />
                   </label>
                   <label>
-                    Maximum players
+                    {t("Maximum players")}
                     <input type="number" name="max_players" min="1" required defaultValue={s.max_players} />
                   </label>
                 </div>
                 <div className="form-row">
                   <label>
-                    Level from
-                    <input type="number" name="level_min" step="0.5" min="1" max="6" defaultValue={s.level_min ?? ""} placeholder="Any" />
+                    {t("Level from")}
+                    <input type="number" name="level_min" step="0.5" min="1" max="6" defaultValue={s.level_min ?? ""} placeholder={t("Any")} />
                   </label>
                   <label>
-                    Level to
-                    <input type="number" name="level_max" step="0.5" min="1" max="6" defaultValue={s.level_max ?? ""} placeholder="Any" />
+                    {t("Level to")}
+                    <input type="number" name="level_max" step="0.5" min="1" max="6" defaultValue={s.level_max ?? ""} placeholder={t("Any")} />
                   </label>
                 </div>
                 <div className="form-row">
                   {coaches.length > 0 && (
                     <label>
-                      Coach
+                      {t("Coach")}
                       <select name="coach_id" defaultValue={coachId}>
-                        <option value="">Not on the list (type below) or none</option>
+                        <option value="">{t("Not on the list (type below) or none")}</option>
                         {coaches.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -133,14 +133,14 @@ export default async function EditSessionPage({
                     </label>
                   )}
                   <label>
-                    {coaches.length > 0 ? "Other coach's name" : "Coach"}
-                    <input name="coach_name" defaultValue={coachId ? "" : (s.coach_name ?? "")} placeholder={coaches.length > 0 ? "Only if not on the list" : ""} />
+                    {coaches.length > 0 ? t("Other coach's name") : t("Coach")}
+                    <input name="coach_name" defaultValue={coachId ? "" : (s.coach_name ?? "")} placeholder={coaches.length > 0 ? t("Only if not on the list") : ""} />
                   </label>
                 </div>
                 {coaches.length > 0 && <input type="hidden" name="has_coach_list" value="1" />}
                 {locationCourts.length > 0 && (
                   <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-                    <legend className="small muted" style={{ marginBottom: 6 }}>Courts to hold</legend>
+                    <legend className="small muted" style={{ marginBottom: 6 }}>{t("Courts to hold")}</legend>
                     <div className="actions">
                       {locationCourts.map((c) => (
                         <label key={c.id} className="check">
@@ -151,18 +151,17 @@ export default async function EditSessionPage({
                   </fieldset>
                 )}
                 <label>
-                  Description
+                  {t("Description")}
                   <textarea name="description" defaultValue={s.description ?? ""} />
                 </label>
                 <label>
-                  Notes for staff
+                  {t("Notes for staff")}
                   <textarea name="notes" defaultValue={s.notes ?? ""} />
                 </label>
                 <p className="muted small">
-                  People already booked keep the price they signed up at. If you change the time, let them know.
-                  Later timetable changes won&apos;t overwrite this session.
+                  {t("People already booked keep the price they signed up at. If you change the time, let them know. Later timetable changes won't overwrite this session.")}
                 </p>
-                <button className="primary" data-pending-label="Saving…">Save session</button>
+                <button className="primary" data-pending-label={t("Saving…")}>{t("Save session")}</button>
               </form>
       </section>
     </>

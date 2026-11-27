@@ -16,7 +16,7 @@ interface RequestRow {
 
 export default async function HelpPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, can, role } = await requireOrg();
+  const { supabase, org, can, role, t, locale } = await requireOrg();
   const owner = can("staff.manage");
 
   const [{ data, error }, { data: grantData }] = await Promise.all([
@@ -40,14 +40,14 @@ export default async function HelpPage({ searchParams }: { searchParams: SearchP
   const requests = (data ?? []) as RequestRow[];
   const grant = grantData as { expires_at: string } | null;
   const when = (iso: string) =>
-    new Date(iso).toLocaleString("en-GB", { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    new Date(iso).toLocaleString(locale, { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Get help</h1>
-          <p className="muted">Tell the Courtix team what&apos;s wrong or what you need. We reply here and by email.</p>
+          <h1>{t("Get help")}</h1>
+          <p className="muted">{t("Tell the Courtix team what's wrong or what you need. We reply here and by email.")}</p>
         </div>
       </div>
       <Banner sp={sp} />
@@ -56,49 +56,48 @@ export default async function HelpPage({ searchParams }: { searchParams: SearchP
         <section className="card" style={{ marginBottom: 16 }}>
           <form action={askForHelp} className="form">
             <label>
-              What&apos;s wrong, or what do you need?
+              {t("What's wrong, or what do you need?")}
               <textarea
                 name="message"
                 required
                 maxLength={2000}
                 rows={5}
-                placeholder="Members say the booking page shows the wrong price for evening courts"
+                placeholder={t("Members say the booking page shows the wrong price for evening courts")}
               />
             </label>
             <label>
-              Best way to reach you (optional)
-              <input name="contact" maxLength={200} placeholder="LINE ID or phone number" />
+              {t("Best way to reach you (optional)")}
+              <input name="contact" maxLength={200} placeholder={t("LINE ID or phone number")} />
             </label>
             {owner &&
               (grant ? (
-                <p className="muted small">Courtix support can already look at your club until {when(grant.expires_at)}.</p>
+                <p className="muted small">{t("Courtix support can already look at your club until {when}.", { when: when(grant.expires_at) })}</p>
               ) : (
                 <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 6 }}>
                   <label className="check">
-                    <input type="checkbox" name="allow" defaultChecked /> Let Courtix support look at the club (read only)
+                    <input type="checkbox" name="allow" defaultChecked />{" "}{t("Let Courtix support look at the club (read only)")}
                   </label>
                   <label>
-                    For
+                    {t("For")}
                     <select name="hours" defaultValue="24">
-                      <option value="2">2 hours</option>
-                      <option value="24">24 hours</option>
-                      <option value="72">3 days</option>
-                      <option value="168">7 days</option>
+                      <option value="2">{t("2 hours")}</option>
+                      <option value="24">{t("24 hours")}</option>
+                      <option value="72">{t("3 days")}</option>
+                      <option value="168">{t("7 days")}</option>
                     </select>
                   </label>
                   <p className="muted small">
-                    It helps us see the problem. We can only look, not change anything, and every page we open is listed on
-                    your Staff page. You can end it there any time.
+                    {t("It helps us see the problem. We can only look, not change anything, and every page we open is listed on your Staff page. You can end it there any time.")}
                   </p>
                 </fieldset>
               ))}
             {!owner && (
               <p className="muted small">
-                If we need to look at your club&apos;s data, the owner will be asked to allow it.
+                {t("If we need to look at your club's data, the owner will be asked to allow it.")}
               </p>
             )}
             <div className="actions">
-              <button className="primary">Send to Courtix</button>
+              <button className="primary">{t("Send to Courtix")}</button>
             </div>
           </form>
         </section>
@@ -106,24 +105,24 @@ export default async function HelpPage({ searchParams }: { searchParams: SearchP
 
       {requests.length > 0 && (
         <section className="card">
-          <h2>Your club&apos;s requests</h2>
+          <h2>{t("Your club's requests")}</h2>
           <ul className="list">
             {requests.map((r) => (
               <li key={r.id} style={{ display: "grid", gap: 6 }}>
                 <div className="muted small">
-                  {when(r.created_at)} · {r.created_by_email ?? "staff"} · {r.status === "open" ? (r.reply ? "answered" : "waiting for Courtix") : "solved"}
+                  {when(r.created_at)} · {r.created_by_email ?? "staff"} · {r.status === "open" ? (r.reply ? "answered" : t("waiting for Courtix")) : "solved"}
                 </div>
                 <div style={{ whiteSpace: "pre-wrap" }}>{r.message}</div>
                 {r.reply && (
                   <div className="card" style={{ padding: 10, whiteSpace: "pre-wrap" }}>
-                    <div className="muted small">Courtix support{r.replied_at ? ` · ${when(r.replied_at)}` : ""}</div>
+                    <div className="muted small">{t("Courtix support")}{r.replied_at ? ` · ${when(r.replied_at)}` : ""}</div>
                     {r.reply}
                   </div>
                 )}
                 {r.status === "open" && role !== "support" && (
                   <form action={closeRequest} className="inline">
                     <input type="hidden" name="request_id" value={r.id} />
-                    <button className="link">Mark as solved</button>
+                    <button className="link">{t("Mark as solved")}</button>
                   </form>
                 )}
               </li>

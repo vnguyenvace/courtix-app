@@ -382,11 +382,12 @@ Julian's own team (27 Nov 2026 plan): `platform_staff (user_id, role)` with supe
 - **Chat requests get the answer in the chat:** lesson requests remember their chat (`bookings.chat_conversation_id`, migration `20261127060000_chat_request_reply.sql`). Approving a visitor's request, or declining any chat request, posts a message in that chat (sent on LINE for LINE chats). Members still get the usual confirmation notice when approved. The message is in English for now.
 - `sessions_test` makes its own camp 5 days ahead (the demo's camps are on fixed November dates).
 
-## Staff screen languages  (Phase 1 ☑, Phase 2 ☐)
+## Staff screen languages  ☑
 Julian, 28 Nov 2026: each staff member picks their language (English, ไทย, Русский, 中文). Staff app in phases; Claude writes the translations, native speakers review.
 - **Done (Phase 1):** language picker in the sidebar (saved on the person's account, "automatic" = browser language). `lib/i18n/` (`t()`, `translateMessage()`), dictionaries generated from `lib/i18n/source/ui.py` + `messages.py` by `build.py` (checks placeholders). Translated: sidebar, dashboard, courts + book a court, sessions + session page, members + member page + add member, payments, shared badges and payment form. The banner translates action results and the common front-desk database errors (bookings, sessions, members, payments, lessons). Dates use the language's format (Thai: Buddhist years).
 - **To review:** the Thai, Russian and Chinese wording is Claude's; ask Raccoon's front desk (Thai) and a Russian-speaking customer to read `lib/i18n/source/ui.py` and correct it.
-- **Phase 2 (open):** settings, staff, coaches, chats, reply helper, follow-ups, morning, help, import, admin area, session setup/edit/new, sign-in and password pages; the remaining ~100 database messages. Then decide about the public booking page.
+- **Done (Phase 2, 28 Nov 2026):** every other staff page: settings, staff, coaches, chats and chat page, reply helper, follow-ups, morning, help, member import (upload and check), session setup / new event / edit session, the Courtix admin area (clubs, team, help requests), sign-in, forgot / change password, no access and onboarding. Role, category, reason and notice labels, day names and import field names too. The banner also translates the results of those pages' actions and the remaining staff-visible database messages. Translations in `lib/i18n/source/ui2.py` and `messages2.py` (about 1,300 texts per language in all). `scripts/i18n-wrap.mjs` wraps text in a new page in `t("…")` (a starting point; check its output).
+- **Not translated:** the public booking page (visitors), chat and member messages (they already use the member's language), browser tab titles, and messages only visitors or the chat assistant see.
 
 ## Step 11: SaaS billing  ☐
 

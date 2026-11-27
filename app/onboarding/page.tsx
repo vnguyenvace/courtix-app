@@ -1,3 +1,4 @@
+import { getI18n } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -30,6 +31,7 @@ async function createClub(form: FormData) {
 }
 
 export default async function Onboarding({ searchParams }: { searchParams: SearchParams }) {
+  const { t } = await getI18n();
   const sp = await searchParams;
   const supabase = await createClient();
   const {
@@ -44,22 +46,22 @@ export default async function Onboarding({ searchParams }: { searchParams: Searc
   return (
     <main className="auth">
       <div className="card">
-        <h1>Set up your club</h1>
+        <h1>{t("Set up your club")}</h1>
         <p className="muted" style={{ marginBottom: 20 }}>
-          You can change all of this later.
+          {t("You can change all of this later.")}
         </p>
         <Banner sp={sp} />
         <form className="form" action={createClub}>
           <label>
-            Club name
-            <input name="name" required placeholder="Rawai Pickleball Club" />
+            {t("Club name")}
+            <input name="name" required placeholder={t("Rawai Pickleball Club")} />
           </label>
           <label>
-            Club link
-            <input name="slug" required placeholder="rawai-pickleball" pattern="[a-zA-Z0-9\-]{2,40}" title="Letters, numbers and dashes" />
-            <span className="muted small">Your club&apos;s address: <strong>your-link.{ROOT_DOMAIN}</strong></span>
+            {t("Club link")}
+            <input name="slug" required placeholder={t("rawai-pickleball")} pattern="[a-zA-Z0-9\-]{2,40}" title={t("Letters, numbers and dashes")} />
+            <span className="muted small">{t("Your club's address:")}{" "}<strong>{t("your-link.{ROOT_DOMAIN}", { ROOT_DOMAIN: ROOT_DOMAIN })}</strong></span>
           </label>
-          <button className="primary">Create club</button>
+          <button className="primary">{t("Create club")}</button>
         </form>
       </div>
     </main>

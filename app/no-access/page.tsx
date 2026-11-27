@@ -1,3 +1,4 @@
+import { getI18n } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { currentHost } from "@/lib/host";
@@ -5,6 +6,7 @@ import { signOut } from "@/app/login/actions";
 
 // Shown when someone is signed in on a club subdomain they're not staff of.
 export default async function NoAccessPage() {
+  const { t } = await getI18n();
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,7 +19,7 @@ export default async function NoAccessPage() {
   if (joined && (joined as unknown[]).length > 0) redirect("/dashboard?notice=" + encodeURIComponent("Welcome to the team."));
 
   const host = await currentHost();
-  let clubName = "this club";
+  let clubName = t("this club");
   if (host.kind === "club") {
     const { data } = await supabase.rpc("club_by_slug", { p_slug: host.slug });
     clubName = ((data ?? [])[0] as { name: string } | undefined)?.name ?? clubName;
@@ -33,14 +35,13 @@ export default async function NoAccessPage() {
   return (
     <main className="auth">
       <div className="card">
-        <h1>No access</h1>
+        <h1>{t("No access")}</h1>
         <p className="muted" style={{ marginBottom: 16 }}>
-          You&apos;re signed in as {user.email}, but you&apos;re not on the staff of {clubName}. Ask the club&apos;s owner to add
-          you.
+          {t("You're signed in as {email}, but you're not on the staff of {clubName}. Ask the club's owner to add you.", { email: user.email, clubName: clubName })}
         </p>
         {myClubs.length > 0 && (
           <>
-            <p className="small">Your clubs:</p>
+            <p className="small">{t("Your clubs:")}</p>
             <ul className="list" style={{ marginBottom: 16 }}>
               {myClubs.map((c) => (
                 <li key={c.slug}>
@@ -53,11 +54,11 @@ export default async function NoAccessPage() {
         <div className="actions">
           {myClubs.length === 0 && (
             <a className="button" href={host.kind === "other" ? "/onboarding" : host.rootUrl("/onboarding")}>
-              Set up your own club
+              {t("Set up your own club")}
             </a>
           )}
           <form action={signOut}>
-            <button className="link">Sign out</button>
+            <button className="link">{t("Sign out")}</button>
           </form>
         </div>
       </div>

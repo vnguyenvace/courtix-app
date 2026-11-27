@@ -1,7 +1,7 @@
 import type { SessionOverview } from "@/lib/types";
 import type { T } from "@/lib/i18n";
 
-const same: T = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m)) : s);
+const same: T = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k] ?? "") : m)) : s);
 
 export function levelText(min: number | null, max: number | null, t: T = same) {
   if (min === null && max === null) return t("All levels");

@@ -1,3 +1,4 @@
+import type { T } from "@/lib/i18n";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { requirePermission } from "@/lib/org";
@@ -9,10 +10,10 @@ import { addCoach, addRate, bookLesson, deleteRate, updateCoach } from "./action
 const LENGTHS = [30, 45, 60, 90, 120];
 const SIZES = [1, 2, 3, 4, 5, 6];
 
-function LocationChecks({ locations, chosen }: { locations: Location[]; chosen: string[] | null }) {
+function LocationChecks({ locations, chosen, t }: { locations: Location[]; chosen: string[] | null; t: T }) {
   return (
     <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-      <legend className="small muted" style={{ marginBottom: 6 }}>Teaches at (leave all unticked for every location)</legend>
+      <legend className="small muted" style={{ marginBottom: 6 }}>{t("Teaches at (leave all unticked for every location)")}</legend>
       <div className="actions">
         {locations.map((l) => (
           <label key={l.id} className="check">
@@ -28,7 +29,7 @@ const people = (n: number) => (n === 1 ? "1 person" : `${n} people`);
 
 export default async function CoachesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, can, location, workLocation, locations, multiLocation, role } = await requirePermission("bookings.manage");
+  const { supabase, org, can, location, workLocation, locations, multiLocation, role, t, locale } = await requirePermission("bookings.manage");
   const setup = can("club.setup");
   const active = locations.filter((l) => l.is_active);
   const loc = location ?? workLocation;
@@ -57,15 +58,15 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
   const locName = new Map(locations.map((l) => [l.id, l]));
   const coachName = new Map(coaches.map((c) => [c.id, c.name]));
   const when = (iso: string, tz: string) =>
-    new Date(iso).toLocaleString("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  const time = (iso: string, tz: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
+    new Date(iso).toLocaleString(locale, { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const time = (iso: string, tz: string) => new Date(iso).toLocaleTimeString(locale, { timeZone: tz, hour: "2-digit", minute: "2-digit" });
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Coaches</h1>
-          <p className="muted">Private lessons book the coach and a court together. A coach can&apos;t be in two places at once.</p>
+          <h1>{t("Coaches")}</h1>
+          <p className="muted">{t("Private lessons book the coach and a court together. A coach can't be in two places at once.")}</p>
         </div>
       </div>
       <Banner sp={sp} />
@@ -73,16 +74,16 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
       {activeCoaches.length === 0 ? (
         <section className="card" style={{ marginBottom: 16 }}>
           <p className="muted">
-            {setup ? "Add your coaches below, then set lesson prices, to start booking lessons." : "No coaches yet. Ask the owner or an admin to add them."}
+            {setup ? t("Add your coaches below, then set lesson prices, to start booking lessons.") : t("No coaches yet. Ask the owner or an admin to add them.")}
           </p>
         </section>
       ) : (
         <section className="card" style={{ marginBottom: 16 }}>
-          <h2>Book a lesson</h2>
+          <h2>{t("Book a lesson")}</h2>
           <form action={bookLesson} className="form">
             <div className="form-row">
               <label>
-                Coach
+                {t("Coach")}
                 <select name="coach_id" required>
                   {activeCoaches.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -90,7 +91,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </select>
               </label>
               <label>
-                People
+                {t("People")}
                 <select name="group_size" defaultValue="1">
                   {SIZES.map((n) => (
                     <option key={n} value={n}>{people(n)}</option>
@@ -98,7 +99,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </select>
               </label>
               <label>
-                Length
+                {t("Length")}
                 <select name="minutes" defaultValue="60">
                   {LENGTHS.map((m) => (
                     <option key={m} value={m}>{m} minutes</option>
@@ -108,16 +109,16 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
             </div>
             <div className="form-row">
               <label>
-                Date
+                {t("Date")}
                 <input type="date" name="date" defaultValue={date} required />
               </label>
               <label>
-                Start
+                {t("Start")}
                 <input type="time" name="time" step={900} defaultValue="09:00" required />
               </label>
               {multiLocation && (
                 <label>
-                  Location
+                  {t("Location")}
                   <select name="location_id" defaultValue={loc.id}>
                     {active.map((l) => (
                       <option key={l.id} value={l.id}>{l.name}</option>
@@ -126,9 +127,9 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </label>
               )}
               <label>
-                Court
+                {t("Court")}
                 <select name="court_id" defaultValue="">
-                  <option value="">Any free court</option>
+                  <option value="">{t("Any free court")}</option>
                   {courts.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -140,29 +141,28 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
             </div>
             <div className="form-row">
               <label>
-                Member who pays
+                {t("Member who pays")}
                 <select name="member_id" defaultValue="">
-                  <option value="">Not a member (enter a name)</option>
+                  <option value="">{t("Not a member (enter a name)")}</option>
                   {members.map((m) => (
                     <option key={m.member_id} value={m.member_id}>{m.full_name}</option>
                   ))}
                 </select>
               </label>
               <label>
-                Guest name
-                <input name="guest_name" placeholder="Tourist Tom" />
+                {t("Guest name")}
+                <input name="guest_name" placeholder={t("Tourist Tom")} />
               </label>
             </div>
             <label>
-              Notes (optional)
-              <input name="notes" maxLength={200} placeholder="Working on the third shot drop" />
+              {t("Notes (optional)")}
+              <input name="notes" maxLength={200} placeholder={t("Working on the third shot drop")} />
             </label>
             <div className="actions">
-              <button className="primary">Book lesson</button>
+              <button className="primary">{t("Book lesson")}</button>
             </div>
             <p className="muted small">
-              The price comes from the prices below, by length and number of people. It goes to Payments to collect, like a
-              court booking.
+              {t("The price comes from the prices below, by length and number of people. It goes to Payments to collect, like a court booking.")}
             </p>
           </form>
         </section>
@@ -170,7 +170,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
 
       {schedule.length > 0 && (
         <section className="card" style={{ marginBottom: 16 }}>
-          <h2>Next 14 days</h2>
+          <h2>{t("Next 14 days")}</h2>
           <ul className="list">
             {schedule.map((r) => {
               const tz = locName.get(r.location_id)?.timezone ?? loc.timezone;
@@ -190,7 +190,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                       <input type="hidden" name="booking_id" value={r.booking_id} />
                       <input type="hidden" name="status" value="cancelled" />
                       <input type="hidden" name="return_to" value="/coaches" />
-                      <ConfirmSubmit label="Cancel lesson" confirm="Yes, cancel lesson" />
+                      <ConfirmSubmit label={t("Cancel lesson")} confirm={t("Yes, cancel lesson")} />
                     </form>
                   )}
                 </li>
@@ -201,25 +201,25 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
       )}
 
       <section className="card" style={{ marginBottom: 16 }} id="prices">
-        <h2>Lesson prices</h2>
+        <h2>{t("Lesson prices")}</h2>
         {rates.length === 0 ? (
-          <p className="muted small">No prices yet. A lesson can only be booked once its price is set.</p>
+          <p className="muted small">{t("No prices yet. A lesson can only be booked once its price is set.")}</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>For</th>
-                  <th>Length</th>
-                  <th>People</th>
-                  <th>Price</th>
+                  <th>{t("For")}</th>
+                  <th>{t("Length")}</th>
+                  <th>{t("People")}</th>
+                  <th>{t("Price")}</th>
                   {setup && <th />}
                 </tr>
               </thead>
               <tbody>
                 {rates.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.coach_id ? coachName.get(r.coach_id) ?? "?" : "All coaches"}</td>
+                    <td>{r.coach_id ? coachName.get(r.coach_id) ?? "?" : t("All coaches")}</td>
                     <td>{r.minutes} min</td>
                     <td>{people(r.group_size)}</td>
                     <td>{formatMoney(Number(r.price), org.currency)}</td>
@@ -227,7 +227,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                       <td>
                         <form action={deleteRate} className="inline">
                           <input type="hidden" name="rate_id" value={r.id} />
-                          <button className="link">Remove</button>
+                          <button className="link">{t("Remove")}</button>
                         </form>
                       </td>
                     )}
@@ -241,16 +241,16 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
           <form action={addRate} className="form" style={{ marginTop: 12 }}>
             <div className="form-row">
               <label>
-                For
+                {t("For")}
                 <select name="coach_id" defaultValue="">
-                  <option value="">All coaches</option>
+                  <option value="">{t("All coaches")}</option>
                   {coaches.map((c) => (
                     <option key={c.id} value={c.id}>{c.name} only</option>
                   ))}
                 </select>
               </label>
               <label>
-                Length
+                {t("Length")}
                 <select name="minutes" defaultValue="60">
                   {LENGTHS.map((m) => (
                     <option key={m} value={m}>{m} minutes</option>
@@ -258,7 +258,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </select>
               </label>
               <label>
-                People
+                {t("People")}
                 <select name="group_size" defaultValue="1">
                   {SIZES.map((n) => (
                     <option key={n} value={n}>{people(n)}</option>
@@ -266,32 +266,31 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </select>
               </label>
               <label>
-                Price ({org.currency})
+                {t("Price ({currency})", { currency: org.currency })}
                 <input type="number" name="price" min="0" step="1" required />
               </label>
             </div>
             <div className="actions">
-              <button>Save price</button>
+              <button>{t("Save price")}</button>
             </div>
             <p className="muted small">
-              The price is for the whole lesson, not per person. A coach&apos;s own price wins over the &quot;All coaches&quot; price.
-              Saving the same length and people again changes the price.
+              {t("The price is for the whole lesson, not per person. A coach's own price wins over the \"All coaches\" price. Saving the same length and people again changes the price.")}
             </p>
           </form>
         )}
       </section>
 
       <section className="card">
-        <h2>Your coaches</h2>
+        <h2>{t("Your coaches")}</h2>
         {coaches.length > 0 && (
           <ul className="list">
             {coaches.map((c) => (
               <li key={c.id} style={{ display: "grid", gap: 6 }}>
                 <div>
                   <strong>{c.name}</strong>
-                  {!c.is_active && <span className="muted small"> (not taking lessons)</span>}
+                  {!c.is_active && <span className="muted small">{" "}{t("(not taking lessons)")}</span>}
                   <div className="muted small">
-                    {[c.phone, multiLocation ? (c.location_ids ? c.location_ids.map((id) => locName.get(id)?.name).join(", ") : "All locations") : null]
+                    {[c.phone, multiLocation ? (c.location_ids ? c.location_ids.map((id) => locName.get(id)?.name).join(", ") : t("All locations")) : null]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
@@ -299,29 +298,29 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                 </div>
                 {setup && (
                   <details>
-                    <summary className="small">Edit</summary>
+                    <summary className="small">{t("Edit")}</summary>
                     <form action={updateCoach} className="form" style={{ marginTop: 8 }}>
                       <input type="hidden" name="coach_id" value={c.id} />
                       <div className="form-row">
                         <label>
-                          Name
+                          {t("Name")}
                           <input name="name" required maxLength={80} defaultValue={c.name} />
                         </label>
                         <label>
-                          Phone
+                          {t("Phone")}
                           <input name="phone" maxLength={40} defaultValue={c.phone ?? ""} />
                         </label>
                       </div>
                       <label>
-                        About (optional)
+                        {t("About (optional)")}
                         <input name="about" maxLength={500} defaultValue={c.about ?? ""} />
                       </label>
-                      {multiLocation && <LocationChecks locations={active} chosen={c.location_ids} />}
+                      {multiLocation && <LocationChecks locations={active} chosen={c.location_ids} t={t} />}
                       <label className="check">
-                        <input type="checkbox" name="is_active" defaultChecked={c.is_active} /> Taking lessons
+                        <input type="checkbox" name="is_active" defaultChecked={c.is_active} />{" "}{t("Taking lessons")}
                       </label>
                       <div className="actions">
-                        <button>Save</button>
+                        <button>{t("Save")}</button>
                       </div>
                     </form>
                   </details>
@@ -332,24 +331,24 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
         )}
         {setup && (
           <form action={addCoach} className="form" style={{ marginTop: 12 }}>
-            <h3 style={{ margin: 0 }}>Add a coach</h3>
+            <h3 style={{ margin: 0 }}>{t("Add a coach")}</h3>
             <div className="form-row">
               <label>
-                Name
-                <input name="name" required maxLength={80} placeholder="Coach Kimo" />
+                {t("Name")}
+                <input name="name" required maxLength={80} placeholder={t("Coach Kimo")} />
               </label>
               <label>
-                Phone (optional)
+                {t("Phone (optional)")}
                 <input name="phone" maxLength={40} />
               </label>
             </div>
             <label>
-              About (optional)
-              <input name="about" maxLength={500} placeholder="IPTPA certified, beginners to 4.0" />
+              {t("About (optional)")}
+              <input name="about" maxLength={500} placeholder={t("IPTPA certified, beginners to 4.0")} />
             </label>
-            {multiLocation && <LocationChecks locations={active} chosen={null} />}
+            {multiLocation && <LocationChecks locations={active} chosen={null} t={t} />}
             <div className="actions">
-              <button className="primary">Add coach</button>
+              <button className="primary">{t("Add coach")}</button>
             </div>
           </form>
         )}

@@ -1,3 +1,4 @@
+import type { T } from "@/lib/i18n";
 import Link from "next/link";
 import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
@@ -11,15 +12,15 @@ import { REASON_LABELS, type AiMessage, type SessionOverview } from "@/lib/types
 // The owner's morning: today at a glance, then the day's follow-up drafts to approve in one tap,
 // then the approved ones ready to send. Phone first.
 
-function MessageCard({ m, mode }: { m: AiMessage; mode: "approve" | "send" | "wait" }) {
+function MessageCard({ m, mode, t }: { m: AiMessage; mode: "approve" | "send" | "wait"; t: T }) {
   const phone = m.members?.whatsapp ?? m.members?.phone ?? null;
   const prefersLine = m.members?.member_channel === "line";
   const canWhatsApp = Boolean(whatsappNumber(phone));
   return (
     <article className="card morning-msg">
       <div className="actions" style={{ justifyContent: "space-between" }}>
-        <Link href={`/members/${m.member_id}`}><strong>{m.members?.full_name ?? "Member"}</strong></Link>
-        <span className="badge">{REASON_LABELS[m.reason]}</span>
+        <Link href={`/members/${m.member_id}`}><strong>{m.members?.full_name ?? t("Member")}</strong></Link>
+        <span className="badge">{t(REASON_LABELS[m.reason])}</span>
       </div>
       <form className="form">
         <input type="hidden" name="message_id" value={m.id} />
@@ -29,18 +30,18 @@ function MessageCard({ m, mode }: { m: AiMessage; mode: "approve" | "send" | "wa
         <div className="actions">
           {mode === "approve" && (
             <>
-              <button className="primary" formAction={approveDraft}>Approve</button>
-              <button className="link danger" formAction={dismissDraft}>Skip</button>
+              <button className="primary" formAction={approveDraft}>{t("Approve")}</button>
+              <button className="link danger" formAction={dismissDraft}>{t("Skip")}</button>
             </>
           )}
           {mode === "send" && (
             <>
-              {prefersLine && <button className="primary" formAction={sendOnLine}>Send on LINE</button>}
+              {prefersLine && <button className="primary" formAction={sendOnLine}>{t("Send on LINE")}</button>}
               {canWhatsApp && (
-                <button className={prefersLine ? undefined : "primary"} formAction={sendOnWhatsApp}>Send on WhatsApp</button>
+                <button className={prefersLine ? undefined : "primary"} formAction={sendOnWhatsApp}>{t("Send on WhatsApp")}</button>
               )}
-              {!prefersLine && <button formAction={sendOnLine}>LINE</button>}
-              <button className="link" formAction={markSent}>Mark as sent</button>
+              {!prefersLine && <button formAction={sendOnLine}>{t("LINE")}</button>}
+              <button className="link" formAction={markSent}>{t("Mark as sent")}</button>
             </>
           )}
         </div>
@@ -51,7 +52,7 @@ function MessageCard({ m, mode }: { m: AiMessage; mode: "approve" | "send" | "wa
 
 export default async function MorningPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, can, location, workLocation } = await requireOrg();
+  const { supabase, org, can, location, workLocation, t, locale } = await requireOrg();
   const manager = can("followups.manage");
   const tz = workLocation?.timezone ?? org.timezone;
   const today = todayIn(tz);
@@ -137,24 +138,24 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
     <div className="morning">
       <div className="page-head">
         <div>
-          <h1>Good morning</h1>
-          <p className="muted">{formatLongDay(today)} · {location?.name ?? org.name}</p>
+          <h1>{t("Good morning")}</h1>
+          <p className="muted">{formatLongDay(today, locale)} · {location?.name ?? org.name}</p>
         </div>
       </div>
       <Banner sp={sp} />
 
       <div className="stats">
         <div className="stat">
-          <div className="label">Sessions today</div>
+          <div className="label">{t("Sessions today")}</div>
           <div className="value">{sessions.length}</div>
-          {short.length > 0 && <div className="small" style={{ color: "var(--warning)" }}>{short.length} short of players</div>}
+          {short.length > 0 && <div className="small" style={{ color: "var(--warning)" }}>{t("{n} short of players", { n: short.length })}</div>}
         </div>
         <div className="stat">
-          <div className="label">Court bookings today</div>
+          <div className="label">{t("Court bookings today")}</div>
           <div className="value">{courtCount ?? 0}</div>
         </div>
         <div className="stat">
-          <div className="label">Packages sold yesterday</div>
+          <div className="label">{t("Packages sold yesterday")}</div>
           <div className="value">{sales.length}</div>
           {sales.length > 0 && <div className="muted small">{formatMoney(salesTotal, org.currency)}</div>}
         </div>
@@ -162,18 +163,18 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
 
       {((chatsWaiting ?? 0) > 0 || (requestsWaiting ?? 0) > 0) && (
         <div className="banner warn">
-          Waiting for you:{" "}
-          {(chatsWaiting ?? 0) > 0 && <Link href="/chats">{chatsWaiting} chat{chatsWaiting === 1 ? "" : "s"}</Link>}
+          {t("Waiting for you:")}
+          {(chatsWaiting ?? 0) > 0 && <Link href="/chats">{chatsWaiting === 1 ? t("1 chat") : t("{n} chats", { n: chatsWaiting })}</Link>}
           {(chatsWaiting ?? 0) > 0 && (requestsWaiting ?? 0) > 0 && " · "}
           {(requestsWaiting ?? 0) > 0 && (
-            <Link href="/dashboard">{requestsWaiting} online sign-up request{requestsWaiting === 1 ? "" : "s"}</Link>
+            <Link href="/dashboard">{requestsWaiting === 1 ? t("1 online sign-up request") : t("{n} online sign-up requests", { n: requestsWaiting })}</Link>
           )}
         </div>
       )}
 
       {sessions.length > 0 && (
         <section className="card" style={{ marginBottom: 16 }}>
-          <h2>Today</h2>
+          <h2>{t("Today")}</h2>
           <ul className="list">
             {sessions.map((s) => (
               <li key={s.id}>
@@ -185,7 +186,7 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
                 </span>
                 <span className={`badge ${s.booked < s.min_players ? "warn" : ""}`}>
                   {s.booked}/{s.max_players}
-                  {s.booked < s.min_players ? ` · needs ${s.min_players - s.booked}` : ""}
+                  {s.booked < s.min_players ? ` · ${t("needs {n} more", { n: s.min_players - s.booked })}` : ""}
                 </span>
               </li>
             ))}
@@ -195,59 +196,58 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
 
       <section className="morning-section">
         <div className="actions" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-          <h2 style={{ margin: 0 }}>Follow-ups to approve</h2>
+          <h2 style={{ margin: 0 }}>{t("Follow-ups to approve")}</h2>
           {manager && approvalOn && drafts.length > 1 && (
             <form action={approveAll}>
               <input type="hidden" name="return_to" value="/morning" />
-              <button className="primary" data-pending-label="Approving…">Approve all {drafts.length}</button>
+              <button className="primary" data-pending-label={t("Approving…")}>{t("Approve all {length}", { length: drafts.length })}</button>
             </form>
           )}
         </div>
         {drafts.length === 0 ? (
           <div className="card">
             <p className="muted small">
-              Nothing waiting.{" "}
+              {t("Nothing waiting.")}
               {org.morning_drafts
-                ? "Drafts are written automatically each morning for members who need a message."
-                : "Automatic morning drafts are off (AI follow-ups → message settings)."}
+                ? t("Drafts are written automatically each morning for members who need a message.")
+                : t("Automatic morning drafts are off (AI follow-ups → message settings).")}
             </p>
             {manager && (
               <form action={writeDrafts}>
                 <input type="hidden" name="return_to" value="/morning" />
-                <button data-pending-label="Writing drafts…">Write drafts now</button>
+                <button data-pending-label={t("Writing drafts…")}>{t("Write drafts now")}</button>
               </form>
             )}
           </div>
         ) : !approvalOn ? (
           <p className="muted small">
             {org.followup_mode === "auto"
-              ? "Your club sends follow-ups automatically each morning. Members not on LINE wait below in Ready to send."
-              : "Your club lets the desk send drafts without approval."}{" "}
-            They&apos;re also on <Link href="/followups">AI follow-ups</Link>.
+              ? t("Your club sends follow-ups automatically each morning. Members not on LINE wait below in Ready to send.")
+              : t("Your club lets the desk send drafts without approval.")}{" "}
+            {t("They're also on")}{" "}<Link href="/followups">{t("AI follow-ups")}</Link>.
           </p>
         ) : manager ? (
           <div className="stack">
-            {drafts.map((m) => <MessageCard key={m.id} m={m} mode="approve" />)}
+            {drafts.map((m) => <MessageCard key={m.id} m={m} mode="approve" t={t} />)}
           </div>
         ) : (
           <div className="card">
             <p className="small">
-              {drafts.length} draft{drafts.length === 1 ? " is" : "s are"} waiting for an owner, admin or marketing to approve.
+              {drafts.length} draft{drafts.length === 1 ? " is" : "s are"}{" "}{t("waiting for an owner, admin or marketing to approve.")}
             </p>
           </div>
         )}
       </section>
 
       <section className="morning-section">
-        <h2>Automatic messages</h2>
+        <h2>{t("Automatic messages")}</h2>
         <p className="muted small">
-          {autoSent ?? 0} sent by themselves on LINE in the last 24 hours (reminders, waitlist and cancellation notices,
-          packages ending).{" "}
-          <Link href="/settings#notices">Settings</Link>
+          {autoSent ?? 0}{" "}{t("sent by themselves on LINE in the last 24 hours (reminders, waitlist and cancellation notices, packages ending).")}
+          <Link href="/settings#notices">{t("Settings")}</Link>
         </p>
         {manual.length > 0 && (
           <>
-            <p className="small">These members aren&apos;t on LINE yet, so send these by hand:</p>
+            <p className="small">{t("These members aren't on LINE yet, so send these by hand:")}</p>
             <div className="stack">
               {manual.map((n) => {
                 const m = n.members;
@@ -256,22 +256,22 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
                 return (
                   <article key={n.id} className="card morning-msg">
                     <div className="actions" style={{ justifyContent: "space-between" }}>
-                      {m ? <Link href={`/members/${m.id}`}><strong>{m.full_name}</strong></Link> : <strong>Member</strong>}
-                      <span className="badge">{NOTICE_LABELS[n.kind]}</span>
+                      {m ? <Link href={`/members/${m.id}`}><strong>{m.full_name}</strong></Link> : <strong>{t("Member")}</strong>}
+                      <span className="badge">{t(NOTICE_LABELS[n.kind])}</span>
                     </div>
                     <p className="small" style={{ whiteSpace: "pre-wrap" }}>{text}</p>
-                    {n.error && <p className="small" style={{ color: "var(--danger)" }}>LINE: {n.error}</p>}
+                    {n.error && <p className="small" style={{ color: "var(--danger)" }}>{t("LINE: {error}", { error: n.error })}</p>}
                     <div className="actions">
-                      {wa && <a className="button primary" href={wa}>Send on WhatsApp</a>}
-                      <a className="button" href={lineShareLink(text)}>LINE</a>
+                      {wa && <a className="button primary" href={wa}>{t("Send on WhatsApp")}</a>}
+                      <a className="button" href={lineShareLink(text)}>{t("LINE")}</a>
                       <form action={markNoticeDone}>
                         <input type="hidden" name="notice_id" value={n.id} />
-                        <button className="link">Mark as sent</button>
+                        <button className="link">{t("Mark as sent")}</button>
                       </form>
                       <form action={markNoticeDone}>
                         <input type="hidden" name="notice_id" value={n.id} />
                         <input type="hidden" name="skip" value="true" />
-                        <button className="link danger">Skip</button>
+                        <button className="link danger">{t("Skip")}</button>
                       </form>
                     </div>
                   </article>
@@ -283,17 +283,16 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
       </section>
 
       <section className="morning-section">
-        <h2>Ready to send</h2>
+        <h2>{t("Ready to send")}</h2>
         {approved.length === 0 ? (
-          <p className="muted small">Approved messages appear here for anyone at the club to send.</p>
+          <p className="muted small">{t("Approved messages appear here for anyone at the club to send.")}</p>
         ) : (
           <>
             <p className="muted small">
-              Approved. Tap to open WhatsApp or LINE with the message filled in. (Once WhatsApp is connected, these go out by
-              themselves.)
+              {t("Approved. Tap to open WhatsApp or LINE with the message filled in. (Once WhatsApp is connected, these go out by themselves.)")}
             </p>
             <div className="stack">
-              {approved.map((m) => <MessageCard key={m.id} m={m} mode="send" />)}
+              {approved.map((m) => <MessageCard key={m.id} m={m} mode="send" t={t} />)}
             </div>
           </>
         )}

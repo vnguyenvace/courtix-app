@@ -18,10 +18,10 @@ export const LOCALES: Record<Lang, string> = { en: "en-GB", th: "th-TH", ru: "ru
 
 const DICTS: Record<Exclude<Lang, "en">, Record<string, string>> = { th, ru, zh };
 
-export type T = (text: string, vars?: Record<string, string | number>) => string;
+export type T = (text: string, vars?: Record<string, string | number | null | undefined>) => string;
 
-const fill = (s: string, vars?: Record<string, string | number>) =>
-  vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
+const fill = (s: string, vars?: Record<string, string | number | null | undefined>) =>
+  vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k] ?? "") : m)) : s;
 
 export function makeT(lang: Lang): T {
   const dict = lang === "en" ? null : DICTS[lang];

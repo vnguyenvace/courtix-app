@@ -22,7 +22,7 @@ function shortDay(iso: string, tz: string) {
 
 export default async function RepliesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, location, locations, multiLocation } = await requirePermission("chats.reply");
+  const { supabase, org, location, locations, multiLocation, t, locale } = await requirePermission("chats.reply");
   const ai = aiConfigured();
 
   const soon = new Date(Date.now() + 3 * 86400000).toISOString();
@@ -68,10 +68,9 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
     <>
       <div className="page-head">
         <div>
-          <h1>Reply helper</h1>
+          <h1>{t("Reply helper")}</h1>
           <p className="muted">
-            Paste a message from WhatsApp, LINE or anywhere. {ASSISTANT_NAME} drafts an answer from your real sessions, spots and
-            prices. You check it and send it.
+            {t("Paste a message from WhatsApp, LINE or anywhere. {ASSISTANT_NAME} drafts an answer from your real sessions, spots and prices. You check it and send it.", { ASSISTANT_NAME: ASSISTANT_NAME })}
           </p>
         </div>
       </div>
@@ -80,48 +79,47 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
       {!ai && (
         <div className="card" style={{ marginBottom: 14 }}>
           <p className="small">
-            The AI assistant isn&apos;t connected yet, so replies can&apos;t be drafted. Add <code>ANTHROPIC_API_KEY</code> to{" "}
-            <code>.env.local</code> and restart the app. Until then, the sessions and prices below help you answer by hand.
+            {t("The AI assistant isn't connected yet, so replies can't be drafted. Add {key} to {file} and restart the app. Until then, the sessions and prices below help you answer by hand.", { key: "ANTHROPIC_API_KEY", file: ".env.local" })}
           </p>
         </div>
       )}
 
       <section className="card" style={{ marginBottom: 18 }}>
-        <h2>New message</h2>
+        <h2>{t("New message")}</h2>
         <form action={draftInquiryReply} className="form">
           <label>
-            Message you received
+            {t("Message you received")}
             <textarea
               name="incoming"
               required
               rows={4}
               maxLength={4000}
-              placeholder="Hi, do you have open play tomorrow evening? How much is it?"
+              placeholder={t("Hi, do you have open play tomorrow evening? How much is it?")}
             />
           </label>
           <div className="form-row">
             <label>
-              From
+              {t("From")}
               <select name="member_id" defaultValue="">
-                <option value="">Visitor or unknown (enter below)</option>
+                <option value="">{t("Visitor or unknown (enter below)")}</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>{m.full_name}</option>
                 ))}
               </select>
             </label>
             <label>
-              Visitor name
-              <input name="contact_name" placeholder="Kenji" />
+              {t("Visitor name")}
+              <input name="contact_name" placeholder={t("Kenji")} />
             </label>
             <label>
-              Visitor WhatsApp
+              {t("Visitor WhatsApp")}
               <input name="contact_phone" type="tel" placeholder="+81 90 1234 5678" />
             </label>
             {multiLocation && (
               <label>
-                About
+                {t("About")}
                 <select name="location_id" defaultValue={location?.id ?? ""}>
-                  <option value="">Any location</option>
+                  <option value="">{t("Any location")}</option>
                   {activeLocations.map((l) => (
                     <option key={l.id} value={l.id}>{l.name}</option>
                   ))}
@@ -130,10 +128,10 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
             )}
           </div>
           <p className="muted small">
-            Pick the member if you know them: the assistant then knows their package and what they&apos;ve booked.
+            {t("Pick the member if you know them: the assistant then knows their package and what they've booked.")}
           </p>
           <div className="actions">
-            <button className="primary" disabled={!ai} data-pending-label="Drafting…">Draft a reply</button>
+            <button className="primary" disabled={!ai} data-pending-label={t("Drafting…")}>{t("Draft a reply")}</button>
           </div>
         </form>
       </section>
@@ -144,7 +142,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
           const canWhatsApp = Boolean(whatsappNumber(phone));
           // Members: their channel setting. Visitors: WhatsApp if we have a number, else LINE.
           const prefersLine = r.members ? r.members.member_channel === "line" : !canWhatsApp;
-          const who = r.members?.full_name ?? r.contact_name ?? "Unknown sender";
+          const who = r.members?.full_name ?? r.contact_name ?? t("Unknown sender");
           const boxId = `reply-${r.id}`;
           return (
             <article key={r.id} id={`r-${r.id}`} className="card">
@@ -155,9 +153,9 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
                   ) : (
                     <strong>{who}</strong>
                   )}
-                  <span className="badge">{r.member_id ? "Member" : "Visitor"}</span>
+                  <span className="badge">{r.member_id ? t("Member") : t("Visitor")}</span>
                 </span>
-                <span className="muted small">{phone ?? "No phone number"}</span>
+                <span className="muted small">{phone ?? t("No phone number")}</span>
               </div>
               <blockquote
                 className="small"
@@ -171,25 +169,24 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
                 <textarea id={boxId} name="reply" defaultValue={r.reply} rows={5} style={{ minHeight: 110 }} />
                 <div className="actions" style={{ justifyContent: "space-between" }}>
                   <span className="actions">
-                    {prefersLine && <button className="primary" formAction={sendInquiryOnLine}>Send on LINE</button>}
+                    {prefersLine && <button className="primary" formAction={sendInquiryOnLine}>{t("Send on LINE")}</button>}
                     {canWhatsApp && (
                       <button className={prefersLine ? undefined : "primary"} formAction={sendInquiryOnWhatsApp}>
-                        Send on WhatsApp
+                        {t("Send on WhatsApp")}
                       </button>
                     )}
-                    {!prefersLine && <button formAction={sendInquiryOnLine}>Send on LINE</button>}
+                    {!prefersLine && <button formAction={sendInquiryOnLine}>{t("Send on LINE")}</button>}
                     <CopyButton targetId={boxId} />
-                    <button formAction={markInquirySent}>Mark as sent</button>
-                    <button formAction={saveInquiryReply}>Save edit</button>
+                    <button formAction={markInquirySent}>{t("Mark as sent")}</button>
+                    <button formAction={saveInquiryReply}>{t("Save edit")}</button>
                   </span>
                   <span className="actions">
-                    <button className="link" formAction={rewriteInquiryReply} data-pending-label="Rewriting…">Rewrite</button>
-                    <button className="link danger" formAction={dismissInquiryReply}>Dismiss</button>
+                    <button className="link" formAction={rewriteInquiryReply} data-pending-label={t("Rewriting…")}>{t("Rewrite")}</button>
+                    <button className="link danger" formAction={dismissInquiryReply}>{t("Dismiss")}</button>
                   </span>
                 </div>
                 <span className="muted small">
-                  {r.model ? `Written by ${ASSISTANT_NAME}` : "Written by hand"} · The assistant never books anything: if they say yes,
-                  sign them up on the session page.
+                  {r.model ? t("Written by {assistant}", { assistant: ASSISTANT_NAME }) : t("Written by hand")}{" "}{t("· The assistant never books anything: if they say yes, sign them up on the session page.")}
                 </span>
               </form>
             </article>
@@ -199,10 +196,10 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
 
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         <section className="card">
-          <h2>Next 3 days</h2>
-          <p className="muted small">What the assistant sees when it answers (it looks 7 days ahead). Tap a session to sign someone up.</p>
+          <h2>{t("Next 3 days")}</h2>
+          <p className="muted small">{t("What the assistant sees when it answers (it looks 7 days ahead). Tap a session to sign someone up.")}</p>
           {sessions.length === 0 ? (
-            <p className="muted small">No sessions in the next 3 days.</p>
+            <p className="muted small">{t("No sessions in the next 3 days.")}</p>
           ) : (
             <ul className="list">
               {sessions.map((s) => (
@@ -217,7 +214,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
                   </span>
                   <span className="small" style={{ whiteSpace: "nowrap" }}>
                     {formatMoney(s.price, org.currency)} ·{" "}
-                    {s.spots_left > 0 ? `${s.spots_left} left` : <span className="badge warn">Full</span>}
+                    {s.spots_left > 0 ? `${s.spots_left} left` : <span className="badge warn">{t("Full")}</span>}
                   </span>
                 </li>
               ))}
@@ -225,7 +222,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
           )}
           {packages.length > 0 && (
             <>
-              <h3 style={{ marginTop: 14 }}>Packages</h3>
+              <h3 style={{ marginTop: 14 }}>{t("Packages")}</h3>
               <ul className="list">
                 {packages.map((p) => (
                   <li key={p.name}>
@@ -239,15 +236,15 @@ export default async function RepliesPage({ searchParams }: { searchParams: Sear
         </section>
 
         <section className="card">
-          <h2>Recently sent</h2>
+          <h2>{t("Recently sent")}</h2>
           {sent.length === 0 ? (
-            <p className="muted small">Nothing sent yet.</p>
+            <p className="muted small">{t("Nothing sent yet.")}</p>
           ) : (
             <ul className="list">
               {sent.map((r) => (
                 <li key={r.id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
                   <span className="small">
-                    <strong>{r.members?.full_name ?? r.contact_name ?? "Unknown sender"}</strong>
+                    <strong>{r.members?.full_name ?? r.contact_name ?? t("Unknown sender")}</strong>
                     <span className="muted"> · {r.channel === "other" ? "sent" : `on ${r.channel === "line" ? "LINE" : "WhatsApp"}`}</span>
                   </span>
                   <span className="muted small">{r.reply.length > 120 ? r.reply.slice(0, 120) + "…" : r.reply}</span>

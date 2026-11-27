@@ -25,7 +25,7 @@ const fmt = (iso: string, time = false) =>
 
 export default async function AdminClubsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, role, host } = await requirePlatform();
+  const { supabase, role, host, t, locale } = await requirePlatform();
   const { data, error } = await supabase.rpc("platform_clubs");
   if (error) throw new Error(error.message);
   const clubs = (data ?? []) as ClubRow[];
@@ -42,28 +42,28 @@ export default async function AdminClubsPage({ searchParams }: { searchParams: S
 
   return (
     <>
-      <h1>Clubs</h1>
+      <h1>{t("Clubs")}</h1>
       <Banner sp={sp} />
       <div className="stats" style={{ margin: "12px 0 18px" }}>
-        <div className="stat"><div className="label">Clubs</div><div className="value">{clubs.length}</div></div>
-        <div className="stat"><div className="label">Members</div><div className="value">{sum("members")}</div></div>
-        <div className="stat"><div className="label">Court bookings, 30 days</div><div className="value">{sum("bookings_30d")}</div></div>
-        <div className="stat"><div className="label">Session sign-ups, 30 days</div><div className="value">{sum("sessions_30d")}</div></div>
+        <div className="stat"><div className="label">{t("Clubs")}</div><div className="value">{clubs.length}</div></div>
+        <div className="stat"><div className="label">{t("Members")}</div><div className="value">{sum("members")}</div></div>
+        <div className="stat"><div className="label">{t("Court bookings, 30 days")}</div><div className="value">{sum("bookings_30d")}</div></div>
+        <div className="stat"><div className="label">{t("Session sign-ups, 30 days")}</div><div className="value">{sum("sessions_30d")}</div></div>
       </div>
 
       <section className="card table-wrap" style={{ marginBottom: 18 }}>
         <table>
           <thead>
             <tr>
-              <th>Club</th>
-              <th>Since</th>
-              {showOwner && <th>Owner</th>}
-              <th>Members</th>
-              <th>Staff</th>
-              <th>Sites</th>
-              <th>Bookings, 30 days</th>
-              <th>Sign-ups, 30 days</th>
-              <th>Support access</th>
+              <th>{t("Club")}</th>
+              <th>{t("Since")}</th>
+              {showOwner && <th>{t("Owner")}</th>}
+              <th>{t("Members")}</th>
+              <th>{t("Staff")}</th>
+              <th>{t("Sites")}</th>
+              <th>{t("Bookings, 30 days")}</th>
+              <th>{t("Sign-ups, 30 days")}</th>
+              <th>{t("Support access")}</th>
             </tr>
           </thead>
           <tbody>
@@ -85,15 +85,15 @@ export default async function AdminClubsPage({ searchParams }: { searchParams: S
                 <td className="small">
                   {c.support_until ? (
                     <>
-                      Allowed until {fmt(c.support_until, true)}
+                      {t("Allowed until {fmt}", { fmt: fmt(c.support_until, true) })}
                       {canSupport && (
                         <div>
-                          <a href={host.clubUrl(c.slug, "/dashboard")}>Open (read only)</a>
+                          <a href={host.clubUrl(c.slug, "/dashboard")}>{t("Open (read only)")}</a>
                         </div>
                       )}
                     </>
                   ) : (
-                    <span className="muted">Not allowed</span>
+                    <span className="muted">{t("Not allowed")}</span>
                   )}
                 </td>
               </tr>
@@ -102,15 +102,14 @@ export default async function AdminClubsPage({ searchParams }: { searchParams: S
         </table>
         {canSupport && (
           <p className="muted small" style={{ marginTop: 8 }}>
-            To look inside a club, ask its owner to allow Courtix support in Staff → Courtix support access. You can only
-            view, and the owner sees every page you open. Times are Thailand time.
+            {t("To look inside a club, ask its owner to allow Courtix support in Staff → Courtix support access. You can only view, and the owner sees every page you open. Times are Thailand time.")}
           </p>
         )}
       </section>
 
       {role === "super_admin" && log.length > 0 && (
         <section className="card">
-          <h2>Recent support views</h2>
+          <h2>{t("Recent support views")}</h2>
           <ul className="list small">
             {log.map((l) => (
               <li key={l.id}>

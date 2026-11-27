@@ -1,3 +1,4 @@
+import type { T } from "@/lib/i18n";
 import { cookies } from "next/headers";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { CopyButton } from "@/components/CopyButton";
@@ -22,14 +23,13 @@ interface InviteRow {
   expires_at: string;
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
-function Locations({ locations, chosen, role }: { locations: Location[]; chosen: string[] | null; role?: StaffRole }) {
+function Locations({ locations, chosen, role, t }: { locations: Location[]; chosen: string[] | null; role?: StaffRole; t: T }) {
   if (role === "owner" || role === "manager") return null;
   return (
     <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
       <legend className="small muted" style={{ marginBottom: 6 }}>
-        Works at (leave all unticked for every location; owners and admins always have every location)
+        {t("Works at (leave all unticked for every location; owners and admins always have every location)")}
       </legend>
       <div className="actions">
         {locations.map((l) => (
@@ -44,7 +44,7 @@ function Locations({ locations, chosen, role }: { locations: Location[]; chosen:
 
 export default async function StaffPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, userId, locations, multiLocation } = await requirePermission("staff.manage");
+  const { supabase, org, userId, locations, multiLocation, t, locale } = await requirePermission("staff.manage");
   const active = locations.filter((l) => l.is_active);
   const locName = new Map(locations.map((l) => [l.id, l.name]));
 
@@ -75,7 +75,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
   const grant = grantData as { expires_at: string; note: string | null } | null;
   const supportLog = (logData ?? []) as { id: number; email: string | null; path: string | null; viewed_at: string }[];
   const when = (iso: string) =>
-    new Date(iso).toLocaleString("en-GB", { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    new Date(iso).toLocaleString(locale, { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   if (error) throw new Error(error.message);
   const staff = (staffData ?? []) as StaffRow[];
   const invites = (inviteData ?? []) as InviteRow[];
@@ -87,25 +87,24 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
   } catch {
     justInvited = null;
   }
-  const where = (ids: string[] | null) => (ids ? ids.map((id) => locName.get(id) ?? "?").join(", ") : "All locations");
+  const where = (ids: string[] | null) => (ids ? ids.map((id) => locName.get(id) ?? "?").join(", ") : t("All locations"));
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Staff and roles</h1>
-          <p className="muted">Who can sign in to {org.name}, and what each person can do.</p>
+          <h1>{t("Staff and roles")}</h1>
+          <p className="muted">{t("Who can sign in to {name}, and what each person can do.", { name: org.name })}</p>
         </div>
       </div>
       <Banner sp={sp} />
 
       {justInvited && invites.some((i) => i.email === justInvited!.email) && (
         <section className="card" style={{ marginBottom: 16 }}>
-          <h2>Invite link for {justInvited.email}</h2>
+          <h2>{t("Invite link for {email}", { email: justInvited.email })}</h2>
           <p className="muted small">
-            {justInvited.emailed ? "We emailed this link. You can also send it on LINE or WhatsApp. " : "Send this link on LINE, WhatsApp or email. "}
-            It works for 7 days, only for {justInvited.email}. It&apos;s shown here only for a few minutes; make a new link any
-            time below.
+            {justInvited.emailed ? (t("We emailed this link. You can also send it on LINE or WhatsApp.") + " ") : (t("Send this link on LINE, WhatsApp or email.") + " ")}
+            {t("It works for 7 days, only for {email}. It's shown here only for a few minutes; make a new link any time below.", { email: justInvited.email })}
           </p>
           <div className="form" style={{ marginTop: 8 }}>
             <textarea id="invite-link" readOnly rows={2} defaultValue={justInvited.link} />
@@ -117,39 +116,39 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
       )}
 
       <section className="card" style={{ marginBottom: 16 }}>
-        <h2>Staff</h2>
+        <h2>{t("Staff")}</h2>
         <ul className="list">
           {staff.map((s) => (
             <li key={s.user_id} style={{ display: "grid", gap: 8 }}>
               <div>
                 <strong>{s.email}</strong>
-                {s.user_id === userId && <span className="muted small"> (you)</span>}
+                {s.user_id === userId && <span className="muted small">{" "}{t("(you)")}</span>}
                 <div className="muted small">
-                  {ROLE_LABELS[s.role]}
-                  {multiLocation && ` · ${s.role === "owner" || s.role === "manager" ? "All locations" : where(s.location_ids)}`}
-                  {` · since ${dateFmt.format(new Date(s.created_at))}`}
+                  {t(ROLE_LABELS[s.role])}
+                  {multiLocation && ` · ${s.role === "owner" || s.role === "manager" ? t("All locations") : where(s.location_ids)}`}
+                  {` · ${t("since {date}", { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(new Date(s.created_at)) })}`}
                 </div>
               </div>
               <details>
-                <summary className="small">Change role</summary>
+                <summary className="small">{t("Change role")}</summary>
                 <form action={updateStaff} className="form" style={{ marginTop: 8 }}>
                   <input type="hidden" name="user_id" value={s.user_id} />
                   <label>
-                    Role
+                    {t("Role")}
                     <select name="role" defaultValue={s.role}>
                       {ROLES.map((r) => (
-                        <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>
                       ))}
                     </select>
                   </label>
-                  {multiLocation && <Locations locations={active} chosen={s.location_ids} />}
+                  {multiLocation && <Locations locations={active} chosen={s.location_ids} t={t} />}
                   <div className="actions">
-                    <button>Save</button>
+                    <button>{t("Save")}</button>
                   </div>
                 </form>
                 <form action={removeStaff} className="form" style={{ marginTop: 8 }}>
                   <input type="hidden" name="user_id" value={s.user_id} />
-                  <button className="danger">{s.user_id === userId ? "Leave this club" : "Remove from staff"}</button>
+                  <button className="danger">{s.user_id === userId ? t("Leave this club") : t("Remove from staff")}</button>
                 </form>
               </details>
             </li>
@@ -159,7 +158,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
 
       {invites.length > 0 && (
         <section className="card" style={{ marginBottom: 16 }}>
-          <h2>Waiting to join</h2>
+          <h2>{t("Waiting to join")}</h2>
           <ul className="list">
             {invites.map((i) => {
               const expired = new Date(i.expires_at).getTime() < Date.now();
@@ -168,20 +167,20 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
                   <div>
                     <strong>{i.email}</strong>
                     <div className="muted small">
-                      {ROLE_LABELS[i.role]}
+                      {t(ROLE_LABELS[i.role])}
                       {multiLocation && ` · ${where(i.location_ids)}`}
                       {" · "}
-                      {expired ? "link expired" : `link works until ${dateFmt.format(new Date(i.expires_at))}`}
+                      {expired ? t("link expired") : t("link works until {date}", { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(new Date(i.expires_at)) })}
                     </div>
                   </div>
                   <div className="actions">
                     <form action={renewInvite} className="inline">
                       <input type="hidden" name="invite_id" value={i.id} />
-                      <button>New link</button>
+                      <button>{t("New link")}</button>
                     </form>
                     <form action={cancelInvite} className="inline">
                       <input type="hidden" name="invite_id" value={i.id} />
-                      <button className="link">Cancel</button>
+                      <button className="link">{t("Cancel")}</button>
                     </form>
                   </div>
                 </li>
@@ -192,78 +191,78 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
       )}
 
       <section className="card" style={{ marginBottom: 16 }}>
-        <h2>Add someone</h2>
+        <h2>{t("Add someone")}</h2>
         <form action={inviteStaff} className="form">
           <label>
-            Email
+            {t("Email")}
             <input name="email" type="email" required autoComplete="off" placeholder="nong@yourclub.com" />
           </label>
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }}>
-            <legend className="small muted" style={{ marginBottom: 6 }}>Role</legend>
+            <legend className="small muted" style={{ marginBottom: 6 }}>{t("Role")}</legend>
             {ROLES.map((r) => (
               <label key={r} className="check" style={{ alignItems: "flex-start" }}>
                 <input type="radio" name="role" value={r} defaultChecked={r === "front_desk"} />
                 <span>
-                  <strong>{ROLE_LABELS[r]}</strong>
-                  <span className="muted small" style={{ display: "block" }}>{ROLE_DESCRIPTIONS[r]}</span>
+                  <strong>{t(ROLE_LABELS[r])}</strong>
+                  <span className="muted small" style={{ display: "block" }}>{t(ROLE_DESCRIPTIONS[r])}</span>
                 </span>
               </label>
             ))}
           </fieldset>
-          {multiLocation && <Locations locations={active} chosen={null} />}
+          {multiLocation && <Locations locations={active} chosen={null} t={t} />}
           <div className="actions">
-            <button className="primary">Add to staff</button>
+            <button className="primary">{t("Add to staff")}</button>
           </div>
           <p className="muted small">
-            They get a link to join. They sign in, or create an account, with this email address. Location limits don&apos;t
-            apply to owners and admins.
+            {t("They get a link to join. They sign in, or create an account, with this email address. Location limits don't apply to owners and admins.")}
           </p>
         </form>
       </section>
 
       <section className="card" id="support">
-        <h2>Courtix support access</h2>
+        <h2>{t("Courtix support access")}</h2>
         {grant ? (
           <>
             <p>
-              Courtix support can <strong>view</strong> your club until <strong>{when(grant.expires_at)}</strong>
-              {grant.note ? ` (${grant.note})` : ""}. They can&apos;t change anything, and every page they open is listed below.
+              {t("Courtix support can view your club until {when}{note}. They can't change anything, and every page they open is listed below.", {
+                when: when(grant.expires_at),
+                note: grant.note ? ` (${grant.note})` : "",
+              })}
             </p>
             <form action={endSupport} className="actions" style={{ marginTop: 8 }}>
-              <button className="danger">End access now</button>
+              <button className="danger">{t("End access now")}</button>
             </form>
           </>
         ) : (
           <form action={allowSupport} className="form">
             <p className="muted small">
-              Courtix support can&apos;t see your members, bookings or payments unless you allow it here. Allow it when you&apos;ve
-              asked for help; they can only look, not change anything, and it ends by itself.
+              {t("Courtix support can't see your members, bookings or payments unless you allow it here. Allow it when you've asked for help; they can only look, not change anything, and it ends by itself.")}
             </p>
             <label>
-              For
+              {t("For")}
               <select name="hours" defaultValue="24">
-                <option value="2">2 hours</option>
-                <option value="24">24 hours</option>
-                <option value="72">3 days</option>
-                <option value="168">7 days</option>
+                <option value="2">{t("2 hours")}</option>
+                <option value="24">{t("24 hours")}</option>
+                <option value="72">{t("3 days")}</option>
+                <option value="168">{t("7 days")}</option>
               </select>
             </label>
             <label>
-              What it&apos;s about (optional)
-              <input name="note" maxLength={300} placeholder="LINE replies stopped working" />
+              {t("What it's about (optional)")}
+              <input name="note" maxLength={300} placeholder={t("LINE replies stopped working")} />
             </label>
             <div className="actions">
-              <button>Allow Courtix support</button>
+              <button>{t("Allow Courtix support")}</button>
             </div>
           </form>
         )}
         {supportLog.length > 0 && (
           <details style={{ marginTop: 12 }}>
-            <summary className="small">What Courtix support looked at ({supportLog.length})</summary>
+            <summary className="small">{t("What Courtix support looked at ({length})", { length: supportLog.length })}</summary>
             <ul className="list small" style={{ marginTop: 8 }}>
               {supportLog.map((l) => (
                 <li key={l.id}>
-                  {when(l.viewed_at)} · {l.email ?? "Courtix support"} · {l.path ?? "page"}
+                  {when(l.viewed_at)} · {l.email ?? t("Courtix support")} · {l.path ?? "page"}
                 </li>
               ))}
             </ul>

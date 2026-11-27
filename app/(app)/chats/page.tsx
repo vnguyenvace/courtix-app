@@ -1,3 +1,4 @@
+import type { T } from "@/lib/i18n";
 import Link from "next/link";
 import { requirePermission } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
@@ -14,7 +15,7 @@ function when(iso: string, tz: string) {
   });
 }
 
-function ChatList({ rows, tz, empty }: { rows: Row[]; tz: string; empty: string }) {
+function ChatList({ rows, tz, empty, t }: { rows: Row[]; tz: string; empty: string; t: T }) {
   if (!rows.length) return <p className="muted small">{empty}</p>;
   return (
     <ul className="chat-list">
@@ -22,11 +23,11 @@ function ChatList({ rows, tz, empty }: { rows: Row[]; tz: string; empty: string 
         <li key={c.id}>
           <Link href={`/chats/${c.id}`} className="chat-row">
             <span className="chat-row-main">
-              <strong>{c.members?.full_name ?? c.contact_name ?? c.contact_phone ?? "LINE user"}</strong>
+              <strong>{c.members?.full_name ?? c.contact_name ?? c.contact_phone ?? t("LINE user")}</strong>
               <span className="muted small">
-                {c.members ? "Member" : "Visitor"}
+                {c.members ? t("Member") : t("Visitor")}
                 {c.contact_phone ? ` · ${c.contact_phone}` : ""}
-                {c.channel === "test" ? " · test chat" : ` · ${c.channel === "line" ? "LINE" : "WhatsApp"}`}
+                {c.channel === "test" ? (" " + t("· test chat")) : ` · ${c.channel === "line" ? "LINE" : "WhatsApp"}`}
               </span>
               {c.status === "staff" && c.handoff_reason && <span className="small">{c.handoff_reason}</span>}
             </span>
@@ -40,7 +41,7 @@ function ChatList({ rows, tz, empty }: { rows: Row[]; tz: string; empty: string 
 
 export default async function ChatsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, workLocation } = await requirePermission("chats.reply");
+  const { supabase, org, workLocation, t, locale } = await requirePermission("chats.reply");
   const tz = workLocation?.timezone ?? org.timezone;
   const ai = aiConfigured();
 
@@ -71,10 +72,11 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
     <>
       <div className="page-head">
         <div>
-          <h1>Chats</h1>
+          <h1>{t("Chats")}</h1>
           <p className="muted">
-            {ASSISTANT_NAME} answers members and visitors{org.chat_mode === "book" ? " and books free or package-covered places" : ""}.
-            Anything else comes to you here.
+            {org.chat_mode === "book"
+              ? t("{assistant} answers members and visitors and books free or package-covered places. Anything else comes to you here.", { assistant: ASSISTANT_NAME })
+              : t("{assistant} answers members and visitors. Anything else comes to you here.", { assistant: ASSISTANT_NAME })}
           </p>
         </div>
       </div>
@@ -82,41 +84,39 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
 
       {!ai && (
         <div className="banner warn">
-          The AI assistant isn&apos;t connected (no ANTHROPIC_API_KEY), so every chat comes straight to staff.
+          {t("The AI assistant isn't connected (no ANTHROPIC_API_KEY), so every chat comes straight to staff.")}
         </div>
       )}
 
       <div className="grid grid-2">
         <div className="stack">
           <section className="card">
-            <h2>Waiting for you {waiting.length > 0 && <span className="badge warn">{waiting.length}</span>}</h2>
-            <ChatList rows={waiting} tz={tz} empty="Nothing waiting. The assistant hands chats here when someone needs a person." />
+            <h2>{t("Waiting for you")}{" "}{waiting.length > 0 && <span className="badge warn">{waiting.length}</span>}</h2>
+            <ChatList t={t} rows={waiting} tz={tz} empty={t("Nothing waiting. The assistant hands chats here when someone needs a person.")} />
           </section>
           <section className="card">
-            <h2>{ASSISTANT_NAME} is answering</h2>
-            <ChatList rows={withAssistant} tz={tz} empty="No open chats." />
+            <h2>{t("{ASSISTANT_NAME} is answering", { ASSISTANT_NAME: ASSISTANT_NAME })}</h2>
+            <ChatList t={t} rows={withAssistant} tz={tz} empty={t("No open chats.")} />
           </section>
           {closed.length > 0 && (
             <section className="card">
-              <h2>Recently closed</h2>
-              <ChatList rows={closed} tz={tz} empty="" />
+              <h2>{t("Recently closed")}</h2>
+              <ChatList t={t} rows={closed} tz={tz} empty="" />
             </section>
           )}
         </div>
 
         <div className="stack">
           <section className="card">
-            <h2>Try it: test chat</h2>
+            <h2>{t("Try it: test chat")}</h2>
             <p className="muted small">
-              Play a member or a visitor here to see how {ASSISTANT_NAME} answers and books. Real chats come in from
-              your LINE account once it&apos;s connected (Settings → Messaging).
-              Bookings it makes are real (they appear on the sessions and courts), so cancel them afterwards.
+              {t("Play a member or a visitor here to see how {ASSISTANT_NAME} answers and books. Real chats come in from your LINE account once it's connected (Settings → Messaging). Bookings it makes are real (they appear on the sessions and courts), so cancel them afterwards.", { ASSISTANT_NAME: ASSISTANT_NAME })}
             </p>
             <form action={startTestChat} className="form">
               <label>
-                Chat as
+                {t("Chat as")}
                 <select name="member_phone" defaultValue="">
-                  <option value="">A visitor (enter a number below)</option>
+                  <option value="">{t("A visitor (enter a number below)")}</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.phone}>{m.full_name} · {m.phone}</option>
                   ))}
@@ -124,29 +124,29 @@ export default async function ChatsPage({ searchParams }: { searchParams: Search
               </label>
               <div className="form-row">
                 <label>
-                  Visitor&apos;s number
+                  {t("Visitor's number")}
                   <input name="phone" type="tel" placeholder="+44 7700 900123" />
                 </label>
                 <label>
-                  Visitor&apos;s name
-                  <input name="name" placeholder="Tom" />
+                  {t("Visitor's name")}
+                  <input name="name" placeholder={t("Tom")} />
                 </label>
               </div>
               <label>
-                First message
-                <textarea name="message" rows={3} required placeholder="Hi, is there open play tomorrow evening? Can you book me in?" />
+                {t("First message")}
+                <textarea name="message" rows={3} required placeholder={t("Hi, is there open play tomorrow evening? Can you book me in?")} />
               </label>
-              <button className="primary" style={{ justifySelf: "start" }}>Start chat</button>
+              <button className="primary" style={{ justifySelf: "start" }}>{t("Start chat")}</button>
             </form>
           </section>
           <section className="card">
-            <h2>What the assistant may do</h2>
+            <h2>{t("What the assistant may do")}</h2>
             <p className="small">
               {org.chat_mode === "book"
-                ? "Answer questions and book places that are free or covered by the member's package. Paid places, refunds, complaints and private coaching come to you."
-                : "Answer questions only. Every booking comes to you."}
+                ? t("Answer questions and book places that are free or covered by the member's package. Paid places, refunds, complaints and private coaching come to you.")
+                : t("Answer questions only. Every booking comes to you.")}
             </p>
-            <Link href="/settings#chat" className="small">Change in settings</Link>
+            <Link href="/settings#chat" className="small">{t("Change in settings")}</Link>
           </section>
         </div>
       </div>
