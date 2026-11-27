@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { currentHost } from "@/lib/host";
 import type { Location, Org, StaffRole } from "@/lib/types";
+import { back } from "@/lib/form";
+import { ROLE_LABELS, type Permission } from "@/lib/permissions";
 
 export const ORG_COOKIE = "club_id";
 export const LOCATION_COOKIE = "location_id";
@@ -13,6 +15,9 @@ export interface OrgContext {
   email: string | null;
   org: Org;
   role: StaffRole;
+  /** What this person's role may do here (from role_permissions; the database enforces it). */
+  permissions: Permission[];
+  can: (permission: Permission) => boolean;
   clubs: { id: string; name: string; slug: string }[];
   /** Every location in the club, active first. */
   locations: Location[];
@@ -69,14 +74,19 @@ export async function requireOrg(): Promise<OrgContext> {
     if (host.kind === "root") redirect(host.clubUrl(current.orgs.slug, "/dashboard"));
   }
 
-  const { data: locData, error: locError } = await supabase
-    .from("locations")
-    .select("*")
-    .eq("org_id", current.orgs.id)
-    .order("is_active", { ascending: false })
-    .order("sort_order")
-    .order("name");
+  const [{ data: locData, error: locError }, { data: permData, error: permError }] = await Promise.all([
+    supabase
+      .from("locations")
+      .select("*")
+      .eq("org_id", current.orgs.id)
+      .order("is_active", { ascending: false })
+      .order("sort_order")
+      .order("name"),
+    supabase.from("role_permissions").select("permission").eq("role", current.role),
+  ]);
   if (locError) throw new Error(locError.message);
+  if (permError) throw new Error(permError.message);
+  const permissions = ((permData ?? []) as { permission: Permission }[]).map((p) => p.permission);
 
   const locations = (locData ?? []) as Location[];
   const active = locations.filter((l) => l.is_active);
@@ -97,6 +107,8 @@ export async function requireOrg(): Promise<OrgContext> {
     email: user.email ?? null,
     org: current.orgs,
     role: current.role,
+    permissions,
+    can: (p: Permission) => permissions.includes(p),
     clubs: memberships.map((m) => ({ id: m.orgs.id, name: m.orgs.name, slug: m.orgs.slug })),
     locations,
     myLocations,
@@ -106,6 +118,17 @@ export async function requireOrg(): Promise<OrgContext> {
   };
 }
 
+/** Owners and admins: every location, and club setup (same as the club.setup permission). */
 export function canManage(role: StaffRole) {
   return role === "owner" || role === "manager";
+}
+
+/**
+ * requireOrg() for a page or action that needs a permission. Without it, goes back to `path`
+ * (default: the dashboard) with a message naming the role.
+ */
+export async function requirePermission(permission: Permission, path = "/dashboard"): Promise<OrgContext> {
+  const ctx = await requireOrg();
+  if (!ctx.can(permission)) back(path, `${ROLE_LABELS[ctx.role]} can't do that. Ask the club owner if you need it.`);
+  return ctx;
 }

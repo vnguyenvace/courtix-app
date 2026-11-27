@@ -72,7 +72,7 @@ select count(*) as camp_court_holds from bookings where session_id=:'camp' and s
 
 \echo '--- 8. Desk staff vs manager; other club'
 reset role;
-insert into org_staff values (:'org','33333333-3333-3333-3333-333333333333','staff');
+insert into org_staff values (:'org','33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select register_for_session(:'mp', null, 'Guest Gina') is not null as desk_can_sign_up;
 \echo 'expect: desk cannot generate sessions'

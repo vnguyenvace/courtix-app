@@ -1,7 +1,7 @@
 // Hand-written row types for the starter. Once Supabase is running you can
 // generate exact types with `npm run db:types` and switch to those.
 
-export type StaffRole = "owner" | "manager" | "staff";
+export type StaffRole = "owner" | "manager" | "front_desk" | "marketing" | "back_office"; // manager is shown as "Admin"
 export type PackageKind = "time_based" | "class_pack";
 export type MembershipStatus = "active" | "paused" | "expired" | "cancelled";
 export type BookingKind = "member" | "drop_in" | "open_play" | "coaching" | "maintenance";

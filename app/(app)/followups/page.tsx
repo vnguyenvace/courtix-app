@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOrg, canManage } from "@/lib/org";
+import { requirePermission } from "@/lib/org";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { CopyButton } from "@/components/CopyButton";
 import { aiConfigured, whatsappNumber } from "@/lib/ai";
@@ -58,8 +58,10 @@ function whyLine(m: AiMessage) {
 
 export default async function FollowupsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role } = await requireOrg();
-  const manager = canManage(role);
+  const { supabase, org, can } = await requirePermission("followups.send");
+  // Approving and how messages sound: owner, admin, marketing. How they go out: owner and admin.
+  const manager = can("followups.manage");
+  const clubSettings = can("settings.manage");
   const show = (param(sp, "show") ?? "all") as FollowupReason | "all";
 
   let draftQuery = supabase
@@ -200,7 +202,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
             const prefersLine = m.members?.member_channel === "line";
             const boxId = `body-${m.id}`;
             const approved = m.status === "approved";
-            // Morning approval: desk staff send only what an owner or manager approved (the database enforces it).
+            // Morning approval: desk staff send only what an owner, admin or marketing approved (the database enforces it).
             const canSend = !approvalOn || approved || manager;
             const canEdit = manager || !approved || !approvalOn;
             return (
@@ -224,7 +226,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                   <div className="actions" style={{ justifyContent: "space-between" }}>
                     {!canSend ? (
                       <span className="muted small">
-                        Waiting for an owner or manager to approve it (<Link href="/morning">Morning</Link>).
+                        Waiting for approval (<Link href="/morning">Morning</Link>).
                       </span>
                     ) : (
                     <span className="actions">
@@ -319,6 +321,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                   placeholder="Renew before your package ends and get a free can of balls. Members can pause for the low season instead of cancelling."
                 />
               </label>
+              <fieldset disabled={!clubSettings} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 12 }}>
               <label>
                 Don&apos;t message the same person for the same reason within (days)
                 <input type="number" name="followup_cooldown_days" min={1} max={60} defaultValue={org.followup_cooldown_days} />
@@ -326,7 +329,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
               <label>
                 Before messages go out
                 <select name="followup_mode" defaultValue={org.followup_mode}>
-                  <option value="approve">An owner or manager approves them (Morning page)</option>
+                  <option value="approve">An owner, admin or marketing approves them (Morning page)</option>
                   <option value="desk">Anyone at the desk may send them</option>
                   <option value="auto">Send them automatically each morning (members on LINE)</option>
                 </select>
@@ -335,6 +338,8 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                 <input type="checkbox" name="morning_drafts" defaultChecked={org.morning_drafts} />
                 Write drafts automatically every morning
               </label>
+              {!clubSettings && <p className="muted small">The owner or an admin decides how messages go out.</p>}
+              </fieldset>
               <button>Save message settings</button>
             </fieldset>
           </form>

@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
-import { requireOrg, canManage } from "@/lib/org";
+import Link from "next/link";
+import { requireOrg } from "@/lib/org";
 import { currentHost } from "@/lib/host";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { LANGUAGES } from "@/components/MemberFields";
@@ -92,8 +93,8 @@ function LocationFields({ l }: { l?: Location }) {
 
 export default async function SettingsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, locations, workLocation } = await requireOrg();
-  const editable = canManage(role);
+  const { supabase, org, can, locations, workLocation } = await requireOrg();
+  const editable = can("settings.manage");
   const multi = locations.filter((l) => l.is_active).length > 1;
   const locName = new Map(locations.map((l) => [l.id, l.name]));
 
@@ -144,9 +145,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         <div>
           <h1>Settings</h1>
           <p className="muted">
-            {editable ? "Changes apply straight away." : "Only owners and managers can change settings."}
+            {editable ? "Changes apply straight away." : "Only the owner or an admin can change settings."}
           </p>
         </div>
+        {can("staff.manage") && (
+          <div className="actions">
+            <Link className="button" href="/staff">Staff and roles</Link>
+          </div>
+        )}
       </div>
       <Banner sp={sp} />
 

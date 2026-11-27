@@ -9,7 +9,8 @@ import { cookieDomain, requestHost } from "@/lib/tenant";
 // /api/line: LINE webhooks, protected by LINE's signature with the club's channel secret.
 // /guides: help pages for club owners (no sign-in, so they can be sent to new clubs).
 // /privacy, /terms: legal pages, readable by anyone on any Courtix address.
-const PUBLIC_PATHS = ["/login", "/auth", "/book", "/guides", "/privacy", "/terms", "/api/cron", "/api/line"];
+// /join: staff invite links (the person may not have an account yet).
+const PUBLIC_PATHS = ["/login", "/auth", "/book", "/guides", "/privacy", "/terms", "/join", "/api/cron", "/api/line"];
 
 // Keeps the Supabase session fresh and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {

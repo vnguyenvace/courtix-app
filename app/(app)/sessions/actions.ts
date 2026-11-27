@@ -15,7 +15,7 @@ function refresh() {
 
 async function requireManager(path: string) {
   const ctx = await requireOrg();
-  if (!canManage(ctx.role)) back(path, "Only owners and managers can do that.");
+  if (!canManage(ctx.role)) back(path, "Only the owner or an admin can do that.");
   return ctx;
 }
 

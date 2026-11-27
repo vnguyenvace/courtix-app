@@ -75,7 +75,7 @@ select distinct location_name, to_char(starts_at at time zone location_timezone,
 
 \echo '--- 8. Desk staff limited to Chalong'
 reset role;
-insert into org_staff (org_id, user_id, role, location_ids) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff', array[:'chalong']::uuid[]);
+insert into org_staff (org_id, user_id, role, location_ids) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk', array[:'chalong']::uuid[]);
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select count(distinct location_id) as locations_visible from booking_calendar;
 select create_booking(:'ch1', :'eve'::timestamptz + interval '3 hours', null, 'Walk-in Wendy') is not null as can_book_chalong;

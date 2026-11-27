@@ -56,7 +56,7 @@ select update_session(:'clinic', null, null, :'clinic_start'::timestamptz, null,
 \echo 'expect: moved into the past'
 select update_session(:'clinic', null, now() - interval '2 hours', now() - interval '1 hour', null, null, null, null, null, null, null, null, null);
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 \echo 'expect: desk staff cannot edit sessions'
 select update_session(:'clinic', 'Hacked', null, null, null, null, null, null, null, null, null, null, null);

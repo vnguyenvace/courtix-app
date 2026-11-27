@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOrg } from "@/lib/org";
+import { requirePermission } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { aiConfigured } from "@/lib/ai";
 import { startTestChat } from "./actions";
@@ -40,7 +40,7 @@ function ChatList({ rows, tz, empty }: { rows: Row[]; tz: string; empty: string 
 
 export default async function ChatsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, workLocation } = await requireOrg();
+  const { supabase, org, workLocation } = await requirePermission("chats.reply");
   const tz = workLocation?.timezone ?? org.timezone;
   const ai = aiConfigured();
 

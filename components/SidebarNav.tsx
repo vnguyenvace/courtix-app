@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   Sunrise,
+  UserCog,
   Users,
   Wallet,
   type LucideIcon,
@@ -28,13 +29,15 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/replies", label: "Reply helper", icon: MessageSquareReply },
   { href: "/followups", label: "AI follow-ups", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/staff", label: "Staff", icon: UserCog },
 ];
 
 // The phone menu opens with a checkbox (id "nav-toggle" in app/(app)/layout.tsx; works without JS).
 // Close it after each page change.
 const NAV_TOGGLE_ID = "nav-toggle";
 
-export default function SidebarNav() {
+/** `allowed`: the hrefs this person's role can open (worked out on the server). */
+export default function SidebarNav({ allowed }: { allowed: string[] }) {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function SidebarNav() {
 
   return (
     <nav className="nav" aria-label="Main">
-      {ITEMS.map(({ href, label, icon: Icon }) => {
+      {ITEMS.filter((i) => allowed.includes(i.href)).map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link key={href} href={href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined}>

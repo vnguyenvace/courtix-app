@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOrg, canManage } from "@/lib/org";
+import { requirePermission } from "@/lib/org";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
 import { formatMoney, todayIn, zonedToUtc } from "@/lib/time";
@@ -28,8 +28,8 @@ function when(iso: string, tz: string) {
 
 export default async function PaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, userId, location, workLocation } = await requireOrg();
-  const manager = canManage(role);
+  const { supabase, org, can, userId, location, workLocation } = await requirePermission("payments.record");
+  const manager = can("payments.refund");
   const tz = workLocation?.timezone ?? org.timezone;
   const tab = (TABS.find(([k]) => k === param(sp, "tab"))?.[0] ?? "due") as (typeof TABS)[number][0];
   const today = todayIn(tz);
@@ -191,7 +191,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                       </form>
                     </div>
                   ) : (
-                    <span className="muted small">An owner or manager decides about refunds.</span>
+                    <span className="muted small">An owner, admin or back office decides about refunds.</span>
                   ))}
               </div>
             );

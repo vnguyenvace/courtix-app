@@ -52,7 +52,7 @@ select decline_online_request(((:'q3'::jsonb)->>'registration_id')::uuid);
 
 \echo '--- 4. Desk staff can approve too; requests close when the club cancels the session'
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select cancel_session(:'clinic2', 'Coach unwell');
 select test_check(status = 'cancelled', 'open request closed with the session')

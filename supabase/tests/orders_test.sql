@@ -20,7 +20,7 @@ insert into members (org_id, full_name, skill_level) values (:'org', 'Eve Evenin
 insert into members (org_id, full_name, skill_level) values (:'org', 'Nina Nopackage', 3.0) returning id as nina \gset
 select id as pk_evenings from package_types where org_id = :'org' and name = 'Unlimited evenings (30 days)' \gset
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
 select id as evening_open from session_overview where org_id = :'org' and type_name = 'Open play'

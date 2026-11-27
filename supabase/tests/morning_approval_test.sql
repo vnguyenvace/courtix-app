@@ -15,7 +15,7 @@ set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111
 select create_org('Raccoon Pickleball','raccoon') as org \gset
 select add_demo_data(:'org') is not null as demo;
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
 select test_check((select followup_mode = 'approve' and morning_drafts from orgs where id = :'org'), 'new clubs default to morning approval');

@@ -256,7 +256,7 @@ export async function setBookingStatus(form: FormData) {
 
 async function requireManager() {
   const ctx = await requireOrg();
-  if (!canManage(ctx.role)) back("/settings", "Only owners and managers can change settings.");
+  if (!canManage(ctx.role)) back("/settings", "Only the owner or an admin can change settings.");
   return ctx;
 }
 

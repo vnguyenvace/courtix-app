@@ -19,7 +19,7 @@ insert into members (org_id, full_name) values (:'org', 'Nong Siriporn') returni
 set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 select create_org('Chalong Padel','chalong') as other_org \gset
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 
 \echo '--- 1. The owner connects LINE; the webhook key is made for them'
 set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';

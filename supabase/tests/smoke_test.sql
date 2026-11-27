@@ -66,7 +66,7 @@ select status, ends_on as after from memberships where id=:'sm';
 \echo '--- 7. Staff role cannot change prices'
 reset role;
 insert into auth.users (id, email) values ('33333333-3333-3333-3333-333333333333','desk@test');
-insert into org_staff values (:'org_a','33333333-3333-3333-3333-333333333333','staff');
+insert into org_staff values (:'org_a','33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 update package_types set price = 1 where org_id = :'org_a';
 select count(*) as cheap_packages from package_types where price = 1;

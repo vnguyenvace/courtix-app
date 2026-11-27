@@ -5,6 +5,9 @@ import { requireOrg, ORG_COOKIE, LOCATION_COOKIE } from "@/lib/org";
 import { signOut } from "@/app/login/actions";
 import { currentHost } from "@/lib/host";
 import SidebarNav from "@/components/SidebarNav";
+import { PAGE_PERMISSION } from "@/lib/permissions";
+
+const NAV_HREFS = ["/dashboard", "/morning", "/sessions", "/bookings", "/members", "/payments", "/chats", "/replies", "/followups", "/settings", "/staff"];
 import { LogOut, Menu, X } from "lucide-react";
 
 const COOKIE = { path: "/", httpOnly: true, sameSite: "lax" as const };
@@ -41,7 +44,8 @@ async function switchLocation(form: FormData) {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { org, email, clubs, location, myLocations, multiLocation, role } = await requireOrg();
+  const { org, email, clubs, location, myLocations, multiLocation, role, can } = await requireOrg();
+  const allowed = NAV_HREFS.filter((href) => !PAGE_PERMISSION[href] || can(PAGE_PERMISSION[href]));
   const canSeeAll = role === "owner" || role === "manager" || myLocations.length > 1;
 
   return (
@@ -74,7 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <button>Go</button>
             </form>
           )}
-          <SidebarNav />
+          <SidebarNav allowed={allowed} />
           <div className="sidebar-foot">
             {clubs.length > 1 && (
               <form action={switchClub} className="form">

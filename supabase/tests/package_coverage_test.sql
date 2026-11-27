@@ -160,7 +160,7 @@ select test_check(sessions_left = 5, 'go / no-go cancel: credit back, 5') from m
 
 \echo '--- 11. Coverage rules are managers-only, and private to the club'
 reset role;
-insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'staff');
+insert into org_staff (org_id, user_id, role) values (:'org', '33333333-3333-3333-3333-333333333333', 'front_desk');
 set role authenticated; set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select test_check((select count(*) from package_coverage) = 6, 'desk staff can read coverage');
 \echo 'expect: desk staff cannot add coverage'

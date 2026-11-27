@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOrg } from "@/lib/org";
+import { requirePermission } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { closeChat, handBack, linkMember, sendAsContact, staffReply, takeOver } from "../actions";
 import { isPaused } from "@/lib/chat";
@@ -36,7 +36,7 @@ function EventLine({ e }: { e: Record<string, unknown> }) {
 export default async function ChatPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, workLocation } = await requireOrg();
+  const { supabase, org, workLocation } = await requirePermission("chats.reply");
   const tz = workLocation?.timezone ?? org.timezone;
 
   const [{ data: convData }, { data: msgData }] = await Promise.all([

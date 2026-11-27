@@ -99,7 +99,7 @@ Works but may feel wrong at a front desk (ask Julian before changing):
 
 **Note, 26 Nov 2026:** `sessions_test.sql` now fails: it looks up the Coach Kimo camp (21 Nov 2026), which is in the past, so `:'camp'` is empty. The test needs a date-independent event. Not caused by the branding work (it fails the same way without it).
 
-## Step 1: Staff management page  ☐
+## Step 1: Staff management page  ☑
 
 Clubs need to add desk staff without Supabase Studio.
 
@@ -108,6 +108,17 @@ Clubs need to add desk staff without Supabase Studio.
 - Desk staff limited to one location land on that location automatically (already handled in `requireOrg`).
 
 Done when: an owner can invite a desk person limited to one site, that person signs up, sees only their site's write actions, and the SQL test covers invite acceptance and the last-owner rule.
+
+**Done 27 Nov 2026** (migrations `20261127000000_staff_roles.sql`, `20261127000100_staff_permissions.sql`, test `staff_roles_test.sql`):
+- **Roles:** owner, admin (stored as `manager`), front desk (was `staff`), marketing, back office. Julian approved the role table on 27 Nov 2026.
+- **Permissions, not role names:** `role_permissions` maps each role to permissions and `has_org_permission(org, 'payments.refund')` checks them. Policies on members, memberships, check-ins, bookings, sign-ups, orders, chats, reply helper, follow-ups, settings, staff and storage use it. The table is in the migration header and in `lib/permissions.ts`; keep the two in sync. Setup functions that check `has_org_role(.., '{owner,manager}')` were left as they are: that is exactly `club.setup`.
+- **App:** `requireOrg()` returns `permissions` and `can()`, and `requirePermission()` guards pages and actions. The sidebar shows only pages the role can open. Money tiles show only with `reports.view`. Settings stays read-only for others. Marketing edits tone, sign-off and offers (`update_message_voice`); how follow-ups go out stays with owner and admin.
+- **Staff page** (`/staff`, owner only): staff list with emails (`club_staff`), change role and locations, remove, and a club always keeps an owner (trigger). **Invites:** email + role + locations. The link `<slug>.courtix.app/join/<token>` lasts 7 days, the token is stored hashed, and it is emailed if Resend is set up and always shown to copy. The person signs in or creates an account **with the invited email** (`accept_staff_invite` checks the token, the email and that the email is confirmed).
+- **Production:** turn on **Confirm email** in Supabase Auth. Without it, someone who knew an invite link could create the account for that email without owning it.
+- **Left open:**
+  - Buttons the role can't use (for example "Add member" for marketing) still show; the database refuses them with "Your role or location doesn't allow it". Hide them page by page later.
+  - `members.export` has no export feature yet.
+  - Front desk can still read order totals in the database (it records payments); revenue is hidden only in the app.
 
 ## Step 2: Packages that cover sessions  ☑
 
@@ -316,6 +327,10 @@ Done when: jobs are scheduled in the hosted project and their last runs are visi
 - ~~Tick once it runs in the hosted project (after Step 10a).~~ Done 18 Nov 2026: `club-os-housekeeping` has run on the hosted project (5 runs, all succeeded).
 - **Go / no-go is deliberately not scheduled**: it would cancel sessions without telling players. Schedule it in Step 9 together with automatic cancellation notices (needs Julian's OK: it's automatic messaging).
 - The daily AI draft run belongs to Step 9b (morning approval list).
+
+## Step 10b: Courtix team roles  ☐
+
+Julian's own team (27 Nov 2026 plan): `platform_staff (user_id, role)` with super_admin, support, sales, marketing, kept apart from club staff. A separate admin area (e.g. `admin.courtix.app`) lists clubs, plans and usage. Sales and marketing see no member personal data. **Support sessions:** support sees a club's member data only when its owner allows it, for a limited time (e.g. 24 hours), with every view logged and visible to the owner (PDPA: the club is the controller). Julian agreed to "owner allows it" on 27 Nov 2026.
 
 ## Step 11: SaaS billing  ☐
 

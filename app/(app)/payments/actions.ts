@@ -60,9 +60,9 @@ export async function markPaid(form: FormData) {
 }
 
 export async function markUnpaid(form: FormData) {
-  const { supabase, role } = await requireOrg();
+  const { supabase, can } = await requireOrg();
   const page = pageOf(form);
-  if (!canManage(role)) back(page, "Only an owner or manager can undo a payment.");
+  if (!can("payments.refund")) back(page, "Only an owner, admin or back office can undo a payment.");
   const { error } = await supabase.rpc("mark_order_unpaid", { p_order: str(form, "order_id") });
   if (error) back(page, friendly(error));
   refresh();
@@ -70,9 +70,9 @@ export async function markUnpaid(form: FormData) {
 }
 
 export async function resolveRefund(form: FormData) {
-  const { supabase, role } = await requireOrg();
+  const { supabase, can } = await requireOrg();
   const page = pageOf(form);
-  if (!canManage(role)) back(page, "Only an owner or manager can decide about refunds.");
+  if (!can("payments.refund")) back(page, "Only an owner, admin or back office can decide about refunds.");
   const refunded = str(form, "refunded") === "true";
   const { error } = await supabase.rpc("resolve_refund", {
     p_order: str(form, "order_id"),

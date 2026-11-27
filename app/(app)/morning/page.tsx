@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOrg, canManage } from "@/lib/org";
+import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { lineShareLink, whatsappLink, whatsappNumber } from "@/lib/ai";
 import { NOTICE_LABELS, noticeText, payUrlFor, type NoticeKind, type NoticePayload } from "@/lib/notices";
@@ -51,8 +51,8 @@ function MessageCard({ m, mode }: { m: AiMessage; mode: "approve" | "send" | "wa
 
 export default async function MorningPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, location, workLocation } = await requireOrg();
-  const manager = canManage(role);
+  const { supabase, org, can, location, workLocation } = await requireOrg();
+  const manager = can("followups.manage");
   const tz = workLocation?.timezone ?? org.timezone;
   const today = todayIn(tz);
   const dayStart = zonedToUtc(today, "00:00", tz).toISOString();
@@ -232,7 +232,7 @@ export default async function MorningPage({ searchParams }: { searchParams: Sear
         ) : (
           <div className="card">
             <p className="small">
-              {drafts.length} draft{drafts.length === 1 ? " is" : "s are"} waiting for an owner or manager to approve.
+              {drafts.length} draft{drafts.length === 1 ? " is" : "s are"} waiting for an owner, admin or marketing to approve.
             </p>
           </div>
         )}

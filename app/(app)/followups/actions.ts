@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireOrg, canManage } from "@/lib/org";
+import { requireOrg } from "@/lib/org";
 import { back, friendly, optStr, str } from "@/lib/form";
 import { clubVoice, draftMessage, lineShareLink, whatsappLink, type ClubVoice, type FollowupReason } from "@/lib/ai";
 import { draftAndSave as draftAndSaveFor, type Candidate } from "@/lib/followups";
@@ -140,7 +140,7 @@ export async function sendOnWhatsApp(form: FormData) {
 /** Opens LINE with the message filled in; staff pick the member's chat there. */
 export async function sendOnLine(form: FormData) {
   const page = pageOf(form);
-  const { supabase, userId, org, role } = await requireOrg();
+  const { supabase, userId, org, can } = await requireOrg();
   const id = str(form, "message_id");
   const body = str(form, "body");
   if (!body) back(page, "The message can't be empty.");
@@ -158,9 +158,9 @@ export async function sendOnLine(form: FormData) {
     if (line) {
       // Check before anything leaves: same rule the database enforces when it's marked sent.
       if (msg.status !== "draft" && msg.status !== "approved") back(page, "This message was already sent or dismissed.");
-      if (org.followup_mode === "approve" && !canManage(role)) {
-        if (msg.status !== "approved") back(page, "An owner or manager needs to approve this message before it goes out");
-        if (body !== msg.body) back(page, "This message was approved as it is. Ask an owner or manager to change it");
+      if (org.followup_mode === "approve" && !can("followups.manage")) {
+        if (msg.status !== "approved") back(page, "This message needs approval before it goes out");
+        if (body !== msg.body) back(page, "This message was approved as it is. Ask whoever approves messages to change it");
       }
       try {
         await linePush(line.token, lineUser, [body]);
@@ -221,8 +221,8 @@ export async function dismissDraft(form: FormData) {
 }
 
 export async function dismissAll() {
-  const { supabase, org, role } = await requireOrg();
-  if (!canManage(role)) back(PAGE, "Only owners and managers can clear all drafts.");
+  const { supabase, org, can } = await requireOrg();
+  if (!can("followups.manage")) back(PAGE, "Only an owner, admin or marketing can clear all drafts.");
   const { error } = await supabase
     .from("ai_messages")
     .update({ status: "dismissed" })
@@ -233,11 +233,11 @@ export async function dismissAll() {
   back(PAGE, "All drafts cleared.", "notice");
 }
 
-/** Owner/manager: approve one message (with any edits). The database checks the role. */
+/** Owner, admin or marketing: approve one message (with any edits). The database checks it too. */
 export async function approveDraft(form: FormData) {
-  const { supabase, role } = await requireOrg();
+  const { supabase, can } = await requireOrg();
   const page = pageOf(form);
-  if (!canManage(role)) back(page, "Only an owner or manager can approve messages.");
+  if (!can("followups.manage")) back(page, "Only an owner, admin or marketing can approve messages.");
   const body = str(form, "body");
   if (!body) back(page, "The message can't be empty.");
   const { error } = await supabase
@@ -250,11 +250,11 @@ export async function approveDraft(form: FormData) {
   back(page, "Approved. It's ready to send.", "notice");
 }
 
-/** Owner/manager: approve every waiting draft as it is. */
+/** Owner, admin or marketing: approve every waiting draft as it is. */
 export async function approveAll(form: FormData) {
-  const { supabase, org, role } = await requireOrg();
+  const { supabase, org, can } = await requireOrg();
   const page = pageOf(form);
-  if (!canManage(role)) back(page, "Only an owner or manager can approve messages.");
+  if (!can("followups.manage")) back(page, "Only an owner, admin or marketing can approve messages.");
   const { data, error } = await supabase.rpc("approve_all_drafts", { p_org: org.id });
   if (error) back(page, friendly(error));
   refresh();
@@ -263,8 +263,21 @@ export async function approveAll(form: FormData) {
 }
 
 export async function saveVoice(form: FormData) {
-  const { supabase, org, role } = await requireOrg();
-  if (!canManage(role)) back(PAGE, "Only owners and managers can change how messages sound.");
+  const { supabase, org, can } = await requireOrg();
+  if (!can("followups.manage")) back(PAGE, "Only an owner, admin or marketing can change how messages sound.");
+  // Marketing: voice, sign-off and offers. How follow-ups go out (approval, auto-send) stays with
+  // owners and admins.
+  if (!can("settings.manage")) {
+    const { error } = await supabase.rpc("update_message_voice", {
+      p_org: org.id,
+      p_voice: str(form, "ai_voice"),
+      p_sign_off: str(form, "ai_sign_off"),
+      p_offers: str(form, "ai_offers"),
+    });
+    if (error) back(PAGE, friendly(error));
+    refresh();
+    back(PAGE, "Message settings saved. New drafts will use them.", "notice");
+  }
   const days = Number(str(form, "followup_cooldown_days"));
   const { error } = await supabase
     .from("orgs")

@@ -11,7 +11,8 @@ import { decideCourtRequest } from "../actions";
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, location, locations, multiLocation } = await requireOrg();
+  const { supabase, org, role, can, location, locations, multiLocation } = await requireOrg();
+  const money = can("reports.view");
   const tz = location?.timezone ?? org.timezone;
   const tzOf = new Map(locations.map((l) => [l.id, l.timezone]));
   const today = todayIn(tz);
@@ -93,7 +94,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   // Follow-ups waiting for an owner/manager to approve (Morning page).
   const { count: toApprove } =
-    org.followup_mode === "approve" && (role === "owner" || role === "manager")
+    org.followup_mode === "approve" && can("followups.manage")
       ? await supabase.from("ai_messages").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("status", "draft")
       : { count: 0 };
   // Chats Claude handed to staff (Chats page).
@@ -143,8 +144,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </p>
         </div>
         <div className="actions">
-          <Link className="button" href="/members/new">Add member</Link>
-          <Link className="button primary" href={location ? `/bookings?at=${location.id}` : "/bookings"}>Book a court</Link>
+          {can("members.edit") && <Link className="button" href="/members/new">Add member</Link>}
+          {can("bookings.manage") && (
+            <Link className="button primary" href={location ? `/bookings?at=${location.id}` : "/bookings"}>Book a court</Link>
+          )}
         </div>
       </div>
       <Banner sp={sp} />
@@ -166,7 +169,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <h2>Start with some members</h2>
           <p className="muted">Add your first member, or load sample data to see how the dashboard works.</p>
           <div className="actions" style={{ marginTop: 10 }}>
-            <Link className="button primary" href="/members/new">Add member</Link>
+            {can("members.edit") && <Link className="button primary" href="/members/new">Add member</Link>}
             {canManage(role) && (
               <form action={addDemoData} className="inline">
                 <button>Load sample members</button>
@@ -183,13 +186,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <Stat label="Drop-in leads" value={d.drop_in_leads ?? 0} />
         <Stat label="Sessions today" value={here ? here.sessions_today : d.sessions_today ?? 0} />
         <Stat label="Court bookings today" value={here ? here.bookings_today : d.bookings_today ?? 0} />
-        <Stat label="Package sales this month" unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
-        <Stat label="Received today" unit={org.currency} value={fmt(receivedToday)} />
-        <Stat label="Received this month" unit={org.currency} value={fmt(receivedMonth)} />
-        <Link href="/payments" className="stat stat-link">
-          <div className="label">Unpaid</div>
-          <div className="value"><span className="unit">{org.currency}</span>{fmt(unpaid)}</div>
-        </Link>
+        {money && (
+          <>
+            <Stat label="Package sales this month" unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
+            <Stat label="Received today" unit={org.currency} value={fmt(receivedToday)} />
+            <Stat label="Received this month" unit={org.currency} value={fmt(receivedMonth)} />
+          </>
+        )}
+        {can("payments.record") && (
+          <Link href="/payments" className="stat stat-link">
+            <div className="label">Unpaid</div>
+            <div className="value"><span className="unit">{org.currency}</span>{fmt(unpaid)}</div>
+          </Link>
+        )}
       </div>
 
       {multiLocation && byLocation.length > 0 && (
@@ -204,7 +213,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <th>Players, 30 days</th>
                 <th>Visits, 30 days</th>
                 <th>Sessions filled</th>
-                <th>Revenue, 30 days</th>
+                {money && <th>Revenue, 30 days</th>}
               </tr>
             </thead>
             <tbody>
@@ -219,7 +228,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                   <td>{l.players_30d}</td>
                   <td>{l.visits_30d}</td>
                   <td>{l.session_fill_pct_30d === null ? "—" : `${l.session_fill_pct_30d}%`}</td>
-                  <td>{formatMoney(Number(l.session_revenue_30d) + Number(l.court_revenue_30d), org.currency)}</td>
+                  {money && <td>{formatMoney(Number(l.session_revenue_30d) + Number(l.court_revenue_30d), org.currency)}</td>}
                 </tr>
               ))}
             </tbody>

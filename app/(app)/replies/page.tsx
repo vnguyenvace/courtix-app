@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOrg } from "@/lib/org";
+import { requirePermission } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { CopyButton } from "@/components/CopyButton";
 import { aiConfigured, whatsappNumber } from "@/lib/ai";
@@ -22,7 +22,7 @@ function shortDay(iso: string, tz: string) {
 
 export default async function RepliesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, location, locations, multiLocation } = await requireOrg();
+  const { supabase, org, location, locations, multiLocation } = await requirePermission("chats.reply");
   const ai = aiConfigured();
 
   const soon = new Date(Date.now() + 3 * 86400000).toISOString();

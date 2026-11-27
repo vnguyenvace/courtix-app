@@ -30,7 +30,7 @@ export function back(path: string, message: string, kind: "error" | "notice" = "
 export function friendly(error: { message: string; code?: string } | null): string {
   if (!error) return "Something went wrong. Try again.";
   if (error.code === "42501" || /row-level security/i.test(error.message)) {
-    return "You don't have permission to do that. Staff can only make changes at their own location.";
+    return "You don't have permission to do that. Your role or location doesn't allow it.";
   }
   if (error.code === "23505") return "That already exists.";
   return error.message;

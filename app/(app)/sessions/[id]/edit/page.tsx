@@ -32,7 +32,7 @@ export default async function EditSessionPage({
         <h1>Edit session</h1>
         <p className="muted">
           {!canManage(role)
-            ? "Only owners and managers can edit sessions."
+            ? "Only the owner or an admin can edit sessions."
             : s.status === "cancelled"
               ? "This session has been cancelled, so it can't be edited."
               : "This session has finished, so it can't be edited."}

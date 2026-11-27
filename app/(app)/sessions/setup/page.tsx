@@ -42,7 +42,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
           <Link href="/sessions" className="small">← Sessions</Link>
           <h1>Timetable setup</h1>
           <p className="muted">
-            {editable ? "Session types and the weekly timetable." : "Only owners and managers can change the timetable."}
+            {editable ? "Session types and the weekly timetable." : "Only the owner or an admin can change the timetable."}
           </p>
         </div>
         {editable && (
