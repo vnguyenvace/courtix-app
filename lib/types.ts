@@ -466,3 +466,41 @@ export interface Order {
   slip_check: { status: "verified" | "mismatch" | "error"; reasons: string[]; checked_at: string; trans_ref?: string; receiver?: string } | null;
   created_at: string;
 }
+
+// Coaches and private lessons (migration 20261127040000_coaches_lessons.sql)
+export interface Coach {
+  id: string;
+  org_id: string;
+  name: string;
+  phone: string | null;
+  about: string | null;
+  location_ids: string[] | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LessonRate {
+  id: string;
+  org_id: string;
+  coach_id: string | null;
+  minutes: number;
+  group_size: number;
+  price: number;
+}
+
+export interface CoachScheduleRow {
+  id: string;
+  org_id: string;
+  coach_id: string;
+  coach_name: string;
+  start_at: string;
+  end_at: string;
+  booking_id: string | null;
+  session_id: string | null;
+  location_id: string;
+  court_name: string | null;
+  student: string | null;
+  group_size: number | null;
+  price: number | null;
+  session_name: string | null;
+}

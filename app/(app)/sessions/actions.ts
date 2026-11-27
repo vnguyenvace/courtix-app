@@ -373,6 +373,11 @@ export async function updateSession(form: FormData) {
     p_courts: form.getAll("court_ids").map(String),
   });
   if (error) back(editPath, friendly(error));
+  // A coach from the Coaches list: their name shows, and they can't be booked for lessons then.
+  if (form.get("has_coach_list")) {
+    const { error: coachError } = await supabase.rpc("set_session_coach", { p_session: sessionId, p_coach: optStr(form, "coach_id") });
+    if (coachError) back(editPath, `Session saved, but the coach wasn't: ${friendly(coachError)}`);
+  }
   // Members whose place moved up off the waitlist, or whose session was cancelled, are told now.
   await notifyMembers(supabase);
   refresh();

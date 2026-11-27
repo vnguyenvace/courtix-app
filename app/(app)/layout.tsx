@@ -7,7 +7,7 @@ import { currentHost } from "@/lib/host";
 import SidebarNav from "@/components/SidebarNav";
 import { PAGE_PERMISSION } from "@/lib/permissions";
 
-const NAV_HREFS = ["/dashboard", "/morning", "/sessions", "/bookings", "/members", "/payments", "/chats", "/replies", "/followups", "/settings", "/staff", "/help"];
+const NAV_HREFS = ["/dashboard", "/morning", "/sessions", "/bookings", "/coaches", "/members", "/payments", "/chats", "/replies", "/followups", "/settings", "/staff", "/help"];
 import { LogOut, Menu, X } from "lucide-react";
 
 const COOKIE = { path: "/", httpOnly: true, sameSite: "lax" as const };

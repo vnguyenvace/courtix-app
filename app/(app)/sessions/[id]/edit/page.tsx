@@ -19,6 +19,12 @@ export default async function EditSessionPage({
   const { data } = await supabase.from("session_overview").select("*").eq("id", id).eq("org_id", org.id).maybeSingle();
   if (!data) notFound();
   const s = data as SessionOverview;
+  const [{ data: coachData }, { data: coachRow }] = await Promise.all([
+    supabase.from("coaches").select("id, name, is_active").eq("org_id", org.id).order("name"),
+    supabase.from("sessions").select("coach_id").eq("id", id).maybeSingle(),
+  ]);
+  const coachId = (coachRow as { coach_id: string | null } | null)?.coach_id ?? "";
+  const coaches = ((coachData ?? []) as { id: string; name: string; is_active: boolean }[]).filter((c) => c.is_active || c.id === coachId);
   const tz = s.location_timezone;
   const day = new Date(s.starts_at).toLocaleDateString("en-CA", { timeZone: tz });
   const endDay = new Date(s.ends_at).toLocaleDateString("en-CA", { timeZone: tz });
@@ -113,11 +119,25 @@ export default async function EditSessionPage({
                     Level to
                     <input type="number" name="level_max" step="0.5" min="1" max="6" defaultValue={s.level_max ?? ""} placeholder="Any" />
                   </label>
+                </div>
+                <div className="form-row">
+                  {coaches.length > 0 && (
+                    <label>
+                      Coach
+                      <select name="coach_id" defaultValue={coachId}>
+                        <option value="">Not on the list (type below) or none</option>
+                        {coaches.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label>
-                    Coach
-                    <input name="coach_name" defaultValue={s.coach_name ?? ""} />
+                    {coaches.length > 0 ? "Other coach's name" : "Coach"}
+                    <input name="coach_name" defaultValue={coachId ? "" : (s.coach_name ?? "")} placeholder={coaches.length > 0 ? "Only if not on the list" : ""} />
                   </label>
                 </div>
+                {coaches.length > 0 && <input type="hidden" name="has_coach_list" value="1" />}
                 {locationCourts.length > 0 && (
                   <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
                     <legend className="small muted" style={{ marginBottom: 6 }}>Courts to hold</legend>

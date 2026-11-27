@@ -168,13 +168,22 @@ For the Coach Kimo camps (early bird 2,500 until 15 Nov, then 3,300), the Parent
 
 Done when: an early-bird sign-up records 2,500 before the deadline and 3,300 after; pair sign-ups fill 2 spots; divisions fill separately; tests cover it.
 
-## Step 5: Coaches and private coaching  ☐
+## Step 5: Coaches and private coaching  ☑
 
 - `coaches` table (name, level, rates, active locations), linked from sessions instead of the free-text `coach_name`. Keep the old column for history.
 - Coach calendar: a coach can't be in two places at once (exclusion constraint like courts).
 - Private lessons: book a coach + court together. Price by group size (Raccoon: 1 pax 2,800? **confirm**: their flyer shows 1–4 pax prices and a 30-minute option), plus hour packages as credits.
 
 Done when: a private lesson books a coach and a court in one step, clashes are refused, group-size pricing works, and tests cover it.
+
+**Done 27 Nov 2026** (migration `20261127040000_coaches_lessons.sql`, test `coaches_lessons_test.sql`):
+- **Coaches page** (`/coaches`, roles with bookings.manage; adding coaches and prices needs club.setup): coaches (name, phone, about, which locations, taking lessons or not), lesson prices, the next 14 days per coach, and **Book a lesson**.
+- **Prices** (`lesson_rates`): by length and number of people, for the whole lesson. "All coaches" prices, plus a coach's own price that wins over them. **The club enters its own prices**; Raccoon's private coaching prices are still to be confirmed (open question below). A lesson can't be booked until its price exists.
+- **`book_lesson()`** books the coach and a court in one step (a `coaching` court booking with `coach_id`, `group_size` and the lesson price). "Any free court" picks the first free one. Opening hours, the past and court clashes are checked by `create_booking`. The payer is a member or a guest name.
+- **No double-booked coaches:** `coach_busy` (exclusion constraint), filled by triggers from lessons and from sessions with a coach. Cancelling a lesson or a session frees the coach.
+- **Payments:** a paid lesson becomes an order ("Lesson with Coach Kimo (2 people), Court 3, Sat 28 Nov 18:00"), and cancelling cancels the order, like court bookings.
+- **Sessions:** the edit page can pick a coach from the list (`set_session_coach`). `coach_name` is filled from the coach and still works for coaches not on the list. Generated sessions don't take a coach automatically yet.
+- **Left open:** hour packages / lesson credits (changes how packages are paid for: decide with Julian first); members booking lessons themselves (public page, chat); a confirmation message to the member for lessons; a coach's own sign-in to see their schedule; coach pay reports.
 
 ## Step 6: Public booking page per location  ☑
 

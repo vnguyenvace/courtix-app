@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import {
   CalendarDays,
+  GraduationCap,
   House,
   LayoutGrid,
   LifeBuoy,
@@ -24,6 +25,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/morning", label: "Morning", icon: Sunrise },
   { href: "/sessions", label: "Sessions", icon: CalendarDays },
   { href: "/bookings", label: "Courts", icon: LayoutGrid },
+  { href: "/coaches", label: "Coaches", icon: GraduationCap },
   { href: "/members", label: "Members", icon: Users },
   { href: "/payments", label: "Payments", icon: Wallet },
   { href: "/chats", label: "Chats", icon: MessagesSquare },

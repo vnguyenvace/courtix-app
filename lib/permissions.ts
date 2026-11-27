@@ -56,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
 export const PAGE_PERMISSION: Record<string, Permission> = {
   "/sessions": "members.view",
   "/bookings": "members.view",
+  "/coaches": "bookings.manage",
   "/members": "members.view",
   "/payments": "payments.record",
   "/chats": "chats.reply",
