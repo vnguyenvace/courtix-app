@@ -20,15 +20,15 @@ const TABS = [
   ["refunds", "Refunds to check"],
 ] as const;
 
-function when(iso: string, tz: string) {
-  return new Date(iso).toLocaleString("en-GB", {
+function when(iso: string, tz: string, locale = "en-GB") {
+  return new Date(iso).toLocaleString(locale, {
     weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
   });
 }
 
 export default async function PaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, can, userId, location, workLocation } = await requirePermission("payments.record");
+  const { supabase, org, can, userId, location, workLocation, t, locale } = await requirePermission("payments.record");
   const manager = can("payments.refund");
   const tz = workLocation?.timezone ?? org.timezone;
   const tab = (TABS.find(([k]) => k === param(sp, "tab"))?.[0] ?? "due") as (typeof TABS)[number][0];
@@ -72,10 +72,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
     <>
       <div className="page-head">
         <div>
-          <h1>Payments</h1>
+          <h1>{t("Payments")}</h1>
           <p className="muted">
-            Every paid booking, session place and package{location ? ` at ${location.name}` : ""}. Mark what you&apos;ve
-            received; free and package-covered places don&apos;t appear here.
+            {location
+              ? t("Every paid booking, session place and package at {place}. Mark what you've received; free and package-covered places don't appear here.", { place: location.name })
+              : t("Every paid booking, session place and package. Mark what you've received; free and package-covered places don't appear here.")}
           </p>
         </div>
       </div>
@@ -83,24 +84,24 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
 
       <div className="stats">
         <div className="stat">
-          <div className="label">To collect</div>
+          <div className="label">{t("To collect")}</div>
           <div className="value"><span className="unit">{org.currency}</span>{dueTotal.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
-          <div className="muted small">{(dueData ?? []).length} unpaid</div>
+          <div className="muted small">{t("{n} unpaid", { n: (dueData ?? []).length })}</div>
         </div>
         <div className="stat">
-          <div className="label">Received today</div>
+          <div className="label">{t("Received today")}</div>
           <div className="value"><span className="unit">{org.currency}</span>{todayTotal.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
         </div>
         <div className="stat">
-          <div className="label">Received this month</div>
+          <div className="label">{t("Received this month")}</div>
           <div className="value"><span className="unit">{org.currency}</span>{monthTotal.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
         </div>
       </div>
 
-      <nav className="tabs" aria-label="Payments">
+      <nav className="tabs" aria-label={t("Payments")}>
         {TABS.map(([k, label]) => (
           <Link key={k} href={k === "due" ? "/payments" : `/payments?tab=${k}`} className={tab === k ? "active" : undefined}>
-            {label}
+            {t(label)}
             {k === "refunds" && (refundCount ?? 0) > 0 ? ` (${refundCount})` : ""}
           </Link>
         ))}
@@ -109,18 +110,18 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
       <section className="card">
         {rows.length === 0 ? (
           <p className="muted">
-            {tab === "due" ? "Nothing to collect." : tab === "paid" ? "No payments recorded yet." : "No refunds to check."}
+            {tab === "due" ? t("Nothing to collect.") : tab === "paid" ? t("No payments recorded yet.") : t("No refunds to check.")}
           </p>
         ) : (
           rows.map((o) => {
-            const who = o.members?.full_name ?? o.guest_name ?? "Guest";
-            const items = o.order_items.map((i) => i.description + (i.cancelled_at ? " (cancelled)" : "")).join(" · ");
+            const who = o.members?.full_name ?? o.guest_name ?? t("Guest");
+            const items = o.order_items.map((i) => i.description + (i.cancelled_at ? ` (${t("cancelled")})` : "")).join(" · ");
             return (
               <div key={o.id} className="order-row">
                 <div className="order-head">
                   <span>
                     {o.members ? <Link href={`/members/${o.members.id}`}><strong>{who}</strong></Link> : <strong>{who}</strong>}
-                    {!o.members && <span className="muted small"> · guest{o.guest_phone ? ` · ${o.guest_phone}` : ""}</span>}
+                    {!o.members && <span className="muted small"> · {t("guest")}{o.guest_phone ? ` · ${o.guest_phone}` : ""}</span>}
                   </span>
                   <span className="order-amount">{formatMoney(tab === "due" ? o.total : o.paid_amount ?? o.total, org.currency)}</span>
                 </div>
@@ -128,40 +129,40 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                 {tab === "due" && (
                   <>
                     <span className="muted small">
-                      Since {when(o.created_at, tz)} ·{" "}
-                      <Link href={`/book/pay/${o.id}`} target="_blank">Show PromptPay QR</Link>
+                      {t("Since {when}", { when: when(o.created_at, tz, locale) })} ·{" "}
+                      <Link href={`/book/pay/${o.id}`} target="_blank">{t("Show PromptPay QR")}</Link>
                       {o.payer_slip_at && (
                         <>
                           {" · "}
-                          <strong style={{ color: "var(--warning)" }}>Slip received</strong>{" "}
-                          <Link href={`/payments/slip/${o.id}`} target="_blank">see slip</Link>: check your bank, then mark paid
+                          <strong style={{ color: "var(--warning)" }}>{t("Slip received")}</strong>{" "}
+                          <Link href={`/payments/slip/${o.id}`} target="_blank">{t("see slip")}</Link>: {t("check your bank, then mark paid")}
                         </>
                       )}
                     </span>
                     {o.slip_check && o.slip_check.status !== "verified" && (
                       <div className="small slip-check">
-                        Automatic check: {o.slip_check.reasons.join("; ")}
-                        {o.slip_check.receiver ? ` (slip: ${o.slip_check.receiver})` : ""}
+                        {t("Automatic check:")} {o.slip_check.reasons.map((r) => t(r)).join("; ")}
+                        {o.slip_check.receiver ? ` (${t("slip")}: ${o.slip_check.receiver})` : ""}
                         <form action={recheckSlip} className="inline">
                           <input type="hidden" name="order_id" value={o.id} />
                           <input type="hidden" name="return_to" value={self} />
-                          <button className="link" data-pending-label="Checking…">Check again</button>
+                          <button className="link" data-pending-label={t("Checking…")}>{t("Check again")}</button>
                         </form>
                       </div>
                     )}
-                    <MarkPaidForm orderId={o.id} returnTo={self} />
+                    <MarkPaidForm orderId={o.id} returnTo={self} t={t} />
                   </>
                 )}
                 {tab !== "due" && (
                   <span className="muted small">
-                    {METHOD_LABELS[o.method ?? ""] ?? o.method} · {o.paid_at ? when(o.paid_at, tz) : ""}
-                    {o.received_by === userId ? " · by you" : ""}
+                    {t(METHOD_LABELS[o.method ?? ""] ?? o.method ?? "")} · {o.paid_at ? when(o.paid_at, tz, locale) : ""}
+                    {o.received_by === userId ? ` · ${t("by you")}` : ""}
                     {o.note ? ` · ${o.note}` : ""}
-                    {o.slip_check?.status === "verified" && o.slip_check.trans_ref ? ` · bank ref ${o.slip_check.trans_ref}` : ""}
+                    {o.slip_check?.status === "verified" && o.slip_check.trans_ref ? ` · ${t("bank ref {ref}", { ref: o.slip_check.trans_ref })}` : ""}
                     {o.slip_path && (
                       <>
                         {" · "}
-                        <Link href={`/payments/slip/${o.id}`} target="_blank">Slip</Link>
+                        <Link href={`/payments/slip/${o.id}`} target="_blank">{t("Slip")}</Link>
                       </>
                     )}
                   </span>
@@ -170,28 +171,28 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
                   <form action={markUnpaid}>
                     <input type="hidden" name="order_id" value={o.id} />
                     <input type="hidden" name="return_to" value={self} />
-                    <button className="link">Undo payment</button>
+                    <button className="link">{t("Undo payment")}</button>
                   </form>
                 )}
                 {tab === "refunds" &&
                   (manager ? (
                     <div className="actions">
-                      <span className="small">Paid, then cancelled. Did they get their money back?</span>
+                      <span className="small">{t("Paid, then cancelled. Did they get their money back?")}</span>
                       <form action={resolveRefund}>
                         <input type="hidden" name="order_id" value={o.id} />
                         <input type="hidden" name="return_to" value={self} />
                         <input type="hidden" name="refunded" value="true" />
-                        <button>Refunded</button>
+                        <button>{t("Refunded")}</button>
                       </form>
                       <form action={resolveRefund}>
                         <input type="hidden" name="order_id" value={o.id} />
                         <input type="hidden" name="return_to" value={self} />
                         <input type="hidden" name="refunded" value="false" />
-                        <button className="link">Keep (no refund)</button>
+                        <button className="link">{t("Keep (no refund)")}</button>
                       </form>
                     </div>
                   ) : (
-                    <span className="muted small">An owner, admin or back office decides about refunds.</span>
+                    <span className="muted small">{t("An owner, admin or back office decides about refunds.")}</span>
                   ))}
               </div>
             );
@@ -200,7 +201,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
       </section>
       {tab === "due" && (
         <p className="muted small" style={{ marginTop: 10 }}>
-          Bookings and sales from before payments were added (26 Nov 2026) aren&apos;t listed. The oldest 300 are shown.
+          {t("Bookings and sales from before payments were added (26 Nov 2026) aren't listed. The oldest 300 are shown.")}
         </p>
       )}
     </>

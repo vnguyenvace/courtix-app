@@ -1,0 +1,21 @@
+Name,Phone,Email,Language,Level,Package,Start,End,Sessions left,Location,Consent,Notes
+Nattapong Wongsa,081-234-0001,natt@example.com,Thai,3.0,Unlimited evenings (30 days),01/12/2026,,,The Peak Racquet Park,yes,Plain good row: Thai 08x phone becomes +66
+Sarah Miller,+44 7700 900201,sarah@example.co.uk,English,3.5,Unlimited any session (30 days),15/12/2569,,,,no,Buddhist year 2569 = 2026
+Kenji Tanaka,0812340003,,Japanese,,Unlimited evenings (30 days),15/12/69,,,,,Short Buddhist year 69 = 2026
+Olga Smirnova,+7 916 555 0204,olga@example.ru,русский,4.0,Unlimited any session (30 days),2026-12-05,,,,yes,ISO date; Russian written in Russian
+Lukas Weber,0812340005,,German,,Unlimited evenings (30 days),15 Dec 2026,,,,,Date with a month name
+Wei Chen,0812340006,,中文,,Unlimited evenings (30 days),46371,,,,,Excel day number 46371 = 15 Dec 2026
+Somchai Jaidee,812340007,,ไทย,2.5,,,,,,yes,Phone lost its 0 in Excel: becomes +66812340007
+Marco Rossi,0812340008,,Italian,3.0,Match play mornings: buy 10 get 1 free,,,7,,,Session pack with 7 left
+Pim Chaiyo,0812340009,,Thai,,Match play nights: buy 10 get 1 free,,,,,,Session pack with nothing in Sessions left: gets the full pack (11)
+Jan de Vries,0812340010,,Dutch,,Unlimited evenings (30 days),01/10/2026,30/10/2026,,,,Package already ended: saved as expired
+Zorg Blarg,0812340011,,Klingon,,,,,,,,"Unknown language: set to the club's language, with a note"
+Emma Johnson,0812340012,,English,,Unlimited any session (30 days),,,5,,y,"Sessions left on a 30-day package is ignored, with a note; consent 'y' = yes"
+Anna Becker,+49 151 2345 6703,,German,,,,,,,,Already a member (same phone): skipped
+Copy Cat,081-234-0001,,English,,,,,,,,PROBLEM: same phone as row 1
+,0812340015,,Thai,,,,,,,,PROBLEM: no name
+Bad Phone,12,,English,,,,,,,,PROBLEM: phone number too short
+Gold Member,0812340017,,English,,Gold VIP,,,,,,PROBLEM: no package called Gold VIP (lists the real ones)
+Soon Starter,0812340018,,English,,Unlimited evenings (30 days),next week,,,,,PROBLEM: start date can't be read
+Ivan Typo,0812340019,ivan@example,Russian,,,,,,,,PROBLEM: email looks wrong
+Too Good,0812340020,,English,7,,,,,Patong Beach,maybe,"PROBLEMS: level above 6, unknown location, consent not yes/no"

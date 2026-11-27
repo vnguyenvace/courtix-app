@@ -5,10 +5,11 @@ import { Banner, param, type SearchParams } from "@/components/Banner";
 import { addDays, formatLongDay, isValidDate, localTime, slotTimes, todayIn, zonedToUtc } from "@/lib/time";
 import { setBookingStatus } from "../actions";
 import type { BookingRow, Court } from "@/lib/types";
+import type { T } from "@/lib/i18n";
 
 export default async function BookingsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, locations, workLocation, myLocations, multiLocation } = await requireOrg();
+  const { supabase, org, locations, workLocation, myLocations, multiLocation, t, locale } = await requireOrg();
   const at = param(sp, "at");
   const loc = locations.find((l) => l.id === at && l.is_active) ?? workLocation;
   const today = todayIn(loc.timezone);
@@ -39,10 +40,10 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
   // A slot is taken if any booking overlaps any part of it, so a session starting at 08:30
   // shows in the 08:00 row instead of leaving a "Book" link that would be refused.
   function bookingAt(courtId: string, slot: string) {
-    const t = zonedToUtc(date, slot, loc.timezone).getTime();
-    const tEnd = t + loc.slot_minutes * 60000;
+    const ts = zonedToUtc(date, slot, loc.timezone).getTime();
+    const tEnd = ts + loc.slot_minutes * 60000;
     return bookings.find(
-      (b) => b.court_id === courtId && new Date(b.start_at).getTime() < tEnd && new Date(b.end_at).getTime() > t,
+      (b) => b.court_id === courtId && new Date(b.start_at).getTime() < tEnd && new Date(b.end_at).getTime() > ts,
     );
   }
   const firstSlotStart = slots.length ? zonedToUtc(date, slots[0], loc.timezone).getTime() : 0;
@@ -54,18 +55,18 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
     <>
       <div className="page-head">
         <div>
-          <h1>Courts{multiLocation ? ` · ${loc.name}` : ""}</h1>
+          <h1>{t("Courts")}{multiLocation ? ` · ${loc.name}` : ""}</h1>
           <p className="muted">
-            {formatLongDay(date)} · {confirmedCount} booked of {totalSlots} slots
+            {formatLongDay(date, locale)} · {t("{n} booked of {total} slots", { n: confirmedCount, total: totalSlots })}
           </p>
         </div>
         <form className="actions">
-          <Link className="button" href={`/bookings?at=${loc.id}&date=${addDays(date, -1)}`} aria-label="Previous day">←</Link>
+          <Link className="button" href={`/bookings?at=${loc.id}&date=${addDays(date, -1)}`} aria-label={t("Previous day")}>←</Link>
           <input type="hidden" name="at" value={loc.id} />
           <input type="date" name="date" defaultValue={date} style={{ width: 160 }} />
-          <button>Go</button>
-          <Link className="button" href={`/bookings?at=${loc.id}&date=${addDays(date, 1)}`} aria-label="Next day">→</Link>
-          {date !== today && <Link className="button" href={`/bookings?at=${loc.id}`}>Today</Link>}
+          <button>{t("Go")}</button>
+          <Link className="button" href={`/bookings?at=${loc.id}&date=${addDays(date, 1)}`} aria-label={t("Next day")}>→</Link>
+          {date !== today && <Link className="button" href={`/bookings?at=${loc.id}`}>{t("Today")}</Link>}
         </form>
       </div>
       <Banner sp={sp} />
@@ -81,7 +82,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                 className={`badge ${l.id === loc.id ? "ok" : ""}`}
               >
                 {l.name}
-                {!myLocations.some((m) => m.id === l.id) ? " (view only)" : ""}
+                {!myLocations.some((m) => m.id === l.id) ? ` (${t("view only")})` : ""}
               </Link>
             ))}
         </div>
@@ -89,7 +90,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
 
       {courts.length === 0 ? (
         <div className="card">
-          <p>No active courts at {loc.name} yet. <Link href="/settings">Add courts in Settings.</Link></p>
+          <p>{t("No active courts at {place} yet.", { place: loc.name })} <Link href="/settings">{t("Add courts in Settings.")}</Link></p>
         </div>
       ) : (
         <div className="table-wrap">
@@ -101,7 +102,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
             {courts.map((c) => (
               <div key={c.id} className="cal-cell cal-head">
                 {c.name}
-                {c.is_covered && <span className="muted small"> · covered</span>}
+                {c.is_covered && <span className="muted small"> · {t("covered")}</span>}
               </div>
             ))}
 
@@ -128,38 +129,38 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                                 <div className="who">
                                   {b.session_id ? (
                                     <Link href={`/sessions/${b.session_id}`} style={{ color: "inherit" }}>
-                                      {b.notes ?? "Session"}
+                                      {b.notes ?? t("Session")}
                                     </Link>
                                   ) : b.member_id ? (
                                     <Link href={`/members/${b.member_id}`} style={{ color: "inherit" }}>
                                       {b.member_name}
                                     </Link>
                                   ) : (
-                                    b.guest_name ?? b.kind.replace("_", " ")
+                                    b.guest_name ?? t(b.kind.replace("_", " "))
                                   )}
                                 </div>
                                 <div className="small">
                                   {offGrid && `${localTime(b.start_at, loc.timezone)}–${localTime(b.end_at, loc.timezone)} · `}
-                                  {b.session_id ? "session" : b.kind.replace("_", " ")}
+                                  {b.session_id ? t("session") : t(b.kind.replace("_", " "))}
                                   {b.price > 0 && ` · ${Math.round(b.price)} ${org.currency}`}
-                                  {b.status !== "confirmed" && ` · ${b.status.replace("_", "-")}`}
+                                  {b.status !== "confirmed" && ` · ${t(b.status.replace("_", "-"))}`}
                                 </div>
                                 {b.status === "confirmed" && !b.session_id && (
                                   <div className="actions small" style={{ marginTop: 4, gap: 10 }}>
                                     {new Date(b.start_at).getTime() <= now && b.member_id && (
-                                      <StatusButton id={b.id} memberId={b.member_id} status="completed" label="Played" returnTo={returnTo} />
+                                      <StatusButton id={b.id} memberId={b.member_id} status="completed" label={t("Played")} returnTo={returnTo} t={t} />
                                     )}
                                     {new Date(b.start_at).getTime() <= now && (
-                                      <StatusButton id={b.id} memberId={b.member_id} status="no_show" label="No-show" returnTo={returnTo} />
+                                      <StatusButton id={b.id} memberId={b.member_id} status="no_show" label={t("No-show")} returnTo={returnTo} t={t} />
                                     )}
                                     {new Date(b.end_at).getTime() > now && (
-                                      <StatusButton id={b.id} memberId={b.member_id} status="cancelled" label="Cancel" returnTo={returnTo} />
+                                      <StatusButton id={b.id} memberId={b.member_id} status="cancelled" label={t("Cancel")} returnTo={returnTo} t={t} />
                                     )}
                                   </div>
                                 )}
                               </>
                             ) : (
-                              <div className="small">continued</div>
+                              <div className="small">{t("continued")}</div>
                             )}
                           </div>
                         </div>
@@ -171,7 +172,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                           <div className="slot-past" />
                         ) : (
                           <Link className="slot-free" href={`/bookings/new?court=${c.id}&date=${date}&time=${slot}`}>
-                            Book
+                            {t("Book")}
                           </Link>
                         )}
                       </div>
@@ -185,9 +186,9 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
       )}
 
       <p className="muted small" style={{ marginTop: 12 }}>
-        <span className="badge ok">member</span> <span className="badge info">drop-in</span>{" "}
-        <span className="badge warn">coaching or open play</span> · Members can book up to{" "}
-        {org.booking_advance_days} days ahead, {org.max_active_bookings} upcoming bookings at a time.
+        <span className="badge ok">{t("member")}</span> <span className="badge info">{t("drop-in")}</span>{" "}
+        <span className="badge warn">{t("coaching or open play")}</span> ·{" "}
+        {t("Members can book up to {days} days ahead, {n} upcoming bookings at a time.", { days: org.booking_advance_days, n: org.max_active_bookings })}
       </p>
     </>
   );
@@ -204,12 +205,14 @@ function StatusButton({
   status,
   label,
   returnTo,
+  t,
 }: {
   id: string;
   memberId: string | null;
   status: string;
   label: string;
   returnTo: string;
+  t: T;
 }) {
   return (
     <form action={setBookingStatus} className="inline">
@@ -218,7 +221,7 @@ function StatusButton({
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="return_to" value={returnTo} />
       {status === "cancelled" ? (
-        <ConfirmSubmit label={label} confirm="Yes, cancel booking" />
+        <ConfirmSubmit label={label} confirm={t("Yes, cancel booking")} />
       ) : (
         <button className="link" style={{ color: "inherit", textDecoration: "underline" }}>{label}</button>
       )}

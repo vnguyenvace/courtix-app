@@ -1,19 +1,22 @@
 import type { SessionOverview } from "@/lib/types";
+import type { T } from "@/lib/i18n";
 
-export function levelText(min: number | null, max: number | null) {
-  if (min === null && max === null) return "All levels";
-  if (min !== null && max !== null) return `Level ${min}–${max}`;
-  if (min !== null) return `Level ${min}+`;
-  return `Up to level ${max}`;
+const same: T = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m)) : s);
+
+export function levelText(min: number | null, max: number | null, t: T = same) {
+  if (min === null && max === null) return t("All levels");
+  if (min !== null && max !== null) return t("Level {min}–{max}", { min, max });
+  if (min !== null) return t("Level {min}+", { min });
+  return t("Up to level {max}", { max: max ?? "" });
 }
 
 /** Status of a session: cancelled, confirmed, needs players, full. */
-export function SessionStatusBadge({ s }: { s: SessionOverview }) {
-  if (s.status === "cancelled") return <span className="badge danger">Cancelled</span>;
-  if (s.spots_left === 0) return <span className="badge info">Full{s.waitlisted ? ` · ${s.waitlisted} waiting` : ""}</span>;
-  if (s.status === "confirmed") return <span className="badge ok">Confirmed</span>;
-  if (!s.min_reached) return <span className="badge warn">Needs {s.min_players - s.booked} more</span>;
-  return <span className="badge ok">On</span>;
+export function SessionStatusBadge({ s, t = same }: { s: SessionOverview; t?: T }) {
+  if (s.status === "cancelled") return <span className="badge danger">{t("Cancelled")}</span>;
+  if (s.spots_left === 0) return <span className="badge info">{t("Full")}{s.waitlisted ? ` · ${t("{n} waiting", { n: s.waitlisted })}` : ""}</span>;
+  if (s.status === "confirmed") return <span className="badge ok">{t("Confirmed")}</span>;
+  if (!s.min_reached) return <span className="badge warn">{t("Needs {n} more", { n: s.min_players - s.booked })}</span>;
+  return <span className="badge ok">{t("On")}</span>;
 }
 
 /** "5 / 16" with a thin fill bar. */

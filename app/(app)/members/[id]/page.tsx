@@ -27,7 +27,7 @@ export default async function MemberPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, locations } = await requireOrg();
+  const { supabase, org, locations, t, locale } = await requireOrg();
   const today = todayIn(org.timezone);
 
   const [member, status, memberships, packages, checkIns, bookings, orderData] = await Promise.all([
@@ -79,19 +79,19 @@ export default async function MemberPage({
     <>
       <div className="page-head">
         <div>
-          <Link href="/members" className="small">← Members</Link>
+          <Link href="/members" className="small">← {t("Members")}</Link>
           <h1>{m.full_name}</h1>
           <p className="muted">
-            {s ? lastVisitText(s.days_since_visit) : ""} · Member since {formatDate(m.created_at)}
+            {s ? lastVisitText(s.days_since_visit, t) : ""} · {t("Member since {date}", { date: formatDate(m.created_at, locale) })}
           </p>
-          {s && <MemberBadges s={s} />}
+          {s && <MemberBadges s={s} t={t} />}
         </div>
         <div className="actions">
           <form action={checkIn} className="inline">
             <input type="hidden" name="member_id" value={m.id} />
-            <button className="primary">Check in now</button>
+            <button className="primary">{t("Check in now")}</button>
           </form>
-          <Link className="button" href={`/bookings?date=${today}`}>Book a court</Link>
+          <Link className="button" href={`/bookings?date=${today}`}>{t("Book a court")}</Link>
         </div>
       </div>
       <Banner sp={sp} />
@@ -99,9 +99,9 @@ export default async function MemberPage({
       <div className="grid grid-2">
         <div className="stack">
           <section className="card">
-            <h2>Packages</h2>
+            <h2>{t("Packages")}</h2>
             {ms.length === 0 ? (
-              <p className="muted small">No packages yet.</p>
+              <p className="muted small">{t("No packages yet.")}</p>
             ) : (
               <ul className="list">
                 {ms.map((x) => (
@@ -109,21 +109,21 @@ export default async function MemberPage({
                     <span>
                       <strong>{x.package_types?.name}</strong>
                       <div className="muted small">
-                        {formatDate(x.starts_on)} – {x.ends_on ? formatDate(x.ends_on) : "no end date"}
-                        {x.sessions_left !== null && ` · ${x.sessions_left} sessions left`}
+                        {formatDate(x.starts_on, locale)} – {x.ends_on ? formatDate(x.ends_on, locale) : t("no end date")}
+                        {x.sessions_left !== null && ` · ${t("{n} sessions left", { n: x.sessions_left })}`}
                         {" · "}{formatMoney(x.price_paid, org.currency)}
-                        {x.status === "paused" && ` · paused until ${formatDate(x.paused_until)}`}
+                        {x.status === "paused" && ` · ${t("paused until {date}", { date: formatDate(x.paused_until, locale) })}`}
                       </div>
                     </span>
                     <span className="actions">
                       <span className={`badge ${x.status === "active" ? "ok" : x.status === "paused" ? "info" : ""}`}>
-                        {x.status}
+                        {t(x.status)}
                       </span>
                       {x.status === "active" && (
                         <form action={cancelMembership} className="inline">
                           <input type="hidden" name="member_id" value={m.id} />
                           <input type="hidden" name="membership_id" value={x.id} />
-                          <ConfirmSubmit label="Cancel" confirm="Yes, cancel package" />
+                          <ConfirmSubmit label={t("Cancel")} confirm={t("Yes, cancel package")} />
                         </form>
                       )}
                     </span>
@@ -134,11 +134,11 @@ export default async function MemberPage({
           </section>
 
           <section className="card">
-            <h2>Sell a package</h2>
+            <h2>{t("Sell a package")}</h2>
             <form action={sellPackage} className="form">
               <input type="hidden" name="member_id" value={m.id} />
               <label>
-                Package
+                {t("Package")}
                 <select name="package_id" required>
                   {pkgs.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -149,7 +149,7 @@ export default async function MemberPage({
               </label>
               <div className="form-row">
                 <label>
-                  Starts on
+                  {t("Starts on")}
                   <input
                     type="date"
                     name="starts_on"
@@ -157,27 +157,27 @@ export default async function MemberPage({
                   />
                 </label>
                 <label>
-                  Price paid (leave blank for list price)
-                  <input type="number" name="price" min="0" step="1" placeholder="List price" />
+                  {t("Price paid (leave blank for list price)")}
+                  <input type="number" name="price" min="0" step="1" placeholder={t("List price")} />
                 </label>
               </div>
               <label>
-                Payment
+                {t("Payment")}
                 <select name="paid_with" defaultValue="">
-                  <option value="">Not paid yet (pay later)</option>
+                  <option value="">{t("Not paid yet (pay later)")}</option>
                   {Object.entries(METHOD_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>Paid now: {v}</option>
+                    <option key={k} value={k}>{t("Paid now: {method}", { method: t(v) })}</option>
                   ))}
                 </select>
               </label>
-              <button className="primary">Sell package</button>
+              <button className="primary">{t("Sell package")}</button>
             </form>
           </section>
 
           <section className="card">
-            <h2>Payments</h2>
+            <h2>{t("Payments")}</h2>
             {orders.length === 0 ? (
-              <p className="muted small">Nothing to pay, no payments yet.</p>
+              <p className="muted small">{t("Nothing to pay, no payments yet.")}</p>
             ) : (
               orders.map((o) => (
                 <div key={o.id} className="order-row">
@@ -186,11 +186,11 @@ export default async function MemberPage({
                     <span className="order-amount">{formatMoney(o.status === "pending" ? o.total : o.paid_amount ?? o.total, org.currency)}</span>
                   </div>
                   {o.status === "pending" ? (
-                    <MarkPaidForm orderId={o.id} returnTo={`/members/${m.id}`} compact />
+                    <MarkPaidForm orderId={o.id} returnTo={`/members/${m.id}`} compact t={t} />
                   ) : (
                     <span className="muted small">
-                      {o.status === "refund_due" ? "Paid, then cancelled: refund to check (Payments)" : `Paid · ${METHOD_LABELS[o.method ?? ""] ?? o.method}`}
-                      {o.paid_at ? ` · ${new Date(o.paid_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: org.timezone })}` : ""}
+                      {o.status === "refund_due" ? t("Paid, then cancelled: refund to check (Payments)") : `${t("Paid")} · ${t(METHOD_LABELS[o.method ?? ""] ?? o.method ?? "")}`}
+                      {o.paid_at ? ` · ${new Date(o.paid_at).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: org.timezone })}` : ""}
                     </span>
                   )}
                 </div>
@@ -200,50 +200,50 @@ export default async function MemberPage({
 
           {current && (
             <section className="card">
-              <h2>Pause instead of cancel</h2>
+              <h2>{t("Pause instead of cancel")}</h2>
               <p className="muted small">
-                For members leaving Phuket for a while. The end date moves out by the pause length.
+                {t("For members leaving Phuket for a while. The end date moves out by the pause length.")}
               </p>
               <form action={pauseMembership} className="form">
                 <input type="hidden" name="member_id" value={m.id} />
                 <input type="hidden" name="membership_id" value={current.id} />
                 <div className="form-row">
                   <label>
-                    From
+                    {t("From")}
                     <input type="date" name="paused_from" required defaultValue={today} />
                   </label>
                   <label>
-                    Until
+                    {t("Until")}
                     <input type="date" name="paused_until" required />
                   </label>
                 </div>
-                <button>Pause membership</button>
+                <button>{t("Pause membership")}</button>
               </form>
             </section>
           )}
 
           <section className="card">
-            <h2>Recent bookings</h2>
+            <h2>{t("Recent bookings")}</h2>
             {books.length === 0 ? (
-              <p className="muted small">No bookings yet.</p>
+              <p className="muted small">{t("No bookings yet.")}</p>
             ) : (
               <ul className="list">
                 {books.map((b) => (
                   <li key={b.id}>
                     <span>
-                      {formatDate(new Date(b.start_at).toLocaleDateString("en-CA", { timeZone: org.timezone }))}{" "}
+                      {formatDate(new Date(b.start_at).toLocaleDateString("en-CA", { timeZone: org.timezone }), locale)}{" "}
                       {localTime(b.start_at, org.timezone)} · {b.court_name}{locations.length > 1 ? `, ${b.location_name}` : ""}
                     </span>
                     <span className="actions">
                       <span className={`badge ${b.status === "confirmed" ? "ok" : b.status === "no_show" ? "danger" : ""}`}>
-                        {b.status.replace("_", "-")}
+                        {t(b.status.replace("_", "-"))}
                       </span>
                       {b.status === "confirmed" && new Date(b.end_at) > new Date() && (
                         <form action={setBookingStatus} className="inline">
                           <input type="hidden" name="booking_id" value={b.id} />
                           <input type="hidden" name="status" value="cancelled" />
                           <input type="hidden" name="return_to" value={path} />
-                          <ConfirmSubmit label="Cancel" confirm="Yes, cancel booking" />
+                          <ConfirmSubmit label={t("Cancel")} confirm={t("Yes, cancel booking")} />
                         </form>
                       )}
                     </span>
@@ -254,15 +254,15 @@ export default async function MemberPage({
           </section>
 
           <section className="card">
-            <h2>Recent visits</h2>
+            <h2>{t("Recent visits")}</h2>
             {visits.length === 0 ? (
-              <p className="muted small">No visits yet.</p>
+              <p className="muted small">{t("No visits yet.")}</p>
             ) : (
               <ul className="list">
                 {visits.map((v) => (
                   <li key={v.id}>
-                    <span>{new Date(v.checked_in_at).toLocaleString("en-GB", { timeZone: org.timezone, dateStyle: "medium", timeStyle: "short" })}</span>
-                    <span className="muted small">{locations.length > 1 && v.location_id ? `${locName.get(v.location_id)} · ` : ""}{v.source}</span>
+                    <span>{new Date(v.checked_in_at).toLocaleString(locale, { timeZone: org.timezone, dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span className="muted small">{locations.length > 1 && v.location_id ? `${locName.get(v.location_id)} · ` : ""}{t(v.source)}</span>
                   </li>
                 ))}
               </ul>
@@ -271,24 +271,24 @@ export default async function MemberPage({
         </div>
 
         <section className="card">
-          <h2>Details</h2>
+          <h2>{t("Details")}</h2>
           <form action={updateMember} className="form">
             <input type="hidden" name="member_id" value={m.id} />
-            <MemberFields m={m} locations={locations} />
+            <MemberFields m={m} locations={locations} t={t} />
             <p className="small">
               {m.line_user_id ? (
-                <span className="badge ok">Linked on LINE</span>
+                <span className="badge ok">{t("Linked on LINE")}</span>
               ) : (
                 <>
-                  <span className="badge">Not linked on LINE</span>{" "}
+                  <span className="badge">{t("Not linked on LINE")}</span>{" "}
                   <span className="muted">
-                    When they message the club&apos;s LINE, open that chat in <Link href="/chats">Chats</Link> and use
-                    &quot;Link to member&quot;. Then they get reminders and sign-in codes on LINE.
+                    {t("When they message the club's LINE, open that chat in Chats and use \"Link to member\". Then they get reminders and sign-in codes on LINE.")}{" "}
+                    <Link href="/chats">{t("Chats")}</Link>
                   </span>
                 </>
               )}
             </p>
-            <button className="primary">Save details</button>
+            <button className="primary">{t("Save details")}</button>
           </form>
         </section>
       </div>

@@ -5,11 +5,12 @@ import { currentHost } from "@/lib/host";
 import type { Location, Org, StaffRole } from "@/lib/types";
 import { back } from "@/lib/form";
 import { ROLE_LABELS, SUPPORT_PERMISSIONS, type Permission } from "@/lib/permissions";
+import { currentUser, getI18n, type I18n } from "@/lib/i18n/server";
 
 export const ORG_COOKIE = "club_id";
 export const LOCATION_COOKIE = "location_id";
 
-export interface OrgContext {
+export interface OrgContext extends I18n {
   supabase: Awaited<ReturnType<typeof createClient>>;
   userId: string;
   email: string | null;
@@ -44,9 +45,7 @@ export interface OrgContext {
  */
 export async function requireOrg(): Promise<OrgContext> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
 
   const { data: rows, error } = await supabase
@@ -141,6 +140,7 @@ export async function requireOrg(): Promise<OrgContext> {
   const workLocation = location ?? myLocations[0] ?? active[0] ?? locations[0];
 
   return {
+    ...(await getI18n()),
     supabase,
     userId: user.id,
     email: user.email ?? null,

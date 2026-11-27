@@ -2,9 +2,11 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireOrg, ORG_COOKIE, LOCATION_COOKIE } from "@/lib/org";
-import { signOut } from "@/app/login/actions";
+import { setLanguage, signOut } from "@/app/login/actions";
+import { LANGS } from "@/lib/i18n";
 import { currentHost } from "@/lib/host";
 import SidebarNav from "@/components/SidebarNav";
+import { NAV_LABELS } from "@/lib/nav";
 import { PAGE_PERMISSION } from "@/lib/permissions";
 
 const NAV_HREFS = ["/dashboard", "/morning", "/sessions", "/bookings", "/coaches", "/members", "/payments", "/chats", "/replies", "/followups", "/settings", "/staff", "/help"];
@@ -44,7 +46,7 @@ async function switchLocation(form: FormData) {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { org, email, clubs, location, myLocations, multiLocation, role, can, supportUntil } = await requireOrg();
+  const { org, email, clubs, location, myLocations, multiLocation, role, can, supportUntil, t, setting, locale } = await requireOrg();
   const allowed = NAV_HREFS.filter((href) => !PAGE_PERMISSION[href] || can(PAGE_PERMISSION[href]));
   const canSeeAll = role === "owner" || role === "manager" || myLocations.length > 1;
 
@@ -69,35 +71,44 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="sidebar-body">
           {multiLocation && (
             <form action={switchLocation} className="location-picker">
-              <select name="location_id" defaultValue={location?.id ?? "all"} aria-label="Location">
-                {canSeeAll && <option value="all">All locations</option>}
+              <select name="location_id" defaultValue={location?.id ?? "all"} aria-label={t("Location")}>
+                {canSeeAll && <option value="all">{t("All locations")}</option>}
                 {myLocations.map((l) => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
               </select>
-              <button>Go</button>
+              <button>{t("Go")}</button>
             </form>
           )}
-          <SidebarNav allowed={allowed} />
+          <SidebarNav allowed={allowed} labels={Object.fromEntries(Object.entries(NAV_LABELS).map(([h, l]) => [h, t(l)]))} />
           <div className="sidebar-foot">
             {clubs.length > 1 && (
               <form action={switchClub} className="form">
-                <select name="club_id" defaultValue={org.id} aria-label="Switch club">
+                <select name="club_id" defaultValue={org.id} aria-label={t("Switch club")}>
                   {clubs.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <button>Switch club</button>
+                <button>{t("Switch club")}</button>
               </form>
             )}
             <span className="user-email" title={email ?? undefined}>{email}</span>
             {role !== "support" && (
-              <Link href="/account/password" className="small" style={{ padding: "0 12px" }}>Change password</Link>
+              <Link href="/account/password" className="small" style={{ padding: "0 12px" }}>{t("Change password")}</Link>
             )}
+            <form action={setLanguage} className="location-picker" aria-label={t("Language")}>
+              <select name="ui_language" defaultValue={setting} aria-label={t("Language")}>
+                <option value="auto">{t("Language: automatic")}</option>
+                {LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+              <button>{t("Save")}</button>
+            </form>
             <form action={signOut}>
               <button className="nav-button">
                 <LogOut size={18} strokeWidth={1.75} aria-hidden />
-                <span>Sign out</span>
+                <span>{t("Sign out")}</span>
               </button>
             </form>
           </div>
@@ -106,8 +117,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="main">
         {role === "support" && (
           <p className="banner warn" role="status">
-            Courtix support view of {org.name}: read only, every page you open is logged for the club.
-            {supportUntil && ` The owner's permission ends ${new Date(supportUntil).toLocaleString("en-GB", { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`}
+            {t("Courtix support view of {club}: read only, every page you open is logged for the club.", { club: org.name })}
+            {supportUntil && ` ${t("The owner's permission ends {when}.", { when: new Date(supportUntil).toLocaleString(locale, { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}`}
           </p>
         )}
         {children}

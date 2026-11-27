@@ -11,7 +11,7 @@ import { decideCourtRequest } from "../actions";
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, can, location, locations, multiLocation } = await requireOrg();
+  const { supabase, org, role, can, location, locations, multiLocation, t, locale } = await requireOrg();
   const money = can("reports.view");
   const tz = location?.timezone ?? org.timezone;
   const tzOf = new Map(locations.map((l) => [l.id, l.timezone]));
@@ -143,42 +143,42 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     <>
       <div className="page-head">
         <div>
-          <h1>Dashboard</h1>
+          <h1>{t("Dashboard")}</h1>
           <p className="muted">
             {org.name}
-            {multiLocation ? ` · ${location ? location.name : "All locations"}` : ""} · {formatDate(today)}
+            {multiLocation ? ` · ${location ? location.name : t("All locations")}` : ""} · {formatDate(today, locale)}
           </p>
         </div>
         <div className="actions">
-          {can("members.edit") && <Link className="button" href="/members/new">Add member</Link>}
+          {can("members.edit") && <Link className="button" href="/members/new">{t("Add member")}</Link>}
           {can("bookings.manage") && (
-            <Link className="button primary" href={location ? `/bookings?at=${location.id}` : "/bookings"}>Book a court</Link>
+            <Link className="button primary" href={location ? `/bookings?at=${location.id}` : "/bookings"}>{t("Book a court")}</Link>
           )}
         </div>
       </div>
       <Banner sp={sp} />
       {(toApprove ?? 0) > 0 && (
         <div className="banner notice">
-          {toApprove === 1 ? "1 follow-up is" : `${toApprove} follow-ups are`} waiting for your approval.{" "}
-          <Link href="/morning">Open Morning</Link>
+          {toApprove === 1 ? t("1 follow-up is waiting for your approval.") : t("{n} follow-ups are waiting for your approval.", { n: toApprove ?? 0 })}{" "}
+          <Link href="/morning">{t("Open Morning")}</Link>
         </div>
       )}
       {(chatsWaiting ?? 0) > 0 && (
         <div className="banner warn">
-          {chatsWaiting === 1 ? "1 chat is" : `${chatsWaiting} chats are`} waiting for a person.{" "}
-          <Link href="/chats">Open chats</Link>
+          {chatsWaiting === 1 ? t("1 chat is waiting for a person.") : t("{n} chats are waiting for a person.", { n: chatsWaiting ?? 0 })}{" "}
+          <Link href="/chats">{t("Open chats")}</Link>
         </div>
       )}
 
       {all.length === 0 && (
         <div className="card" style={{ marginBottom: 18 }}>
-          <h2>Start with some members</h2>
-          <p className="muted">Add your first member, or load sample data to see how the dashboard works.</p>
+          <h2>{t("Start with some members")}</h2>
+          <p className="muted">{t("Add your first member, or load sample data to see how the dashboard works.")}</p>
           <div className="actions" style={{ marginTop: 10 }}>
-            {can("members.edit") && <Link className="button primary" href="/members/new">Add member</Link>}
+            {can("members.edit") && <Link className="button primary" href="/members/new">{t("Add member")}</Link>}
             {canManage(role) && (
               <form action={addDemoData} className="inline">
-                <button>Load sample members</button>
+                <button>{t("Load sample members")}</button>
               </form>
             )}
           </div>
@@ -186,22 +186,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       )}
 
       <div className="stats">
-        <Stat label="Active members" value={d.active_members ?? 0} />
-        <Stat label="At risk" value={d.at_risk ?? 0} />
-        <Stat label="Renewing soon" value={d.renewing_soon ?? 0} />
-        <Stat label="Drop-in leads" value={d.drop_in_leads ?? 0} />
-        <Stat label="Sessions today" value={here ? here.sessions_today : d.sessions_today ?? 0} />
-        <Stat label="Court bookings today" value={here ? here.bookings_today : d.bookings_today ?? 0} />
+        <Stat label={t("Active members")} value={d.active_members ?? 0} />
+        <Stat label={t("At risk")} value={d.at_risk ?? 0} />
+        <Stat label={t("Renewing soon")} value={d.renewing_soon ?? 0} />
+        <Stat label={t("Drop-in leads")} value={d.drop_in_leads ?? 0} />
+        <Stat label={t("Sessions today")} value={here ? here.sessions_today : d.sessions_today ?? 0} />
+        <Stat label={t("Court bookings today")} value={here ? here.bookings_today : d.bookings_today ?? 0} />
         {money && (
           <>
-            <Stat label="Package sales this month" unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
-            <Stat label="Received today" unit={org.currency} value={fmt(receivedToday)} />
-            <Stat label="Received this month" unit={org.currency} value={fmt(receivedMonth)} />
+            <Stat label={t("Package sales this month")} unit={org.currency} value={Number(d.package_sales_this_month ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} />
+            <Stat label={t("Received today")} unit={org.currency} value={fmt(receivedToday)} />
+            <Stat label={t("Received this month")} unit={org.currency} value={fmt(receivedMonth)} />
           </>
         )}
         {can("payments.record") && (
           <Link href="/payments" className="stat stat-link">
-            <div className="label">Unpaid</div>
+            <div className="label">{t("Unpaid")}</div>
             <div className="value"><span className="unit">{org.currency}</span>{fmt(unpaid)}</div>
           </Link>
         )}
@@ -209,17 +209,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
       {multiLocation && byLocation.length > 0 && (
         <section className="card table-wrap" style={{ marginBottom: 18 }}>
-          <h2>By location</h2>
+          <h2>{t("By location")}</h2>
           <table>
             <thead>
               <tr>
-                <th>Location</th>
-                <th>Sessions today</th>
-                <th>Court bookings today</th>
-                <th>Players, 30 days</th>
-                <th>Visits, 30 days</th>
-                <th>Sessions filled</th>
-                {money && <th>Revenue, 30 days</th>}
+                <th>{t("Location")}</th>
+                <th>{t("Sessions today")}</th>
+                <th>{t("Court bookings today")}</th>
+                <th>{t("Players, 30 days")}</th>
+                <th>{t("Visits, 30 days")}</th>
+                <th>{t("Sessions filled")}</th>
+                {money && <th>{t("Revenue, 30 days")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -227,7 +227,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <tr key={l.location_id} style={location && l.location_id !== location.id ? { opacity: 0.6 } : undefined}>
                   <td>
                     <strong>{l.name}</strong>
-                    <div className="muted small">{l.courts} courts · {l.home_members} home members</div>
+                    <div className="muted small">{t("{courts} courts · {members} home members", { courts: l.courts, members: l.home_members })}</div>
                   </td>
                   <td>{l.sessions_today}</td>
                   <td>{l.bookings_today}</td>
@@ -240,8 +240,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </tbody>
           </table>
           <p className="muted small" style={{ marginTop: 8 }}>
-            Members and packages are club-wide, so the member numbers above count everyone. Revenue here is sessions and
-            court hire played at each site; package sales are counted once for the club.
+            {t("Members and packages are club-wide, so the member numbers above count everyone. Revenue here is sessions and court hire played at each site; package sales are counted once for the club.")}
           </p>
         </section>
       )}
@@ -249,43 +248,45 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       <div className="grid grid-2">
         <section className="card">
           <div className="actions" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>At risk</h2>
-            <Link href="/followups" className="small">Draft messages →</Link>
+            <h2 style={{ margin: 0 }}>{t("At risk")}</h2>
+            <Link href="/followups" className="small">{t("Draft messages →")}</Link>
           </div>
           <p className="muted small">
-            Active members with no visit for {org.at_risk_days}+ days and nothing booked.
+            {t("Active members with no visit for {n}+ days and nothing booked.", { n: org.at_risk_days })}
           </p>
           <PeopleList
             rows={atRisk}
-            empty="Nobody at risk right now."
-            detail={(s) => `${lastVisitText(s.days_since_visit)} · ${s.package_name ?? ""}`}
+            empty={t("Nobody at risk right now.")}
+            more={(n) => t("and {n} more", { n })}
+            detail={(s) => `${lastVisitText(s.days_since_visit, t)} · ${s.package_name ?? ""}`}
           />
         </section>
 
         <section className="card">
           <div className="actions" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>Renewing soon</h2>
-            <Link href="/followups" className="small">Draft messages →</Link>
+            <h2 style={{ margin: 0 }}>{t("Renewing soon")}</h2>
+            <Link href="/followups" className="small">{t("Draft messages →")}</Link>
           </div>
           <p className="muted small">
-            Packages ending in the next {org.renewal_window_days} days, or class packs with 2 or fewer sessions.
+            {t("Packages ending in the next {n} days, or class packs with 2 or fewer sessions.", { n: org.renewal_window_days })}
           </p>
           <PeopleList
             rows={renewing}
-            empty="No renewals coming up."
+            empty={t("No renewals coming up.")}
+            more={(n) => t("and {n} more", { n })}
             detail={(s) =>
               s.sessions_left !== null
-                ? `${s.sessions_left} sessions left · ${s.package_name}`
-                : `Ends ${formatDate(s.ends_on)} (${s.days_to_expiry === 0 ? "today" : s.days_to_expiry === 1 ? "tomorrow" : `in ${s.days_to_expiry} days`})`
+                ? `${t("{n} sessions left", { n: s.sessions_left })} · ${s.package_name}`
+                : `${t("Ends {date}", { date: formatDate(s.ends_on, locale) })} (${s.days_to_expiry === 0 ? t("today") : s.days_to_expiry === 1 ? t("tomorrow") : t("in {n} days", { n: s.days_to_expiry ?? 0 })})`
             }
           />
         </section>
 
         <section className="card">
-          <h2>Sessions today</h2>
+          <h2>{t("Sessions today")}</h2>
           {sessionsToday.length === 0 ? (
             <p className="muted small">
-              No sessions today. <Link href="/sessions">Set up your timetable.</Link>
+              {t("No sessions today.")} <Link href="/sessions">{t("Set up your timetable.")}</Link>
             </p>
           ) : (
             <ul className="list">
@@ -297,7 +298,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                     {multiLocation && !location ? <span className="muted small"> · {s.location_name}</span> : null}
                     <span className="muted small"> · {s.booked}/{s.max_players}</span>
                   </span>
-                  <SessionStatusBadge s={s} />
+                  <SessionStatusBadge s={s} t={t} />
                 </li>
               ))}
             </ul>
@@ -305,9 +306,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </section>
 
         <section className="card">
-          <h2>Court bookings today</h2>
+          <h2>{t("Court bookings today")}</h2>
           {bookingsToday.length === 0 ? (
-            <p className="muted small">No bookings today.</p>
+            <p className="muted small">{t("No bookings today.")}</p>
           ) : (
             <ul className="list">
               {bookingsToday.map((b) => (
@@ -317,12 +318,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                     {multiLocation && !location ? <span className="muted small"> · {b.location_name}</span> : null}
                   </span>
                   <span className="actions">
-                    {b.member_name ?? b.guest_name ?? b.kind.replace("_", " ")}
+                    {b.member_name ?? b.guest_name ?? t(b.kind.replace("_", " "))}
                     {b.member_id && (
                       <form action={checkIn} className="inline">
                         <input type="hidden" name="member_id" value={b.member_id} />
                         <input type="hidden" name="return_to" value="/dashboard" />
-                        <button className="link">Check in</button>
+                        <button className="link">{t("Check in")}</button>
                       </form>
                     )}
                   </span>
@@ -334,12 +335,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
         <section className="card">
           <div className="actions" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>Online sign-ups</h2>
-            <Link href="/settings" className="small">Booking page →</Link>
+            <h2 style={{ margin: 0 }}>{t("Online sign-ups")}</h2>
+            <Link href="/settings" className="small">{t("Booking page →")}</Link>
           </div>
           <p className="muted small">
-            From your public booking page, and lesson requests from chat. They pay at the club.
-            {org.online_signups === "approve" ? " Requests wait for you to approve them." : ""}
+            {t("From your public booking page, and lesson requests from chat. They pay at the club.")}
+            {org.online_signups === "approve" ? ` ${t("Requests wait for you to approve them.")}` : ""}
           </p>
           {onlineCourts.length > 0 && (
             <ul className="list" style={{ marginBottom: 8 }}>
@@ -350,18 +351,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 return (
                   <li key={b.id}>
                     <span>
-                      {b.guest_name ?? b.members?.full_name ?? "Member"}
+                      {b.guest_name ?? b.members?.full_name ?? t("Member")}
                       <span className="muted small">
                         {b.guest_phone ? ` · ${b.guest_phone}` : ""}
-                        {b.source === "chat" ? " · via chat" : ""}
+                        {b.source === "chat" ? ` · ${t("via chat")}` : ""}
                       </span>
                       <div className="small">
                         {b.coach_id
-                          ? `Lesson with ${b.coaches?.name ?? "coach"}${b.group_size && b.group_size > 1 ? ` (${b.group_size} people)` : ""}, ${b.courts?.name ?? "court"}`
-                          : (b.courts?.name ?? "Court")}{" "}
+                          ? `${t("Lesson with {coach}", { coach: b.coaches?.name ?? "" })}${b.group_size && b.group_size > 1 ? ` (${t("{n} people", { n: b.group_size })})` : ""}, ${b.courts?.name ?? ""}`
+                          : (b.courts?.name ?? t("Court"))}{" "}
                         <span className="muted">
-                          {start && new Date(start).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz })}{" "}
-                          {start && localTime(start, tz)} · {formatMoney(b.price, org.currency)} at the club
+                          {start && new Date(start).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: tz })}{" "}
+                          {start && localTime(start, tz)} · {t("{amount} at the club", { amount: formatMoney(b.price, org.currency) })}
                         </span>
                       </div>
                     </span>
@@ -370,16 +371,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         <form action={decideCourtRequest} className="inline">
                           <input type="hidden" name="booking_id" value={b.id} />
                           <input type="hidden" name="approve" value="true" />
-                          <button className="primary">Approve</button>
+                          <button className="primary">{t("Approve")}</button>
                         </form>
                         <form action={decideCourtRequest} className="inline">
                           <input type="hidden" name="booking_id" value={b.id} />
                           <input type="hidden" name="approve" value="false" />
-                          <button className="link danger">Decline</button>
+                          <button className="link danger">{t("Decline")}</button>
                         </form>
                       </span>
                     ) : (
-                      <span className="badge ok">{b.coach_id ? "lesson" : "court"}</span>
+                      <span className="badge ok">{b.coach_id ? t("lesson") : t("court")}</span>
                     )}
                   </li>
                 );
@@ -387,7 +388,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </ul>
           )}
           {online.length === 0 ? (
-            onlineCourts.length === 0 && <p className="muted small">None yet. Share your booking page link or QR code (Settings).</p>
+            onlineCourts.length === 0 && <p className="muted small">{t("None yet. Share your booking page link or QR code (Settings).")}</p>
           ) : (
             <ul className="list">
               {online.map((o) => {
@@ -401,7 +402,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         <div className="small">
                           <Link href={`/sessions/${o.session_id}`}>{si.name}</Link>{" "}
                           <span className="muted">
-                            {new Date(si.starts_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: si.location_timezone })}{" "}
+                            {new Date(si.starts_at).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: si.location_timezone })}{" "}
                             {localTime(si.starts_at, si.location_timezone)}
                           </span>
                         </div>
@@ -413,17 +414,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                           <input type="hidden" name="registration_id" value={o.id} />
                           <input type="hidden" name="session_id" value={o.session_id} />
                           <input type="hidden" name="back_to" value="/dashboard" />
-                          <button className="primary">Approve</button>
+                          <button className="primary">{t("Approve")}</button>
                         </form>
                         <form action={declineRequest} className="inline">
                           <input type="hidden" name="registration_id" value={o.id} />
                           <input type="hidden" name="session_id" value={o.session_id} />
                           <input type="hidden" name="back_to" value="/dashboard" />
-                          <button className="link danger">Decline</button>
+                          <button className="link danger">{t("Decline")}</button>
                         </form>
                       </span>
                     ) : (
-                      <span className={`badge ${o.status === "waitlisted" ? "info" : "ok"}`}>{o.status}</span>
+                      <span className={`badge ${o.status === "waitlisted" ? "info" : "ok"}`}>{t(o.status)}</span>
                     )}
                   </li>
                 );
@@ -434,11 +435,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
         <section className="card">
           <div className="actions" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>Drop-in leads</h2>
-            <Link href="/followups" className="small">Draft messages →</Link>
+            <h2 style={{ margin: 0 }}>{t("Drop-in leads")}</h2>
+            <Link href="/followups" className="small">{t("Draft messages →")}</Link>
           </div>
-          <p className="muted small">Played at least once but never bought a package.</p>
-          <PeopleList rows={leads} empty="No leads yet." detail={(s) => lastVisitText(s.days_since_visit)} />
+          <p className="muted small">{t("Played at least once but never bought a package.")}</p>
+          <PeopleList rows={leads} empty={t("No leads yet.")} more={(n) => t("and {n} more", { n })} detail={(s) => lastVisitText(s.days_since_visit, t)} />
         </section>
       </div>
     </>
@@ -460,10 +461,12 @@ function Stat({ label, value, unit }: { label: string; value: number | string; u
 function PeopleList({
   rows,
   empty,
+  more,
   detail,
 }: {
   rows: MemberStatus[];
   empty: string;
+  more: (n: number) => string;
   detail: (s: MemberStatus) => string;
 }) {
   if (rows.length === 0) return <p className="muted small">{empty}</p>;
@@ -478,7 +481,7 @@ function PeopleList({
           <span className="muted small">{detail(s)}</span>
         </li>
       ))}
-      {rows.length > 8 && <li className="muted small">and {rows.length - 8} more</li>}
+      {rows.length > 8 && <li className="muted small">{more(rows.length - 8)}</li>}
     </ul>
   );
 }

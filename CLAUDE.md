@@ -88,7 +88,8 @@ app/(app)/actions.ts   server actions for members, check-ins, bookings, settings
 
 **Copy and UI**
 - Sentence case everywhere ("Book a court", not "Book A Court"). Plain, friendly words for front-desk staff. No "successfully", no exclamation marks in system messages.
-- Members speak English, Thai, Russian, Chinese and more. AI messages go out in the member's `language`. UI copy is English for now.
+- Members speak English, Thai, Russian, Chinese and more. AI messages go out in the member's `language`.
+- **Staff screens are translated** (English, Thai, Russian, Chinese; each person picks theirs in the sidebar, saved in their auth `user_metadata.ui_language`, default = browser language). Write English text wrapped in `t("…")` (from `requireOrg()` or `getI18n()` in `lib/i18n/server.ts`), with `{name}` placeholders, never by gluing strings. Add every new text with its Thai/Russian/Chinese translation to `lib/i18n/source/ui.py` (banner messages and database errors: `messages.py`, `{0}` placeholders), then run `python3 lib/i18n/source/build.py`. The `Banner` translates action and database messages by itself. Club data (session and package names) is not translated. Format dates with `locale` from the same context.
 - Mobile matters: front desks often use phones or tablets. Check pages at about 380px wide.
 
 **AI and messaging**

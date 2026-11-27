@@ -66,3 +66,22 @@ export async function changePassword(form: FormData) {
   }
   back("/dashboard", "Password changed.", "notice");
 }
+
+/** The person's screen language ("auto" = follow the browser). Saved on their account, so it follows them. */
+export async function setLanguage(form: FormData) {
+  const value = str(form, "ui_language");
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  await supabase.auth.updateUser({ data: { ui_language: ["en", "th", "ru", "zh"].includes(value) ? value : null } });
+  // Back to the same page, without old messages in the address.
+  const referer = (await headers()).get("referer");
+  let path = "/dashboard";
+  if (referer) {
+    const url = new URL(referer);
+    url.searchParams.delete("notice");
+    url.searchParams.delete("error");
+    if (url.pathname.startsWith("/")) path = url.pathname + url.search;
+  }
+  redirect(path);
+}

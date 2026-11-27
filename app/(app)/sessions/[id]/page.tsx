@@ -9,6 +9,7 @@ import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession } from "../actions";
 import { CATEGORY_LABELS, type MemberStatus, type RosterRow, type SessionOverview } from "@/lib/types";
 import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
+import type { T } from "@/lib/i18n";
 
 const STATUS_BADGE: Record<string, string> = {
   booked: "ok",
@@ -28,7 +29,7 @@ export default async function SessionPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, multiLocation, role } = await requireOrg();
+  const { supabase, org, multiLocation, role, t, locale } = await requireOrg();
   const editable = canManage(role);
 
   const [{ data: sData }, { data: rData }, { data: mData }] = await Promise.all([
@@ -71,9 +72,9 @@ export default async function SessionPage({
   const coverHint = new Map<string, string>();
   for (const m of memberships) {
     if (!covers.has(m.package_type_id) || m.starts_on > day0 || (m.ends_on && m.ends_on < day0)) continue;
-    if (m.package_types?.kind === "time_based") coverHint.set(m.member_id, "covered");
-    else if ((m.sessions_left ?? 0) > 0 && coverHint.get(m.member_id) !== "covered") {
-      coverHint.set(m.member_id, `uses 1 credit, ${m.sessions_left} left`);
+    if (m.package_types?.kind === "time_based") coverHint.set(m.member_id, t("covered"));
+    else if ((m.sessions_left ?? 0) > 0 && coverHint.get(m.member_id) !== t("covered")) {
+      coverHint.set(m.member_id, t("uses 1 credit, {n} left", { n: m.sessions_left ?? 0 }));
     }
   }
 
@@ -115,59 +116,59 @@ export default async function SessionPage({
     <>
       <div className="page-head">
         <div>
-          <Link href={`/sessions?from=${day}`} className="small">← Sessions</Link>
+          <Link href={`/sessions?from=${day}`} className="small">← {t("Sessions")}</Link>
           <div className="title-row">
             <h1>{s.name}</h1>
             {editable && s.status !== "cancelled" && !finished && (
               <Link href={`/sessions/${s.id}/edit`} className="button small-button">
                 <Pencil size={15} strokeWidth={1.75} aria-hidden />
-                Edit
+                {t("Edit")}
               </Link>
             )}
           </div>
           <p className="muted">
             {multiLocation ? `${s.location_name} · ` : ""}
-            {formatLongDay(day)} · {localTime(s.starts_at, tz)}–
-            {endDay !== day ? `${formatLongDay(endDay)} ` : ""}
+            {formatLongDay(day, locale)} · {localTime(s.starts_at, tz)}–
+            {endDay !== day ? `${formatLongDay(endDay, locale)} ` : ""}
             {localTime(s.ends_at, tz)}
           </p>
           <div className="actions">
-            <SessionStatusBadge s={s} />
-            <span className="badge">{CATEGORY_LABELS[s.category]}</span>
-            <span className="badge">{levelText(s.level_min, s.level_max)}</span>
-            {s.min_age && <span className="badge">Age {s.min_age}+</span>}
+            <SessionStatusBadge s={s} t={t} />
+            <span className="badge">{t(CATEGORY_LABELS[s.category])}</span>
+            <span className="badge">{levelText(s.level_min, s.level_max, t)}</span>
+            {s.min_age && <span className="badge">{t("age {n}+", { n: s.min_age })}</span>}
           </div>
         </div>
         <div className="stat" style={{ minWidth: 200 }}>
-          <div className="label">Players</div>
+          <div className="label">{t("Players")}</div>
           <Spots s={s} />
           <div className="muted small" style={{ marginTop: 4 }}>
-            Minimum {s.min_players} · {formatMoney(s.price, org.currency)} each
+            {t("Minimum {n} · {price} each", { n: s.min_players, price: formatMoney(s.price, org.currency) })}
           </div>
         </div>
       </div>
       <Banner sp={sp} />
       {s.status === "cancelled" && (
-        <div className="banner error">Cancelled{s.cancel_reason ? `: ${s.cancel_reason}` : ""}.</div>
+        <div className="banner error">{t("Cancelled")}{s.cancel_reason ? `: ${s.cancel_reason}` : ""}.</div>
       )}
       {s.notes && <div className="banner notice">{s.notes}</div>}
 
       <div className="grid grid-2">
         <div className="stack">
           <section className="card">
-            <h2>Signed up ({playing.length})</h2>
+            <h2>{t("Signed up")} ({playing.length})</h2>
             {playing.length === 0 ? (
-              <p className="muted small">Nobody yet.</p>
+              <p className="muted small">{t("Nobody yet.")}</p>
             ) : (
-              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} payments={payments} />
+              <RosterList rows={playing} sessionId={s.id} started={started} cancellable={!finished && s.status !== "cancelled"} currency={org.currency} payments={payments} t={t} />
             )}
           </section>
 
           {requests.length > 0 && (
             <section className="card">
-              <h2>Online requests ({requests.length})</h2>
+              <h2>{t("Online requests")} ({requests.length})</h2>
               <p className="muted small">
-                Waiting for you to approve. Approving books them (or waitlists them if the session has filled up).
+                {t("Waiting for you to approve. Approving books them (or waitlists them if the session has filled up).")}
               </p>
               <ul className="list">
                 {requests.map((r) => (
@@ -178,8 +179,8 @@ export default async function SessionPage({
                     </span>
                     {!finished && s.status !== "cancelled" && (
                       <span className="actions">
-                        <Act sessionId={s.id} id={r.id} action={approveRequest} label="Approve" />
-                        <Act sessionId={s.id} id={r.id} action={declineRequest} label="Decline" danger />
+                        <Act sessionId={s.id} id={r.id} action={approveRequest} label={t("Approve")} t={t} />
+                        <Act sessionId={s.id} id={r.id} action={declineRequest} label={t("Decline")} danger t={t} />
                       </span>
                     )}
                   </li>
@@ -190,18 +191,18 @@ export default async function SessionPage({
 
           {waiting.length > 0 && (
             <section className="card">
-              <h2>Waitlist ({waiting.length})</h2>
-              <p className="muted small">The first person moves up automatically when someone cancels.</p>
-              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable currency={org.currency} payments={payments} />
+              <h2>{t("Waitlist")} ({waiting.length})</h2>
+              <p className="muted small">{t("The first person moves up automatically when someone cancels.")}</p>
+              <RosterList rows={waiting} sessionId={s.id} started={false} cancellable currency={org.currency} payments={payments} t={t} />
             </section>
           )}
 
           {cancelled.length > 0 && (
             <details className="card">
-              <summary className="small" style={{ cursor: "pointer" }}>Cancelled places ({cancelled.length})</summary>
+              <summary className="small" style={{ cursor: "pointer" }}>{t("Cancelled places")} ({cancelled.length})</summary>
               <ul className="list" style={{ marginTop: 8 }}>
                 {cancelled.map((r) => (
-                  <li key={r.id}><span>{r.name}</span><span className="muted small">cancelled</span></li>
+                  <li key={r.id}><span>{r.name}</span><span className="muted small">{t("cancelled")}</span></li>
                 ))}
               </ul>
             </details>
@@ -211,84 +212,83 @@ export default async function SessionPage({
         <div className="stack">
           {s.status !== "cancelled" && finished && (
             <section className="card">
-              <h2>This session has finished</h2>
+              <h2>{t("This session has finished")}</h2>
               <p className="muted small">
-                It ended at {localTime(s.ends_at, tz)}, so sign-ups and cancellations are closed. Use{" "}
-                <Link href={`/sessions?from=${day}`}>Sessions</Link> to find an upcoming one.
+                {t("It ended at {time}, so sign-ups and cancellations are closed.", { time: localTime(s.ends_at, tz) })}{" "}
+                <Link href={`/sessions?from=${day}`}>{t("Find an upcoming session")}</Link>
               </p>
             </section>
           )}
           {s.status !== "cancelled" && !finished && (
             <section className="card">
-              <h2>{s.spots_left === 0 ? "Add to waitlist" : "Sign someone up"}</h2>
+              <h2>{s.spots_left === 0 ? t("Add to waitlist") : t("Sign someone up")}</h2>
               <form action={registerForSession} className="form">
                 <input type="hidden" name="session_id" value={s.id} />
                 <label>
-                  Member
+                  {t("Member")}
                   <select name="member_id" defaultValue="">
-                    <option value="">Guest (enter name below)</option>
+                    <option value="">{t("Guest (enter name below)")}</option>
                     {available.map((m) => (
                       <option key={m.member_id} value={m.member_id}>
                         {m.full_name}
-                        {coverHint.has(m.member_id) ? ` · ${coverHint.get(m.member_id)}` : m.package_name ? ` · ${m.package_name} (not covered)` : ""}
+                        {coverHint.has(m.member_id) ? ` · ${coverHint.get(m.member_id)}` : m.package_name ? ` · ${m.package_name} (${t("not covered")})` : ""}
                       </option>
                     ))}
                   </select>
                 </label>
                 <div className="form-row">
                   <label>
-                    Guest name
+                    {t("Guest name")}
                     <input name="guest_name" placeholder="Tourist Tom" />
                   </label>
                   <label>
-                    Guest phone or WhatsApp
+                    {t("Guest phone or WhatsApp")}
                     <input name="guest_phone" type="tel" placeholder="+66 81 234 5678" />
                   </label>
                 </div>
                 {closed && (
                   <label className="check">
-                    <input type="checkbox" name="allow_late" /> Sign-ups have closed. Add them anyway (desk override)
+                    <input type="checkbox" name="allow_late" /> {t("Sign-ups have closed. Add them anyway (desk override)")}
                   </label>
                 )}
                 {(s.level_min !== null || s.level_max !== null) && (
                   <label className="check">
-                    <input type="checkbox" name="ignore_level" /> Allow even if their level is outside {levelText(s.level_min, s.level_max).toLowerCase()}
+                    <input type="checkbox" name="ignore_level" /> {t("Allow even if their level is outside {level}", { level: levelText(s.level_min, s.level_max, t) })}
                   </label>
                 )}
                 <p className="muted small">
-                  Price {formatMoney(s.price, org.currency)}. Members whose package covers this session pay nothing;
-                  session packs use 1 credit.
+                  {t("Price {price}. Members whose package covers this session pay nothing; session packs use 1 credit.", { price: formatMoney(s.price, org.currency) })}
                 </p>
-                <button className="primary">{s.spots_left === 0 ? "Add to waitlist" : "Sign up"}</button>
+                <button className="primary">{s.spots_left === 0 ? t("Add to waitlist") : t("Sign up")}</button>
               </form>
             </section>
           )}
 
 
           <section className="card">
-            <h2>Details</h2>
+            <h2>{t("Details")}</h2>
             <ul className="list">
-              <li><span className="muted">Location</span><span>{s.location_name}</span></li>
-              <li><span className="muted">Courts</span><span>{s.courts ?? "No court held"}</span></li>
-              {s.coach_name && <li><span className="muted">Coach</span><span>{s.coach_name}</span></li>}
+              <li><span className="muted">{t("Location")}</span><span>{s.location_name}</span></li>
+              <li><span className="muted">{t("Courts")}</span><span>{s.courts ?? t("No court held")}</span></li>
+              {s.coach_name && <li><span className="muted">{t("Coach")}</span><span>{s.coach_name}</span></li>}
               <li>
-                <span className="muted">Sign-ups close</span>
-                <span>{formatLongDay(new Date(s.book_by).toLocaleDateString("en-CA", { timeZone: tz }))} {localTime(s.book_by, tz)}</span>
+                <span className="muted">{t("Sign-ups close")}</span>
+                <span>{formatLongDay(new Date(s.book_by).toLocaleDateString("en-CA", { timeZone: tz }), locale)} {localTime(s.book_by, tz)}</span>
               </li>
-              <li><span className="muted">Booked value</span><span>{formatMoney(revenue, org.currency)}</span></li>
-              <li><span className="muted">From the weekly timetable</span><span>{s.schedule_id ? "Yes" : "No, one-off event"}</span></li>
+              <li><span className="muted">{t("Booked value")}</span><span>{formatMoney(revenue, org.currency)}</span></li>
+              <li><span className="muted">{t("From the weekly timetable")}</span><span>{s.schedule_id ? t("Yes") : t("No, one-off event")}</span></li>
             </ul>
             {s.description && <p className="small" style={{ marginTop: 12 }}>{s.description}</p>}
           </section>
 
           {s.status !== "cancelled" && !finished && (
             <section className="card">
-              <h2>Cancel this session</h2>
-              <p className="muted small">Frees its courts and cancels every place.</p>
+              <h2>{t("Cancel this session")}</h2>
+              <p className="muted small">{t("Frees its courts and cancels every place.")}</p>
               <form action={cancelSession} className="form">
                 <input type="hidden" name="session_id" value={s.id} />
-                <input name="reason" placeholder="Reason, e.g. heavy rain or coach unwell" />
-                <button className="danger">Cancel session</button>
+                <input name="reason" placeholder={t("Reason, e.g. heavy rain or coach unwell")} />
+                <button className="danger">{t("Cancel session")}</button>
               </form>
             </section>
           )}
@@ -305,6 +305,7 @@ function RosterList({
   cancellable,
   currency,
   payments,
+  t,
 }: {
   rows: RosterRow[];
   sessionId: string;
@@ -312,6 +313,7 @@ function RosterList({
   cancellable: boolean;
   currency: string;
   payments: Map<string, { id: string; status: string; method: string | null }>;
+  t: T;
 }) {
   return (
     <ul className="list">
@@ -320,31 +322,31 @@ function RosterList({
           <span>
             {r.member_id ? <Link href={`/members/${r.member_id}`}>{r.name}</Link> : r.name}
             <span className="muted small">
-              {r.is_guest ? " · guest" : ""}
-              {r.source === "online" ? " · booked online" : ""}
+              {r.is_guest ? ` · ${t("guest")}` : ""}
+              {r.source === "online" ? ` · ${t("booked online")}` : ""}
               {r.skill_level ? ` · ${r.skill_level}` : ""}
               {r.language ? ` · ${r.language.toUpperCase()}` : ""}
               {r.phone ? ` · ${r.phone}` : ""}
             </span>
             <div className="small muted">
-              {paymentText(r, currency)}
-              {payments.get(r.id)?.status === "paid" && ` · paid (${METHOD_LABELS[payments.get(r.id)!.method ?? ""] ?? "paid"})`}
-              {payments.get(r.id)?.status === "refund_due" && " · paid, refund to check (Payments)"}
+              {paymentText(r, currency, t)}
+              {payments.get(r.id)?.status === "paid" && ` · ${t("paid")} (${t(METHOD_LABELS[payments.get(r.id)!.method ?? ""] ?? "paid")})`}
+              {payments.get(r.id)?.status === "refund_due" && ` · ${t("paid, refund to check (Payments)")}`}
             </div>
             {payments.get(r.id)?.status === "pending" && (
-              <MarkPaidForm orderId={payments.get(r.id)!.id} returnTo={`/sessions/${sessionId}`} compact />
+              <MarkPaidForm orderId={payments.get(r.id)!.id} returnTo={`/sessions/${sessionId}`} compact t={t} />
             )}
           </span>
           <span className="actions">
-            <span className={`badge ${STATUS_BADGE[r.status] ?? ""}`}>{r.status.replace("_", "-")}</span>
+            <span className={`badge ${STATUS_BADGE[r.status] ?? ""}`}>{t(r.status.replace("_", "-"))}</span>
             {started && r.status === "booked" && (
               <>
-                <Act sessionId={sessionId} id={r.id} action={markAttendance} extra={{ attended: "true" }} label="Attended" />
-                <Act sessionId={sessionId} id={r.id} action={markAttendance} extra={{ attended: "false" }} label="No-show" />
+                <Act sessionId={sessionId} id={r.id} action={markAttendance} extra={{ attended: "true" }} label={t("Attended")} t={t} />
+                <Act sessionId={sessionId} id={r.id} action={markAttendance} extra={{ attended: "false" }} label={t("No-show")} t={t} />
               </>
             )}
             {cancellable && (r.status === "booked" || r.status === "waitlisted") && (
-              <Act sessionId={sessionId} id={r.id} action={cancelRegistration} label="Cancel" danger />
+              <Act sessionId={sessionId} id={r.id} action={cancelRegistration} label={t("Cancel")} danger t={t} />
             )}
           </span>
         </li>
@@ -360,6 +362,7 @@ function Act({
   label,
   extra = {},
   danger = false,
+  t,
 }: {
   sessionId: string;
   id: string;
@@ -367,6 +370,7 @@ function Act({
   label: string;
   extra?: Record<string, string>;
   danger?: boolean;
+  t: T;
 }) {
   return (
     <form action={action} className="inline">
@@ -375,14 +379,14 @@ function Act({
       {Object.entries(extra).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      {danger ? <ConfirmSubmit label={label} confirm={`Yes, ${label.toLowerCase()}`} /> : <button className="link">{label}</button>}
+      {danger ? <ConfirmSubmit label={label} confirm={t("Yes, {action}", { action: label.toLowerCase() })} /> : <button className="link">{label}</button>}
     </form>
   );
 }
 
-function paymentText(r: RosterRow, currency: string): string {
-  if (r.credit_used) return `1 credit from ${r.covered_by}${r.sessions_left !== null ? ` (${r.sessions_left} left)` : ""}`;
-  if (r.covered_by) return `Covered by ${r.covered_by}`;
-  if (r.status === "waitlisted" && Number(r.price) === 0) return "Covered by their package when they move up";
-  return `Pays ${formatMoney(r.price, currency)}`;
+function paymentText(r: RosterRow, currency: string, t: T): string {
+  if (r.credit_used) return `${t("1 credit from {pkg}", { pkg: r.covered_by ?? "" })}${r.sessions_left !== null ? ` (${t("{n} left", { n: r.sessions_left })})` : ""}`;
+  if (r.covered_by) return t("Covered by {pkg}", { pkg: r.covered_by });
+  if (r.status === "waitlisted" && Number(r.price) === 0) return t("Covered by their package when they move up");
+  return t("Pays {amount}", { amount: formatMoney(r.price, currency) });
 }

@@ -15,7 +15,7 @@ const FILTERS: { key: string; label: string; categories?: SessionCategory[] }[] 
 
 export default async function SessionsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const { supabase, org, role, location, workLocation, multiLocation } = await requireOrg();
+  const { supabase, org, role, location, workLocation, multiLocation, t, locale } = await requireOrg();
   const tz = (location ?? workLocation).timezone;
   const today = todayIn(tz);
   const requested = param(sp, "from");
@@ -61,15 +61,15 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
     <>
       <div className="page-head">
         <div>
-          <h1>Sessions</h1>
+          <h1>{t("Sessions")}</h1>
           <p className="muted">
-            {multiLocation ? `${location ? location.name : "All locations"} · ` : ""}Open play, clinics, camps and
-            events people sign up for.
+            {multiLocation ? `${location ? location.name : t("All locations")} · ` : ""}
+            {t("Open play, clinics, camps and events people sign up for.")}
           </p>
         </div>
         <div className="actions">
-          {manager && <Link className="button" href="/sessions/setup">Timetable setup</Link>}
-          {manager && <Link className="button primary" href="/sessions/new">New event</Link>}
+          {manager && <Link className="button" href="/sessions/setup">{t("Timetable setup")}</Link>}
+          {manager && <Link className="button primary" href="/sessions/new">{t("New event")}</Link>}
         </div>
       </div>
       <Banner sp={sp} />
@@ -77,15 +77,14 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
 
       {typeCount === 0 && manager && (
         <div className="card" style={{ marginBottom: 18 }}>
-          <h2>Set up your timetable</h2>
+          <h2>{t("Set up your timetable")}</h2>
           <p className="muted">
-            Add your session types and weekly times in Timetable setup, or load Raccoon Pickleball&apos;s published
-            timetable (open play, adult and kids clinics, match play, Coach Kimo camps) to try things out.
+            {t("Add your session types and weekly times in Timetable setup, or load Raccoon Pickleball's published timetable (open play, adult and kids clinics, match play, Coach Kimo camps) to try things out.")}
           </p>
           <div className="actions" style={{ marginTop: 10 }}>
-            <Link className="button primary" href="/sessions/setup">Set up timetable</Link>
+            <Link className="button primary" href="/sessions/setup">{t("Set up timetable")}</Link>
             <form action={loadRaccoonDemo} className="inline">
-              <button>Load Raccoon demo timetable</button>
+              <button>{t("Load Raccoon demo timetable")}</button>
             </form>
           </div>
         </div>
@@ -93,19 +92,19 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
 
       <div className="actions" style={{ justifyContent: "space-between", marginBottom: 14 }}>
         <div className="actions">
-          <Link className="button" href={link({ from: addDays(from, -7) })} aria-label="Previous week">←</Link>
-          <span className="small">{formatLongDay(from)} to {formatLongDay(addDays(from, 6))}</span>
-          <Link className="button" href={link({ from: addDays(from, 7) })} aria-label="Next week">→</Link>
-          {from !== today && <Link className="button" href={link({ from: today })}>This week</Link>}
+          <Link className="button" href={link({ from: addDays(from, -7) })} aria-label={t("Previous week")}>←</Link>
+          <span className="small">{formatLongDay(from, locale)} – {formatLongDay(addDays(from, 6), locale)}</span>
+          <Link className="button" href={link({ from: addDays(from, 7) })} aria-label={t("Next week")}>→</Link>
+          {from !== today && <Link className="button" href={link({ from: today })}>{t("This week")}</Link>}
         </div>
         <div className="actions">
           {FILTERS.map((f) => (
             <Link key={f.key} href={link({ show: f.key })} className={`badge ${f.key === filter.key ? "ok" : ""}`}>
-              {f.label}
+              {t(f.label)}
             </Link>
           ))}
           <Link href={link({ cancelled: showCancelled ? "0" : "1" })} className="badge">
-            {showCancelled ? "Hide cancelled" : "Show cancelled"}
+            {showCancelled ? t("Hide cancelled") : t("Show cancelled")}
           </Link>
         </div>
       </div>
@@ -114,11 +113,11 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         {[...byDay.entries()].map(([day, list]) => (
           <section key={day} className="card">
             <h3>
-              {formatLongDay(day)}
-              {day === today && <span className="badge ok" style={{ marginLeft: 8 }}>Today</span>}
+              {formatLongDay(day, locale)}
+              {day === today && <span className="badge ok" style={{ marginLeft: 8 }}>{t("Today")}</span>}
             </h3>
             {list.length === 0 ? (
-              <p className="muted small">Nothing scheduled.</p>
+              <p className="muted small">{t("Nothing scheduled.")}</p>
             ) : (
               <div className="table-wrap">
                 <table className="session-table">
@@ -133,15 +132,15 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
                           <Link href={`/sessions/${s.id}`}>{s.name}</Link>
                           <div className="muted small">
                             {multiLocation && !location ? `${s.location_name} · ` : ""}
-                            {CATEGORY_LABELS[s.category]} · {levelText(s.level_min, s.level_max)}
-                            {s.min_age ? ` · age ${s.min_age}+` : ""}
+                            {t(CATEGORY_LABELS[s.category])} · {levelText(s.level_min, s.level_max, t)}
+                            {s.min_age ? ` · ${t("age {n}+", { n: s.min_age })}` : ""}
                             {s.courts ? ` · ${s.courts}` : ""}
                             {s.coach_name ? ` · ${s.coach_name}` : ""}
                           </div>
                         </td>
                         <td style={{ width: 110 }}>{formatMoney(s.price, org.currency)}</td>
                         <td style={{ width: 90 }}><Spots s={s} /></td>
-                        <td style={{ width: 150, textAlign: "right" }}><SessionStatusBadge s={s} /></td>
+                        <td style={{ width: 150, textAlign: "right" }}><SessionStatusBadge s={s} t={t} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -153,21 +152,20 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
-        <h3>Housekeeping</h3>
+        <h3>{t("Housekeeping")}</h3>
         <p className="muted small">
-          The timetable fills the next 2 weeks by itself every hour. The go / no-go check doesn&apos;t run by itself
-          yet (it will once players get automatic WhatsApp notices), so run it here a few hours before sessions.
+          {t("The timetable fills the next 2 weeks by itself every hour. The go / no-go check doesn't run by itself yet (it will once players get automatic WhatsApp notices), so run it here a few hours before sessions.")}
         </p>
         <div className="actions" style={{ marginTop: 8 }}>
           {manager && (
             <form action={generateSessions} className="inline">
               <input type="hidden" name="return_to" value={here} />
-              <button>Fill the next 2 weeks from the timetable</button>
+              <button>{t("Fill the next 2 weeks from the timetable")}</button>
             </form>
           )}
           <form action={runMinimumCheck} className="inline">
             <input type="hidden" name="return_to" value={here} />
-            <button>Run go / no-go check</button>
+            <button>{t("Run go / no-go check")}</button>
           </form>
         </div>
       </div>
