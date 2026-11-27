@@ -1,10 +1,10 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { currentHost } from "@/lib/host";
 import type { Location, Org, StaffRole } from "@/lib/types";
 import { back } from "@/lib/form";
-import { ROLE_LABELS, type Permission } from "@/lib/permissions";
+import { ROLE_LABELS, SUPPORT_PERMISSIONS, type Permission } from "@/lib/permissions";
 
 export const ORG_COOKIE = "club_id";
 export const LOCATION_COOKIE = "location_id";
@@ -14,7 +14,10 @@ export interface OrgContext {
   userId: string;
   email: string | null;
   org: Org;
-  role: StaffRole;
+  /** "support": Courtix support looking at the club during a session its owner allowed (read-only). */
+  role: StaffRole | "support";
+  /** Set while Courtix support is viewing: when the owner's permission ends. */
+  supportUntil: string | null;
   /** What this person's role may do here (from role_permissions; the database enforces it). */
   permissions: Permission[];
   can: (permission: Permission) => boolean;
@@ -54,12 +57,13 @@ export async function requireOrg(): Promise<OrgContext> {
 
   if (error) throw new Error(error.message);
 
-  let memberships = (rows ?? []) as unknown as { role: StaffRole; location_ids: string[] | null; orgs: Org }[];
+  let memberships = (rows ?? []) as unknown as { role: StaffRole | "support"; location_ids: string[] | null; orgs: Org }[];
   const host = await currentHost();
   const jar = await cookies();
   const chosen = jar.get(ORG_COOKIE)?.value;
 
   let current: (typeof memberships)[number] | undefined;
+  let supportUntil: string | null = null;
   if (host.kind === "club") {
     current = memberships.find((m) => m.orgs.slug === host.slug);
     // Invited here but never finished joining (e.g. came back from the confirmation email
@@ -75,13 +79,32 @@ export async function requireOrg(): Promise<OrgContext> {
     if (!current) {
       const { data: club } = await supabase.rpc("club_by_slug", { p_slug: host.slug });
       if (!club || club.length === 0) notFound();
-      redirect("/no-access");
+      const clubId = (club as { id: string }[])[0].id;
+      // Courtix support, during a session the club owner allowed: read-only view.
+      const { data: canView } = await supabase.rpc("support_can_view", { p_org: clubId });
+      if (!canView) redirect("/no-access");
+      const [{ data: orgRow }, { data: grant }] = await Promise.all([
+        supabase.from("orgs").select("*").eq("id", clubId).single(),
+        supabase.from("support_grants").select("expires_at").eq("org_id", clubId).is("ended_at", null)
+          .gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      if (!orgRow) redirect("/no-access");
+      current = { role: "support", location_ids: null, orgs: orgRow as Org };
+      supportUntil = (grant as { expires_at: string } | null)?.expires_at ?? null;
+      const h = await headers();
+      const path = h.get("x-pathname") ?? "/dashboard";
+      // Nothing can be changed in support view (the database has no write rules for support
+      // either; this also stops actions that would message members before touching the database).
+      const method = h.get("x-request-method") ?? "GET";
+      if (h.get("next-action") || (method !== "GET" && method !== "HEAD")) back(path, "Courtix support view is read-only. Ask the club to make changes.");
+      await supabase.rpc("log_support_view", { p_org: clubId, p_path: path });
     }
   } else {
     if (memberships.length === 0) {
       const { data: joined } = await supabase.rpc("accept_my_invites");
       if (joined && (joined as unknown[]).length > 0) redirect("/dashboard");
-      redirect("/onboarding");
+      const { data: team } = await supabase.rpc("platform_role");
+      redirect(team ? "/admin" : "/onboarding");
     }
     current = memberships.find((m) => m.orgs.id === chosen) ?? memberships[0];
     // The main site isn't a club: go to this person's club subdomain.
@@ -96,7 +119,9 @@ export async function requireOrg(): Promise<OrgContext> {
       .order("is_active", { ascending: false })
       .order("sort_order")
       .order("name"),
-    supabase.from("role_permissions").select("permission").eq("role", current.role),
+    current.role === "support"
+      ? Promise.resolve({ data: SUPPORT_PERMISSIONS.map((permission) => ({ permission })), error: null })
+      : supabase.from("role_permissions").select("permission").eq("role", current.role),
   ]);
   if (locError) throw new Error(locError.message);
   if (permError) throw new Error(permError.message);
@@ -121,6 +146,7 @@ export async function requireOrg(): Promise<OrgContext> {
     email: user.email ?? null,
     org: current.orgs,
     role: current.role,
+    supportUntil,
     permissions,
     can: (p: Permission) => permissions.includes(p),
     clubs: memberships.map((m) => ({ id: m.orgs.id, name: m.orgs.name, slug: m.orgs.slug })),
@@ -133,7 +159,7 @@ export async function requireOrg(): Promise<OrgContext> {
 }
 
 /** Owners and admins: every location, and club setup (same as the club.setup permission). */
-export function canManage(role: StaffRole) {
+export function canManage(role: StaffRole | "support") {
   return role === "owner" || role === "manager";
 }
 
@@ -143,6 +169,6 @@ export function canManage(role: StaffRole) {
  */
 export async function requirePermission(permission: Permission, path = "/dashboard"): Promise<OrgContext> {
   const ctx = await requireOrg();
-  if (!ctx.can(permission)) back(path, `${ROLE_LABELS[ctx.role]} can't do that. Ask the club owner if you need it.`);
+  if (!ctx.can(permission)) back(path, `${ctx.role === "support" ? "Courtix support" : ROLE_LABELS[ctx.role]} can't do that. Ask the club owner if you need it.`);
   return ctx;
 }

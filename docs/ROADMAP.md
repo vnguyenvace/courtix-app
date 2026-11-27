@@ -329,9 +329,16 @@ Done when: jobs are scheduled in the hosted project and their last runs are visi
 - **Go / no-go is deliberately not scheduled**: it would cancel sessions without telling players. Schedule it in Step 9 together with automatic cancellation notices (needs Julian's OK: it's automatic messaging).
 - The daily AI draft run belongs to Step 9b (morning approval list).
 
-## Step 10b: Courtix team roles  ☐
+## Step 10b: Courtix team roles  ☑
 
 Julian's own team (27 Nov 2026 plan): `platform_staff (user_id, role)` with super_admin, support, sales, marketing, kept apart from club staff. A separate admin area (e.g. `admin.courtix.app`) lists clubs, plans and usage. Sales and marketing see no member personal data. **Support sessions:** support sees a club's member data only when its owner allows it, for a limited time (e.g. 24 hours), with every view logged and visible to the owner (PDPA: the club is the controller). Julian agreed to "owner allows it" on 27 Nov 2026.
+
+**Done 27 Nov 2026** (migration `20261127020000_platform_team.sql`, test `platform_team_test.sql`):
+- `platform_staff` with `platform_role()`. **The first super admin is added by hand** in the Supabase SQL editor (the SQL is in the migration header). After that, super admins add people at `/admin/team`; they need a Courtix account first. Courtix always keeps one super admin.
+- **Admin area** `courtix.app/admin` (`lib/platform.ts`, `app/admin/`): clubs with usage numbers (`platform_clubs()`, no member data). Owner email is hidden from marketing. Support status per club. Super admins also see recent support views. Non-team people get "not found". Team members without a club land here after sign-in.
+- **Support sessions:** the owner allows Courtix support for 2 hours to 7 days, or ends it, on the Staff page (`allow_support_access`, `end_support_access`). During a session, support/super admin get **select-only** policies on club tables (`support_can_view`). `requireOrg()` gives them role `support`: read-only, all POSTs and server actions refused, every page logged (`log_support_view`, path from the middleware's `x-pathname`), and a banner. The owner sees the log on the Staff page.
+- Local seed: `demo@clubos.test` is also a super admin.
+- **Left open:** suspending a club and billing (Step 11); support can't see messaging channel settings (encrypted keys) by design; no alert to the owner when support first opens the club (the log is on the Staff page).
 
 ## Step 11: SaaS billing  ☐
 

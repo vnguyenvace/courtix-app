@@ -107,3 +107,20 @@ export async function removeStaff(form: FormData) {
   if (user === userId) back("/no-access", "You left the club.", "notice");
   back(PAGE, `Removed from ${org.name}. They can't sign in to it any more.`, "notice");
 }
+
+export async function allowSupport(form: FormData) {
+  const { supabase, org } = await requirePermission("staff.manage", PAGE);
+  const hours = Number(str(form, "hours")) || 24;
+  const { error } = await supabase.rpc("allow_support_access", { p_org: org.id, p_hours: hours, p_note: str(form, "note") || null });
+  if (error) back(PAGE + "#support", friendly(error));
+  revalidatePath(PAGE);
+  back(PAGE + "#support", `Courtix support can view your club for ${hours === 1 ? "1 hour" : hours < 48 ? `${hours} hours` : `${hours / 24} days`}. You can end it any time.`, "notice");
+}
+
+export async function endSupport() {
+  const { supabase, org } = await requirePermission("staff.manage", PAGE);
+  const { error } = await supabase.rpc("end_support_access", { p_org: org.id });
+  if (error) back(PAGE + "#support", friendly(error));
+  revalidatePath(PAGE);
+  back(PAGE + "#support", "Courtix support access ended.", "notice");
+}

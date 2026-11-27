@@ -66,3 +66,24 @@ export const PAGE_PERMISSION: Record<string, Permission> = {
 
 /** The invite link is shown once to the owner after adding someone (the database keeps only a hash). */
 export const INVITE_LINK_COOKIE = "staff_invite_link";
+
+/** Courtix support during a session the club owner allowed: pages to look at. Nothing can be changed. */
+export const SUPPORT_PERMISSIONS: Permission[] = ["members.view", "payments.record", "chats.reply", "followups.send", "reports.view"];
+
+export type PlatformRole = "super_admin" | "support" | "sales" | "marketing";
+
+export const PLATFORM_ROLES: PlatformRole[] = ["super_admin", "support", "sales", "marketing"];
+
+export const PLATFORM_ROLE_LABELS: Record<PlatformRole, string> = {
+  super_admin: "Super admin",
+  support: "Support",
+  sales: "Sales",
+  marketing: "Marketing",
+};
+
+export const PLATFORM_ROLE_DESCRIPTIONS: Record<PlatformRole, string> = {
+  super_admin: "Everything in Courtix admin, including the team.",
+  support: "Club list. Views a club's data only while its owner allows Courtix support (logged).",
+  sales: "Club list with owner contact and usage numbers. No member data.",
+  marketing: "Club list and usage numbers. No member data or owner contact.",
+};

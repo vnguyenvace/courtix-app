@@ -4,7 +4,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { requirePermission } from "@/lib/org";
 import { INVITE_LINK_COOKIE, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from "@/lib/permissions";
 import type { Location, StaffRole } from "@/lib/types";
-import { cancelInvite, inviteStaff, removeStaff, renewInvite, updateStaff } from "./actions";
+import { allowSupport, cancelInvite, endSupport, inviteStaff, removeStaff, renewInvite, updateStaff } from "./actions";
 
 interface StaffRow {
   user_id: string;
@@ -48,7 +48,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
   const active = locations.filter((l) => l.is_active);
   const locName = new Map(locations.map((l) => [l.id, l.name]));
 
-  const [{ data: staffData, error }, { data: inviteData }] = await Promise.all([
+  const [{ data: staffData, error }, { data: inviteData }, { data: grantData }, { data: logData }] = await Promise.all([
     supabase.rpc("club_staff", { p_org: org.id }),
     supabase
       .from("staff_invites")
@@ -56,7 +56,26 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
       .eq("org_id", org.id)
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("support_grants")
+      .select("expires_at, note")
+      .eq("org_id", org.id)
+      .is("ended_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("support_access_log")
+      .select("id, email, path, viewed_at")
+      .eq("org_id", org.id)
+      .order("viewed_at", { ascending: false })
+      .limit(30),
   ]);
+  const grant = grantData as { expires_at: string; note: string | null } | null;
+  const supportLog = (logData ?? []) as { id: number; email: string | null; path: string | null; viewed_at: string }[];
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString("en-GB", { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   if (error) throw new Error(error.message);
   const staff = (staffData ?? []) as StaffRow[];
   const invites = (inviteData ?? []) as InviteRow[];
@@ -172,7 +191,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
         </section>
       )}
 
-      <section className="card">
+      <section className="card" style={{ marginBottom: 16 }}>
         <h2>Add someone</h2>
         <form action={inviteStaff} className="form">
           <label>
@@ -200,6 +219,56 @@ export default async function StaffPage({ searchParams }: { searchParams: Search
             apply to owners and admins.
           </p>
         </form>
+      </section>
+
+      <section className="card" id="support">
+        <h2>Courtix support access</h2>
+        {grant ? (
+          <>
+            <p>
+              Courtix support can <strong>view</strong> your club until <strong>{when(grant.expires_at)}</strong>
+              {grant.note ? ` (${grant.note})` : ""}. They can&apos;t change anything, and every page they open is listed below.
+            </p>
+            <form action={endSupport} className="actions" style={{ marginTop: 8 }}>
+              <button className="danger">End access now</button>
+            </form>
+          </>
+        ) : (
+          <form action={allowSupport} className="form">
+            <p className="muted small">
+              Courtix support can&apos;t see your members, bookings or payments unless you allow it here. Allow it when you&apos;ve
+              asked for help; they can only look, not change anything, and it ends by itself.
+            </p>
+            <label>
+              For
+              <select name="hours" defaultValue="24">
+                <option value="2">2 hours</option>
+                <option value="24">24 hours</option>
+                <option value="72">3 days</option>
+                <option value="168">7 days</option>
+              </select>
+            </label>
+            <label>
+              What it&apos;s about (optional)
+              <input name="note" maxLength={300} placeholder="LINE replies stopped working" />
+            </label>
+            <div className="actions">
+              <button>Allow Courtix support</button>
+            </div>
+          </form>
+        )}
+        {supportLog.length > 0 && (
+          <details style={{ marginTop: 12 }}>
+            <summary className="small">What Courtix support looked at ({supportLog.length})</summary>
+            <ul className="list small" style={{ marginTop: 8 }}>
+              {supportLog.map((l) => (
+                <li key={l.id}>
+                  {when(l.viewed_at)} · {l.email ?? "Courtix support"} · {l.path ?? "page"}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
     </>
   );

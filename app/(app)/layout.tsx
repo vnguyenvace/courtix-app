@@ -44,7 +44,7 @@ async function switchLocation(form: FormData) {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { org, email, clubs, location, myLocations, multiLocation, role, can } = await requireOrg();
+  const { org, email, clubs, location, myLocations, multiLocation, role, can, supportUntil } = await requireOrg();
   const allowed = NAV_HREFS.filter((href) => !PAGE_PERMISSION[href] || can(PAGE_PERMISSION[href]));
   const canSeeAll = role === "owner" || role === "manager" || myLocations.length > 1;
 
@@ -100,7 +100,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        {role === "support" && (
+          <p className="banner warn" role="status">
+            Courtix support view of {org.name}: read only, every page you open is logged for the club.
+            {supportUntil && ` The owner's permission ends ${new Date(supportUntil).toLocaleString("en-GB", { timeZone: org.timezone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`}
+          </p>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

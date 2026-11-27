@@ -14,7 +14,14 @@ const PUBLIC_PATHS = ["/login", "/auth", "/book", "/guides", "/privacy", "/terms
 
 // Keeps the Supabase session fresh and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // The page path, for server code (the support view log). Set on every forwarded request.
+  const forward = () => {
+    const h = new Headers(request.headers);
+    h.set("x-pathname", request.nextUrl.pathname);
+    h.set("x-request-method", request.method);
+    return NextResponse.next({ request: { headers: h } });
+  };
+  let response = forward();
   // One sign-in for courtix.app and every club subdomain (see lib/tenant.ts).
   const domain = cookieDomain(requestHost(request.headers));
 
@@ -29,7 +36,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = forward();
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );

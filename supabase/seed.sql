@@ -4,6 +4,7 @@
 -- Sign in at http://raccoon.courtix.localhost:3000 (Chrome) with:  demo@clubos.test / password123
 -- A second club, Chalong Padel (http://chalong.courtix.localhost:3000), belongs to
 -- other@clubos.test / password123, to check that clubs can't see each other.
+-- demo@clubos.test is also a Courtix super admin: http://courtix.localhost:3000/admin
 --
 -- What you get: Raccoon Pickleball with its real timetable and prices (load_raccoon_demo),
 -- 12 sample members with packages and visit history (add_demo_data), WhatsApp numbers,
@@ -200,3 +201,7 @@ update public.orders o
         or exists (select 1 from public.order_items i
                      join public.session_overview s on s.id = (select r.session_id from public.session_registrations r where r.id = i.registration_id)
                     where i.order_id = o.id and s.starts_at < now()));
+
+-- Courtix team (Step 10b): the demo login is also a Courtix super admin, so the admin area
+-- (http://courtix.localhost:3000/admin) can be tried locally.
+insert into public.platform_staff (user_id, role) values ('d0000000-0000-4000-8000-000000000001', 'super_admin');
