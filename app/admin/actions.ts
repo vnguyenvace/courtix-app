@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePlatform } from "@/lib/platform";
 import { back, friendly, str } from "@/lib/form";
+import { emailConfigured, sendEmail } from "@/lib/email";
 import { PLATFORM_ROLES, PLATFORM_ROLE_LABELS, type PlatformRole } from "@/lib/permissions";
 
 const TEAM = "/admin/team";
@@ -24,4 +25,37 @@ export async function removeTeamMember(form: FormData) {
   if (error) back(TEAM, friendly(error));
   revalidatePath(TEAM);
   back(TEAM, "Removed from the Courtix team.", "notice");
+}
+
+const HELP = "/admin/help";
+
+export async function replyToRequest(form: FormData) {
+  const { supabase, host } = await requirePlatform(["super_admin", "support"]);
+  const closeOnly = form.get("intent") === "close";
+  const reply = closeOnly ? "" : str(form, "reply");
+  const close = closeOnly || form.get("close") === "on";
+  const { data, error } = await supabase.rpc("platform_reply_support_request", {
+    p_request: str(form, "request_id"),
+    p_reply: reply,
+    p_close: close,
+  });
+  if (error) back(HELP, friendly(error));
+
+  // Email the reply to whoever asked.
+  const to = ((data ?? []) as { email: string | null; club_name: string; club_slug: string }[])[0];
+  let emailed = false;
+  if (to?.email && reply && emailConfigured()) {
+    try {
+      await sendEmail(
+        to.email,
+        `Courtix support replied about ${to.club_name}`,
+        [reply, "", `See it in Courtix: ${host.kind === "other" ? "/help" : host.clubUrl(to.club_slug, "/help")}`].join("\n"),
+      );
+      emailed = true;
+    } catch (e) {
+      console.error("Help reply email failed", e instanceof Error ? e.message : e);
+    }
+  }
+  revalidatePath(HELP);
+  back(HELP, reply ? `Reply saved${emailed ? " and emailed" : ""}${close ? ", request closed" : ""}.` : "Request closed.", "notice");
 }

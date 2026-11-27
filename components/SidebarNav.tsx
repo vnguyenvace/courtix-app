@@ -7,6 +7,7 @@ import {
   CalendarDays,
   House,
   LayoutGrid,
+  LifeBuoy,
   MessageSquareReply,
   MessagesSquare,
   Settings,
@@ -30,6 +31,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/followups", label: "AI follow-ups", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/staff", label: "Staff", icon: UserCog },
+  { href: "/help", label: "Get help", icon: LifeBuoy },
 ];
 
 // The phone menu opens with a checkbox (id "nav-toggle" in app/(app)/layout.tsx; works without JS).

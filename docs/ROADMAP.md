@@ -339,6 +339,14 @@ Julian's own team (27 Nov 2026 plan): `platform_staff (user_id, role)` with supe
 - **Support sessions:** the owner allows Courtix support for 2 hours to 7 days, or ends it, on the Staff page (`allow_support_access`, `end_support_access`). During a session, support/super admin get **select-only** policies on club tables (`support_can_view`). `requireOrg()` gives them role `support`: read-only, all POSTs and server actions refused, every page logged (`log_support_view`, path from the middleware's `x-pathname`), and a banner. The owner sees the log on the Staff page.
 - Local seed: `demo@clubos.test` is also a super admin.
 - **Left open:** suspending a club and billing (Step 11); support can't see messaging channel settings (encrypted keys) by design; no alert to the owner when support first opens the club (the log is on the Staff page).
+- Production: the first super admin is `admin@courtix.app` (added 27 Nov 2026). Julian's club test accounts (`demo1@courtix.app`, his Gmail) are club admins, not team.
+
+**Help requests, done 27 Nov 2026** (migration `20261127030000_support_requests.sql`, test `support_requests_test.sql`):
+- **Get help** in every club's sidebar (`/help`, all staff): describe the problem, optional "best way to reach you". The owner (staff.manage) can tick "Let Courtix support look" (2 hours to 7 days) in the same step; an open support session is kept. Other staff can ask, but can't open access. Max 5 requests an hour per person.
+- **Team notified by email** (Resend, if `RESEND_API_KEY` and `EMAIL_FROM` are set): every super admin and support person, with the message and a link to the admin page. `support_request_notify_list()` returns their emails only to the person who just sent the request.
+- **`courtix.app/admin/help`** (super admin and support; sales and marketing can't see requests because they may contain member details): open requests with the club, sender, contact, whether access is allowed, and "Open club (read only)". Reply (replaces the earlier reply), close, or close without reply. The reply shows on the club's Get help page and is emailed to the sender. The admin nav shows the open count.
+- The club sees its requests and replies and can mark them solved.
+- **Left open:** one reply per request (no back-and-forth thread); no LINE notification to the team; there's no Forgot password / Change password yet (passwords are reset by hand in SQL).
 
 ## Step 11: SaaS billing  ☐
 
