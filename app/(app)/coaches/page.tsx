@@ -1,4 +1,5 @@
 import { Banner, param, type SearchParams } from "@/components/Banner";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { requirePermission } from "@/lib/org";
 import { formatMoney, isValidDate, todayIn } from "@/lib/time";
 import type { Coach, CoachScheduleRow, Court, LessonRate, Location, MemberStatus } from "@/lib/types";
@@ -189,7 +190,7 @@ export default async function CoachesPage({ searchParams }: { searchParams: Sear
                       <input type="hidden" name="booking_id" value={r.booking_id} />
                       <input type="hidden" name="status" value="cancelled" />
                       <input type="hidden" name="return_to" value="/coaches" />
-                      <button className="link">Cancel lesson</button>
+                      <ConfirmSubmit label="Cancel lesson" confirm="Yes, cancel lesson" />
                     </form>
                   )}
                 </li>

@@ -11,6 +11,9 @@ import { encryptSecret, secretsConfigured } from "@/lib/secrets";
 import { promptPayKind } from "@/lib/promptpay";
 import { LineError, lineBotInfo } from "@/lib/line";
 import { sendPendingNotices } from "@/lib/notices";
+import { staffApiMessage } from "@/lib/chat";
+import { deliverChat } from "@/lib/messaging";
+import { formatMoney } from "@/lib/time";
 import type { BookingKind, MessageChannel } from "@/lib/types";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
@@ -685,8 +688,47 @@ export async function toggleLocation(form: FormData) {
 export async function decideCourtRequest(form: FormData) {
   const { supabase, org } = await requireOrg();
   const approve = str(form, "approve") === "true";
-  const { error } = await supabase.rpc("decide_online_court", { p_booking: str(form, "booking_id"), p_approve: approve });
+  const bookingId = str(form, "booking_id");
+  // Read it first: a request made in a chat gets the answer in that chat.
+  const { data: req } = await supabase
+    .from("booking_calendar")
+    .select("start_at, end_at, price, member_id, court_name, location_name")
+    .eq("id", bookingId)
+    .maybeSingle();
+  const { data: extra } = await supabase
+    .from("bookings")
+    .select("chat_conversation_id, coaches(name), locations(timezone)")
+    .eq("id", bookingId)
+    .maybeSingle();
+  const { error } = await supabase.rpc("decide_online_court", { p_booking: bookingId, p_approve: approve });
   if (error) back("/dashboard", friendly(error));
+  const chatId = (extra as { chat_conversation_id: string | null } | null)?.chat_conversation_id ?? null;
+  // Members on LINE get the usual confirmation notice; visitors (and every decline) hear it in the chat.
+  let toldInChat = false;
+  if (chatId && req && (!approve || !req.member_id)) {
+    const coach = (extra as unknown as { coaches: { name: string } | null }).coaches?.name;
+    const tz = (extra as unknown as { locations: { timezone: string } | null }).locations?.timezone ?? org.timezone;
+    const day = new Date(req.start_at).toLocaleDateString("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short" });
+    const t = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
+    const what = coach ? `your lesson with ${coach}` : `your booking for ${req.court_name}`;
+    const text = approve
+      ? `Confirmed: ${what} on ${day}, ${t(req.start_at)}–${t(req.end_at)} (${req.court_name}, ${req.location_name}). ${
+          Number(req.price) > 0 ? `${formatMoney(Number(req.price), org.currency)}, pay at the club. ` : ""
+        }See you on court.`
+      : `Sorry, we can't confirm ${what} on ${day} at ${t(req.start_at)}. Reply here and we'll find another time.`;
+    const { error: msgErr } = await supabase.from("chat_messages").insert({
+      org_id: org.id,
+      conversation_id: chatId,
+      role: "staff",
+      body: text,
+      api: staffApiMessage(text),
+    });
+    if (!msgErr) {
+      await supabase.from("chat_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", chatId);
+      await deliverChat(supabase, chatId);
+      toldInChat = true;
+    }
+  }
   if (approve) await sendPendingNotices(supabase, org.id); // the member's confirmation (LINE when linked)
   revalidatePath("/dashboard");
   revalidatePath("/bookings");
@@ -695,8 +737,12 @@ export async function decideCourtRequest(form: FormData) {
   back(
     "/dashboard",
     approve
-      ? "Request approved. Members get the confirmation automatically; let guests know on WhatsApp."
-      : "Request declined. The court (and coach) are free again.",
+      ? toldInChat
+        ? "Request approved. We told them in the chat."
+        : req?.member_id
+          ? "Request approved. The member gets the confirmation automatically."
+          : "Request approved. Let them know on WhatsApp."
+      : `Request declined. The court (and coach) are free again.${toldInChat ? " We told them in the chat." : ""}`,
     "notice",
   );
 }

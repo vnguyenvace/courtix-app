@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
@@ -122,7 +123,7 @@ export default async function MemberPage({
                         <form action={cancelMembership} className="inline">
                           <input type="hidden" name="member_id" value={m.id} />
                           <input type="hidden" name="membership_id" value={x.id} />
-                          <button className="link danger">Cancel</button>
+                          <ConfirmSubmit label="Cancel" confirm="Yes, cancel package" />
                         </form>
                       )}
                     </span>
@@ -242,7 +243,7 @@ export default async function MemberPage({
                           <input type="hidden" name="booking_id" value={b.id} />
                           <input type="hidden" name="status" value="cancelled" />
                           <input type="hidden" name="return_to" value={path} />
-                          <button className="link danger">Cancel</button>
+                          <ConfirmSubmit label="Cancel" confirm="Yes, cancel booking" />
                         </form>
                       )}
                     </span>

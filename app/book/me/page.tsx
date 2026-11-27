@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import Link from "next/link";
 import { param, type SearchParams } from "@/components/Banner";
 import { ClubLogo } from "@/components/ClubLogo";
@@ -136,7 +137,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Searc
                     <form action={memberCancel}>
                       <input type="hidden" name="kind" value="session" />
                       <input type="hidden" name="id" value={r.id} />
-                      <button className="link danger">Cancel</button>
+                      <ConfirmSubmit label="Cancel" confirm="Yes, cancel" />
                     </form>
                   </li>
                 ))}
@@ -150,7 +151,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Searc
                     <form action={memberCancel}>
                       <input type="hidden" name="kind" value="court" />
                       <input type="hidden" name="id" value={b.id} />
-                      <button className="link danger">Cancel</button>
+                      <ConfirmSubmit label="Cancel" confirm="Yes, cancel" />
                     </form>
                   </li>
                 ))}

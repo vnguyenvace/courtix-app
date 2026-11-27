@@ -91,6 +91,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </form>
             )}
             <span className="user-email" title={email ?? undefined}>{email}</span>
+            {role !== "support" && (
+              <Link href="/account/password" className="small" style={{ padding: "0 12px" }}>Change password</Link>
+            )}
             <form action={signOut}>
               <button className="nav-button">
                 <LogOut size={18} strokeWidth={1.75} aria-hidden />

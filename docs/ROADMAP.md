@@ -91,7 +91,7 @@ Works but may feel wrong at a front desk (ask Julian before changing):
 - **Send on WhatsApp** marks the message sent as soon as WhatsApp opens, and it opens in the same tab, so the desk leaves the app.
 - Sample members have no phone numbers, so the demo never shows **Send on WhatsApp**. Could add numbers in a new migration that replaces `add_demo_data`.
 - "Court 1 is already booked at that time" is also shown when a **session** holds the court; naming the session ("held by Open play 08:30–11:30") would help.
-- "Cancel" on a sign-up or court booking acts on one tap, with no confirmation.
+- ~~"Cancel" on a sign-up or court booking acts on one tap, with no confirmation.~~ Fixed 27 Nov 2026: every cancel (courts, lessons, session places and requests, packages, members' own bookings) asks "Yes, cancel …" first (`components/ConfirmSubmit.tsx`, works without JavaScript).
 - Courts header says "9 booked of 70 slots" but counts bookings (a 3-hour session is 1), not slots.
 - Kids clinic (age 8+) lists every member in the sign-up picker; members have no birth date, so the age rule can't be checked for members.
 - Coach Kimo camps (21 Nov) show the 2,500 early-bird price after the 15 Nov deadline: expected until Step 4 (price tiers).
@@ -365,6 +365,13 @@ Julian's own team (27 Nov 2026 plan): `platform_staff (user_id, role)` with supe
 - **`courtix.app/admin/help`** (super admin and support; sales and marketing can't see requests because they may contain member details): open requests with the club, sender, contact, whether access is allowed, and "Open club (read only)". Reply (replaces the earlier reply), close, or close without reply. The reply shows on the club's Get help page and is emailed to the sender. The admin nav shows the open count.
 - The club sees its requests and replies and can mark them solved.
 - **Left open:** one reply per request (no back-and-forth thread); no LINE notification to the team; there's no Forgot password / Change password yet (passwords are reset by hand in SQL).
+
+## Quick fixes (27 Nov 2026)  ☑
+- **Forgot password** (`/login/forgot`) emails a link that signs them in and opens **Choose a new password** (`/account/password?reset=1`). **Change password** (`/account/password`) is linked under the email in the club sidebar and in the Courtix admin header. Production: the reset email comes from Supabase Auth, so add `https://courtix.app/**` (as well as `https://*.courtix.app/**`) to Supabase → Authentication → Redirect URLs, and set up a real SMTP sender (Supabase's built-in sender is limited to a few emails an hour). The link works in the browser that asked for it.
+- **Auth callback fix:** after an email link it redirected to the server's own address (behind a proxy, e.g. `localhost:3100`), where the sign-in cookie doesn't reach; it now uses the address the person came from (`x-forwarded-host`). Affects reset links, sign-up confirmation and staff invites.
+- **Cancel asks first** (see Step 0).
+- **Chat requests get the answer in the chat:** lesson requests remember their chat (`bookings.chat_conversation_id`, migration `20261127060000_chat_request_reply.sql`). Approving a visitor's request, or declining any chat request, posts a message in that chat (sent on LINE for LINE chats). Members still get the usual confirmation notice when approved. The message is in English for now.
+- `sessions_test` makes its own camp 5 days ahead (the demo's camps are on fixed November dates).
 
 ## Step 11: SaaS billing  ☐
 

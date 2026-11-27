@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { requireOrg } from "@/lib/org";
 import { Banner, param, type SearchParams } from "@/components/Banner";
 import { addDays, formatLongDay, isValidDate, localTime, slotTimes, todayIn, zonedToUtc } from "@/lib/time";
@@ -216,7 +217,11 @@ function StatusButton({
       <input type="hidden" name="member_id" value={memberId ?? ""} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="return_to" value={returnTo} />
-      <button className="link" style={{ color: "inherit", textDecoration: "underline" }}>{label}</button>
+      {status === "cancelled" ? (
+        <ConfirmSubmit label={label} confirm="Yes, cancel booking" />
+      ) : (
+        <button className="link" style={{ color: "inherit", textDecoration: "underline" }}>{label}</button>
+      )}
     </form>
   );
 }

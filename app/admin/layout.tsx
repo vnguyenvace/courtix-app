@@ -24,6 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="muted small">
             {email} · {PLATFORM_ROLE_LABELS[role]}
           </span>
+          <Link href="/account/password" className="small">Change password</Link>
           <form action={signOut}>
             <button className="link">Sign out</button>
           </form>

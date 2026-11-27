@@ -47,6 +47,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
               {/* On a club's own address, "Create account" would start a new club, so it lives on the main site. */}
               {!clubName && <button formAction={signUp}>Create account</button>}
             </div>
+            <p className="small">
+              <Link href="/login/forgot">Forgot password?</Link>
+            </p>
           </form>
           {clubName && (
             <p className="muted small" style={{ marginTop: 16 }}>

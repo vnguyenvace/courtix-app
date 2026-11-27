@@ -43,7 +43,12 @@ select register_for_session(:'mp', :'m2', null, null, false, true) is not null a
 
 \echo '--- 4. Booking cutoff and court holds'
 select id as soon from session_overview where starts_at between now() and now() + interval '50 minutes' limit 1 \gset
-select id as camp from session_overview where name like 'Coach Kimo camp: 3.0%' \gset
+-- The demo's camps are on fixed dates (21-23 Nov) and may have passed: make our own, 5 days ahead.
+select create_event((select id from session_types where org_id = :'org' and name = 'Camp'),
+  (((now() at time zone 'Asia/Bangkok')::date + 5 + time '14:00') at time zone 'Asia/Bangkok'),
+  (((now() at time zone 'Asia/Bangkok')::date + 5 + time '16:00') at time zone 'Asia/Bangkok'),
+  'Test camp: 3.0-3.5', 2500, 4, 12, 3.0, 3.5,
+  array[(select id from courts where name = 'Court 4' and org_id = :'org')], null, 'Coach Kimo') as camp \gset
 select court_name, kind, to_char(start_at at time zone 'Asia/Bangkok','DD Mon HH24:MI') s, notes from booking_calendar where session_id = :'camp';
 \echo 'expect: court 4 already held for camp'
 select create_booking((select id from courts where name='Court 4' and org_id=:'org'), (select starts_at from sessions where id=:'camp'), null, 'Walk-in');

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { canManage, requireOrg } from "@/lib/org";
@@ -374,7 +375,7 @@ function Act({
       {Object.entries(extra).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <button className={`link ${danger ? "danger" : ""}`}>{label}</button>
+      {danger ? <ConfirmSubmit label={label} confirm={`Yes, ${label.toLowerCase()}`} /> : <button className="link">{label}</button>}
     </form>
   );
 }

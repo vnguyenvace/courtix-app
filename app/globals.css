@@ -341,3 +341,11 @@ input[type="color"] { width: 56px; height: 36px; padding: 2px; cursor: pointer; 
 .legal table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 14px; }
 .legal th, .legal td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 @media print { .legal-nav { display: none; } }
+
+/* "Cancel" → "Yes, cancel" (components/ConfirmSubmit.tsx) */
+.confirm-submit { display: inline-block; }
+.confirm-submit > summary { list-style: none; cursor: pointer; color: var(--danger); text-decoration: underline; display: inline; }
+.confirm-submit > summary::-webkit-details-marker { display: none; }
+.confirm-submit[open] > summary { color: var(--muted, inherit); }
+.confirm-submit .confirm-pop { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: 8px; }
+.confirm-submit .confirm-pop button.danger { padding: 4px 10px; }
