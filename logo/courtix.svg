@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024" fill="none">
+<title>Courtix</title>
+<desc>Courtix court outline logo and app icon, with matching yellow-green ball and i dot. All artwork is vector paths on transparency.</desc>
+<defs>
+  <g id="court">
+    <path d="M310 70V62C310 38 291 19 267 19H62C38 19 19 38 19 62V179C19 203 38 222 62 222H267C291 222 310 203 310 179V170" stroke="currentColor" stroke-width="38"/>
+    <path d="M165 50V191" stroke="currentColor" stroke-width="22"/>
+    <circle cx="297" cy="120" r="29" fill="#C8E64B"/>
+  </g>
+</defs>
+<g color="#1F5C46" transform="translate(154 147)"><use href="#court"/></g>
+<!-- Outlined geometric lettering: no font dependency. -->
+<g fill="#1F5C46">
+<path d="M702 201L674 228C660 211 645 204 626 204C592 204 569 229 569 263C569 297 592 321 626 321C646 321 662 313 676 297L704 324C684 347 658 358 625 358C570 358 530 318 530 263C530 207 571 166 626 166C658 166 684 178 702 201Z"/>
+<path fill-rule="evenodd" d="M767 212C809 212 839 242 839 285C839 328 809 358 767 358C725 358 695 328 695 285C695 242 725 212 767 212ZM767 249C747 249 734 263 734 285C734 307 747 322 767 322C787 322 800 307 800 285C800 263 787 249 767 249Z"/>
+<path d="M854 217H892V292C892 312 901 322 917 322C935 322 949 309 949 289V217H987V354H950V337C940 351 925 358 906 358C872 358 854 337 854 302Z"/>
+<path d="M1008 217H1045V239C1055 221 1069 214 1090 217V254C1063 251 1046 264 1046 292V354H1008Z"/>
+<path d="M1111 182H1149V217H1181V251H1149V303C1149 316 1155 322 1167 322C1173 322 1178 321 1183 319V353C1175 356 1166 358 1157 358C1126 358 1111 341 1111 310V251H1097V217H1111Z"/>
+<path d="M1197 217H1234V354H1197Z"/>
+<path d="M1247 217H1291L1316 254L1342 217H1385L1339 283L1387 354H1343L1316 314L1288 354H1244L1294 284Z"/>
+</g>
+<circle cx="1215.5" cy="182" r="22" fill="#C8E64B"/>
+<rect x="557" y="533" width="422" height="414" rx="84" fill="#1F5C46"/>
+<g color="#FFFFFF" transform="translate(625 633) scale(.87)"><use href="#court"/></g>
+</svg>

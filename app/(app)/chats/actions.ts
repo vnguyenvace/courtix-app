@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireOrg } from "@/lib/org";
+import { requireOrg, requirePermission } from "@/lib/org";
 import { back, friendly, str } from "@/lib/form";
 import { contactApiMessage, runChatTurn, staffApiMessage } from "@/lib/chat";
 import { deliverChat } from "@/lib/messaging";
+import { whatsappLink } from "@/lib/ai";
 import { ASSISTANT_NAME } from "@/lib/assistant";
 
 // Chats: conversations with members, answered by Claude, handed to staff when needed.
@@ -149,4 +150,57 @@ export async function linkMember(form: FormData) {
   revalidatePath("/chats");
   revalidatePath(`/chats/${id}`);
   back(`/chats/${id}`, "Linked. The assistant now knows their package and bookings, and recognises them next time.", "notice");
+}
+
+/**
+ * Staff message a member from the member's page. Linked on LINE: sent by push and kept in that
+ * member's LINE chat (so replies land in Chats). Otherwise: opens WhatsApp with the text typed in.
+ */
+export async function messageMember(form: FormData) {
+  const id = str(form, "member_id");
+  const path = `/members/${id}#message`;
+  const { supabase, org } = await requirePermission("chats.reply", path);
+  const message = str(form, "message").slice(0, MAX_MESSAGE);
+  if (!message) back(path, "Type a message first.");
+  const { data: m } = await supabase
+    .from("members")
+    .select("id, line_user_id, phone, whatsapp")
+    .eq("id", id)
+    .eq("org_id", org.id)
+    .maybeSingle();
+  if (!m) back("/members", "Member not found.");
+
+  if (!m.line_user_id || form.get("via") === "whatsapp") {
+    const wa = whatsappLink(m.whatsapp ?? m.phone, message);
+    if (!wa) back(path, "This member has no phone number for WhatsApp. Add one in their details first.");
+    redirect(wa);
+  }
+
+  const { data: convId, error } = await supabase.rpc("chat_open_line_conversation", {
+    p_org: org.id,
+    p_line_user: m.line_user_id,
+    p_name: null,
+    p_location: null,
+  });
+  if (error || !convId) back(path, friendly(error));
+  const { error: msgErr } = await supabase.from("chat_messages").insert({
+    org_id: org.id,
+    conversation_id: convId,
+    role: "staff",
+    body: message,
+    api: staffApiMessage(message),
+  });
+  if (msgErr) back(path, friendly(msgErr));
+  // The assistant stays quiet for a while, so the member's answer reaches a person first.
+  await supabase
+    .from("chat_conversations")
+    .update({
+      last_message_at: new Date().toISOString(),
+      assistant_paused_until: new Date(Date.now() + STAFF_PAUSE_MINUTES * 60_000).toISOString(),
+    })
+    .eq("id", convId);
+  const out = await deliverChat(supabase, convId as string);
+  revalidatePath("/chats");
+  if (out.error) back(path, `Saved in Chats, but not sent: ${out.error}`);
+  back(path, "Sent on LINE. Their reply will show in Chats.", "notice");
 }

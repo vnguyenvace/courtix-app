@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CourtixMark } from "@/components/CourtixLogo";
 import { signOut } from "@/app/login/actions";
 import { requirePlatform } from "@/lib/platform";
 import { PLATFORM_ROLE_LABELS } from "@/lib/permissions";
@@ -15,7 +16,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="admin-shell" style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 16px 48px" }}>
       <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <nav className="actions" aria-label={t("Courtix admin")}>
-          <strong style={{ marginRight: 8 }}>{t("Courtix admin")}</strong>
+          <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 8 }} aria-label={t("Courtix admin")}>
+            <CourtixMark size={28} />
+            <strong>{t("Courtix admin")}</strong>
+          </Link>
           <Link href="/admin">{t("Clubs")}</Link>
           {canSupport && <Link href="/admin/help">{t("Help requests")}{openHelp ? ` (${openHelp})` : ""}</Link>}
           {role === "super_admin" && <Link href="/admin/team">{t("Team")}</Link>}

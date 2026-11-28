@@ -20,3 +20,9 @@ export function clubIcons(club: Pick<PublicClub, "logo_path">): Metadata["icons"
   const logo = logoUrl(club.logo_path);
   return logo ? { icon: logo, apple: logo } : undefined;
 }
+
+/** Link previews (LINE, WhatsApp) of a club's pages: the club's name and logo, never Courtix's. */
+export function clubOpenGraph(club: Pick<PublicClub, "name" | "logo_path">): Metadata["openGraph"] {
+  const logo = logoUrl(club.logo_path);
+  return { title: club.name, siteName: club.name, images: logo ? [logo] : undefined };
+}

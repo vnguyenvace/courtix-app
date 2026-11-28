@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
-import { isValidDate, zonedToUtc } from "@/lib/time";
+import { isValidDate, todayIn, zonedToUtc } from "@/lib/time";
 import { normalizeHex } from "@/lib/brand";
 import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/logo";
 import { encryptSecret, secretsConfigured } from "@/lib/secrets";
@@ -123,11 +123,20 @@ export async function checkIn(form: FormData) {
   const returnTo = str(form, "return_to") || `/members/${memberId}`;
 
   // Recorded at the location picked in the sidebar (or the form's own location).
-  const { error } = await supabase
-    .from("check_ins")
-    .insert({ org_id: org.id, member_id: memberId, source: "desk", location_id: optStr(form, "location_id") ?? workLocation.id });
-
+  // The database ignores a repeat within 2 hours and asks first when the package is paused.
+  const locationId = optStr(form, "location_id") ?? workLocation.id;
+  const { data, error } = await supabase.rpc("check_in_member", {
+    p_member: memberId,
+    p_location: locationId,
+    p_confirm_paused: form.get("confirm_paused") === "on",
+  });
   if (error) back(returnTo, friendly(error));
+  const res = data as { status: "checked_in" | "already" | "paused"; at?: string; until?: string };
+  if (res.status === "already") back(returnTo, `Already checked in at ${res.at}. Nothing changed.`, "notice");
+  if (res.status === "paused") {
+    const q = new URLSearchParams({ confirm_checkin: res.until ?? "", return_to: returnTo, location_id: locationId });
+    redirect(`/members/${memberId}?${q.toString()}#checkin`);
+  }
   revalidatePath("/dashboard");
   back(returnTo, "Checked in.", "notice");
 }
@@ -164,7 +173,7 @@ export async function sellPackage(form: FormData) {
 }
 
 export async function pauseMembership(form: FormData) {
-  const { supabase } = await requireOrg();
+  const { supabase, org } = await requireOrg();
   const path = `/members/${str(form, "member_id")}`;
   const from = str(form, "paused_from");
   const until = str(form, "paused_until");
@@ -178,7 +187,29 @@ export async function pauseMembership(form: FormData) {
 
   if (error) back(path, friendly(error));
   revalidatePath(path);
-  back(path, "Membership paused. The end date has moved out by the pause length.", "notice");
+  back(
+    path,
+    from > todayIn(org.timezone)
+      ? "Pause planned. The package works as usual until the pause starts, and the end date has moved out by the pause length."
+      : "Membership paused. The end date has moved out by the pause length.",
+    "notice",
+  );
+}
+
+/** Cancel a planned pause, or end a running pause today. */
+export async function endPause(form: FormData) {
+  const { supabase } = await requireOrg();
+  const path = `/members/${str(form, "member_id")}`;
+  const { data, error } = await supabase.rpc("end_pause", { p_membership: str(form, "membership_id") });
+  if (error) back(path, friendly(error));
+  revalidatePath(path);
+  back(
+    path,
+    data === "cancelled"
+      ? "Planned pause cancelled. The end date is back where it was."
+      : "Pause ended. The package works again from today, and the unused pause days came off the end date.",
+    "notice",
+  );
 }
 
 export async function cancelMembership(form: FormData) {

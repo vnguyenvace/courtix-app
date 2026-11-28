@@ -1,4 +1,5 @@
 import { getI18n } from "@/lib/i18n/server";
+import { CourtixLogo } from "@/components/CourtixLogo";
 import Link from "next/link";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { ClubBrandStyle } from "@/components/ClubBrand";
@@ -28,7 +29,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
             </p>
           )}
           {club && <ClubLogo path={club.logo_path} name={club.name} />}
-          <h1>{clubName ?? t("Courtix")}</h1>
+          {clubName ? (
+            <h1>{clubName}</h1>
+          ) : (
+            <h1 style={{ marginBottom: 12 }}>
+              <CourtixLogo height={40} />
+            </h1>
+          )}
           <p className="muted" style={{ marginBottom: 20 }}>
             {clubName
               ? t("Staff sign-in: members, courts and sessions.")

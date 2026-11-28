@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClubBrandStyle, clubIcons } from "@/components/ClubBrand";
+import { ClubBrandStyle, clubIcons, clubOpenGraph } from "@/components/ClubBrand";
 import Link from "next/link";
 import { Suspense } from "react";
 import { MemberSignInLink } from "@/components/MemberSignInLink";
@@ -9,7 +9,7 @@ import { loadMember, loadPublicClub } from "@/lib/public";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { club } = await loadPublicClub();
-  return { icons: clubIcons(club) };
+  return { icons: clubIcons(club), openGraph: clubOpenGraph(club) };
 }
 
 export default async function BookLayout({ children }: { children: React.ReactNode }) {

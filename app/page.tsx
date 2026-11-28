@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClubBrandStyle, clubIcons } from "@/components/ClubBrand";
+import { ClubBrandStyle, clubIcons, clubOpenGraph } from "@/components/ClubBrand";
 import { ClubLogo } from "@/components/ClubLogo";
 import { StateBadge } from "@/components/PublicBits";
 import { levelText } from "@/components/SessionBits";
@@ -26,6 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: club.name,
     description: `Sessions, court times and bookings at ${club.name}${where ? ` (${where})` : ""}`,
     icons: clubIcons(club),
+    openGraph: clubOpenGraph(club),
   };
 }
 

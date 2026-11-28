@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CourtixLogo } from "@/components/CourtixLogo";
 import Link from "next/link";
 import { param, type SearchParams } from "@/components/Banner";
 import { ASSISTANT_NAME } from "@/lib/assistant";
@@ -235,7 +236,8 @@ export default async function LineGuidePage({ searchParams }: { searchParams: Se
   const t = T[lang];
   return (
     <main className="public guide" lang={lang}>
-      <nav className="guide-top">
+      <nav className="guide-top" style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <CourtixLogo height={28} />
         <span className="tabs" style={{ margin: 0 }}>
           <Link href="/guides/line" className={lang === "en" ? "active" : undefined}>English</Link>
           <Link href="/guides/line?lang=th" className={lang === "th" ? "active" : undefined}>ไทย</Link>

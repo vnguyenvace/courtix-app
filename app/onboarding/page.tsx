@@ -1,4 +1,5 @@
 import { getI18n } from "@/lib/i18n/server";
+import { CourtixLogo } from "@/components/CourtixLogo";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Searc
   return (
     <main className="auth">
       <div className="card">
+        <div style={{ marginBottom: 16 }}>
+          <CourtixLogo height={32} />
+        </div>
         <h1>{t("Set up your club")}</h1>
         <p className="muted" style={{ marginBottom: 20 }}>
           {t("You can change all of this later.")}

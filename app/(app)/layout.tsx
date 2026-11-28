@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CourtixMark } from "@/components/CourtixLogo";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireOrg, ORG_COOKIE, LOCATION_COOKIE } from "@/lib/org";
@@ -57,7 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <input type="checkbox" id="nav-toggle" className="nav-toggle" aria-label="Menu" />
         <div className="sidebar-top">
           <Link href="/dashboard" className="brand-block">
-            <span className="brand-mark" aria-hidden>C</span>
+            <CourtixMark size={34} className="brand-mark-img" />
             <span className="brand-text">
               <span className="brand">Courtix</span>
               <span className="club-name">{org.name}</span>

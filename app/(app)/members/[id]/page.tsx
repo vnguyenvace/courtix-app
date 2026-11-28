@@ -1,6 +1,7 @@
 import Link from "next/link";
 import QRCode from "qrcode";
 import { whatsappLink } from "@/lib/ai";
+import { messageMember } from "../../chats/actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/org";
@@ -12,6 +13,7 @@ import { addDays, formatDate, formatMoney, localTime, todayIn } from "@/lib/time
 import {
   cancelMembership,
   checkIn,
+  endPause,
   pauseMembership,
   sellPackage,
   setBookingStatus,
@@ -31,7 +33,7 @@ export default async function MemberPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, locations, t, locale } = await requireOrg();
+  const { supabase, org, locations, t, locale, can } = await requireOrg();
   const today = todayIn(org.timezone);
 
   const [member, status, memberships, packages, checkIns, bookings, orderData] = await Promise.all([
@@ -117,6 +119,22 @@ export default async function MemberPage({
         </div>
       </div>
       <Banner sp={sp} />
+      {typeof sp.confirm_checkin === "string" && (
+        <div className="banner warn" id="checkin">
+          {t("{name}'s package is paused until {date}. Check them in anyway? It won't end the pause.", {
+            name: m.full_name,
+            date: sp.confirm_checkin ? formatDate(sp.confirm_checkin, locale) : "…",
+          })}
+          <form action={checkIn} className="actions" style={{ marginTop: 8 }}>
+            <input type="hidden" name="member_id" value={m.id} />
+            <input type="hidden" name="confirm_paused" value="on" />
+            <input type="hidden" name="return_to" value={typeof sp.return_to === "string" && sp.return_to.startsWith("/") && !sp.return_to.startsWith("//") ? sp.return_to : path} />
+            {typeof sp.location_id === "string" && <input type="hidden" name="location_id" value={sp.location_id} />}
+            <button className="primary">{t("Check in anyway")}</button>
+            <Link href={path} className="button">{t("Not now")}</Link>
+          </form>
+        </div>
+      )}
 
       <div className="grid grid-2">
         <div className="stack">
@@ -135,12 +153,21 @@ export default async function MemberPage({
                         {x.sessions_left !== null && ` · ${t("{n} sessions left", { n: x.sessions_left })}`}
                         {" · "}{formatMoney(x.price_paid, org.currency)}
                         {x.status === "paused" && ` · ${t("paused until {date}", { date: formatDate(x.paused_until, locale) })}`}
+                        {x.status === "active" && x.paused_from && x.paused_until && x.paused_from > today &&
+                          ` · ${t("pause planned {from} – {until}", { from: formatDate(x.paused_from, locale), until: formatDate(x.paused_until, locale) })}`}
                       </div>
                     </span>
                     <span className="actions">
                       <span className={`badge ${x.status === "active" ? "ok" : x.status === "paused" ? "info" : ""}`}>
                         {t(x.status)}
                       </span>
+                      {(x.status === "paused" || (x.status === "active" && x.paused_from && x.paused_from > today)) && (
+                        <form action={endPause} className="inline">
+                          <input type="hidden" name="member_id" value={m.id} />
+                          <input type="hidden" name="membership_id" value={x.id} />
+                          <button className="link">{x.status === "paused" ? t("End pause today") : t("Cancel pause")}</button>
+                        </form>
+                      )}
                       {x.status === "active" && (
                         <form action={cancelMembership} className="inline">
                           <input type="hidden" name="member_id" value={m.id} />
@@ -220,11 +247,11 @@ export default async function MemberPage({
             )}
           </section>
 
-          {current && (
+          {current && !(current.paused_until && current.paused_until > today) && (
             <section className="card">
               <h2>{t("Pause instead of cancel")}</h2>
               <p className="muted small">
-                {t("For members leaving Phuket for a while. The end date moves out by the pause length.")}
+                {t("For members leaving Phuket for a while. The end date moves out by the pause length. A pause from a later date starts by itself on that day.")}
               </p>
               <form action={pauseMembership} className="form">
                 <input type="hidden" name="member_id" value={m.id} />
@@ -346,6 +373,34 @@ export default async function MemberPage({
                 </div>
                 <p className="muted small">{t("Code {code}. It works once; this page shows Linked on LINE after they send it.", { code: inviteCode })}</p>
               </div>
+            )}
+          </section>
+        )}
+
+        {can("chats.reply") && (
+          <section className="card" id="message">
+            <h2>{t("Send a message")}</h2>
+            {!m.line_user_id && !whatsappLink(m.whatsapp ?? m.phone, "x") ? (
+              <p className="muted small">{t("Not linked on LINE and no phone number. Invite them to LINE or add a phone number first.")}</p>
+            ) : (
+              <form action={messageMember} className="form">
+                <input type="hidden" name="member_id" value={m.id} />
+                <textarea name="message" rows={3} required maxLength={2000} />
+                <div className="actions">
+                  {m.line_user_id && <button className="primary">{t("Send on LINE")}</button>}
+                  {whatsappLink(m.whatsapp ?? m.phone, "x") && (
+                    <button name="via" value="whatsapp" className={m.line_user_id ? "" : "primary"}>
+                      {t("Open in WhatsApp")}
+                    </button>
+                  )}
+                </div>
+                <p className="muted small">
+                  {m.line_user_id
+                    ? t("LINE messages are kept in Chats, where their reply shows up. The assistant waits 30 minutes so you can answer it yourself.")
+                    : t("WhatsApp opens with your message typed in: press send there.")}{" "}
+                  {!m.marketing_consent && t("They haven't agreed to marketing: only send messages about their bookings, payments or package.")}
+                </p>
+              </form>
             )}
           </section>
         )}

@@ -35,8 +35,8 @@ Work top to bottom. Tick a box when its "Done when" list is met, and add a dated
 
 Courtix is a SaaS that Julian sells to many clubs; each club gets its own subdomain (`<slug>.courtix.app`). Club owners are often one person who can't sit at a desk all day, so **automation comes first**. Work in this order (step numbers kept so references stay valid):
 
-1. **Step 0** (finish: check real Claude drafts once there's an API key)
-2. **Step 10a: Deploy with club subdomains** (hosted Supabase in Singapore + Vercel with a wildcard domain). Nothing automatic can run while the app lives on a laptop.
+1. ~~**Step 0**~~ done 28 Nov 2026
+2. ~~**Step 10a: Deploy with club subdomains**~~ live 28 Nov 2026
 3. **Step 10: Scheduled jobs**
 4. **Step 2: Packages that cover sessions** (needed before chat booking, so package holders aren't charged per session)
 5. **Step 9: WhatsApp** (LINE after), with the defaults below
@@ -52,7 +52,7 @@ These are **product defaults**. Each club can change them in its settings (per-c
 
 ---
 
-## Step 0: First run and fix  ☐
+## Step 0: First run and fix  ☑
 
 Goal: the app installs, type-checks, builds and works end to end on Julian's machine against local Supabase.
 
@@ -86,11 +86,11 @@ Fixed:
 - "Ends … (in 1 days)" → "(tomorrow)". Time zone list showed "Asia/Ho Chi_Minh". Added `app/icon.svg` (favicon 404).
 
 Works but may feel wrong at a front desk (ask Julian before changing):
-- **Pause starts immediately**, whatever the "from" date: `pause_membership` sets status `paused` now, so a member pausing from next week can't book as a member this week. Options: only allow pauses starting today, or support scheduled pauses (nightly job flips the status).
-- Check-in is allowed for a **paused** member with no warning, and two check-ins a minute apart are both recorded.
+- ~~**Pause starts immediately**~~ Fixed 28 Nov 2026 (Julian: scheduled pauses): a pause from a later date leaves the package active until then and the hourly job starts it; packages don't cover bookings inside a planned pause; **Cancel pause** / **End pause today** on the member page (`end_pause`, unused days come off the end date). Was: `pause_membership` sets status `paused` now, so a member pausing from next week can't book as a member this week. Options: only allow pauses starting today, or support scheduled pauses (nightly job flips the status).
+- ~~Check-in is allowed for a **paused** member with no warning, and two check-ins a minute apart are both recorded.~~ Fixed 28 Nov 2026: `check_in_member` asks first for a paused package ("Check in anyway", the pause stays), and ignores a repeat within 2 hours (it used a second session-pack credit); a trigger refuses repeats from any other path.
 - **Send on WhatsApp** marks the message sent as soon as WhatsApp opens, and it opens in the same tab, so the desk leaves the app.
 - Sample members have no phone numbers, so the demo never shows **Send on WhatsApp**. Could add numbers in a new migration that replaces `add_demo_data`.
-- "Court 1 is already booked at that time" is also shown when a **session** holds the court; naming the session ("held by Open play 08:30–11:30") would help.
+- ~~"Court 1 is already booked at that time" when a session holds the court.~~ Fixed 28 Nov 2026: "Court 1 is held by Open play (08:30–11:30) at that time" (`court_clash_text`). Migration `20261128030000_front_desk_fixes.sql`, test `front_desk_fixes_test.sql`.
 - ~~"Cancel" on a sign-up or court booking acts on one tap, with no confirmation.~~ Fixed 27 Nov 2026: every cancel (courts, lessons, session places and requests, packages, members' own bookings) asks "Yes, cancel …" first (`components/ConfirmSubmit.tsx`, works without JavaScript).
 - Courts header says "9 booked of 70 slots" but counts bookings (a 3-hour session is 1), not slots.
 - Kids clinic (age 8+) lists every member in the sign-up picker; members have no birth date, so the age rule can't be checked for members.
@@ -98,6 +98,8 @@ Works but may feel wrong at a front desk (ask Julian before changing):
 - Generated sessions skip a court that is already booked (Thursday 18:00 open play got only Court 2 because a sample member had Court 1). Correct, but easy to miss: the session list just shows fewer courts.
 
 **Note, 26 Nov 2026:** `sessions_test.sql` now fails: it looks up the Coach Kimo camp (21 Nov 2026), which is in the past, so `:'camp'` is empty. The test needs a date-independent event. Not caused by the branding work (it fails the same way without it).
+
+**Done, 28 Nov 2026 (Julian):** real Claude drafts checked with `ANTHROPIC_API_KEY` set.
 
 ## Step 1: Staff management page  ☑
 
@@ -328,7 +330,7 @@ Left for part 2 (needs Step 9 WhatsApp): send approved messages automatically th
 - Tested locally (fake LINE): desk cancels a place → the waitlisted member got the Russian notice on LINE within a second; evening job sent a Russian reminder on LINE and listed 12 others (not on LINE) on Morning in Thai/Russian/English; rerun queued nothing.
 - Open: WhatsApp sending (needs Meta, Step 9 part 2), so members without LINE need a tap; LINE push messages count toward the club's monthly allowance (free plans are small: a busy club may need a paid LINE plan); a package-ending notice and an AI renewal follow-up can both reach the same member (consider skipping the AI renewal draft when the notice went out).
 
-## Step 10a: Deploy with club subdomains  ☐
+## Step 10a: Deploy with club subdomains  ☑
 
 Each club gets `<slug>.courtix.app` (`orgs.slug` already exists). The main domain is the marketing site and sign-up.
 
@@ -351,6 +353,9 @@ Left: everything that needs the real accounts (hosted Supabase, Vercel wildcard 
 
 **Notes, 18 Nov 2026 (hosting).** Code on GitHub `vnguyenvace/courtix-app`; Vercel (team `vace4`) deploys `main` automatically; `courtix.app` and `*.courtix.app` point at Vercel and the first production deploy works. Hosted Supabase project `courtix` (ref `ogiyiobrrgnyzxetvjks`, Singapore, org VACE): all migrations applied with `supabase db push --remote` (CLI v3 targets the local stack unless you pass `--remote`), both cron jobs scheduled. Left: Vercel env vars pointing at the hosted project, Supabase auth URLs, a real SMTP sender for sign-up emails, then the "Done when" check with two real clubs.
 **Region (18 Nov 2026):** Vercel functions must run in **Singapore (`sin1`)**, next to the database. New Vercel projects default to Washington (`iad1`), which made every page about 5 s. `vercel.json` sets `regions: ["sin1"]`, but on this project only the dashboard setting took effect (Settings → Functions → Function Regions, then redeploy). Check with the `x-vercel-id` response header: it should read `sin1::sin1`.
+
+
+**Live, 28 Nov 2026 (Julian):** production env vars, Supabase redirect URLs, SMTP sender and all migrations pushed; courtix.app and club subdomains are live.
 
 ## Step 10: Scheduled jobs  ☑
 
