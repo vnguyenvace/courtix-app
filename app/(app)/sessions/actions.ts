@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireOrg, canManage } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
 import { formatMoney, isValidDate, zonedToUtc } from "@/lib/time";
-import { sendPendingNotices } from "@/lib/notices";
+import { confirmationNote, sendPendingNotices } from "@/lib/notices";
 
 function refresh() {
   revalidatePath("/sessions", "layout");
@@ -90,8 +90,9 @@ export async function registerForSession(form: FormData) {
     .select("status, price, credit_used, covered_by, covered_kind, sessions_left")
     .eq("id", data)
     .single();
+  const note = await confirmationNote(supabase, `confirmed:reg:${data}`);
   refresh();
-  back(path, signUpMessage(reg, org.currency), "notice");
+  back(path, signUpMessage(reg, org.currency) + note, "notice");
 }
 
 export async function cancelRegistration(form: FormData) {

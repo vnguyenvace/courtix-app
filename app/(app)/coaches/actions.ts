@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/org";
 import { back, friendly, num, optStr, str } from "@/lib/form";
 import { isValidDate, zonedToUtc } from "@/lib/time";
-import { sendPendingNotices } from "@/lib/notices";
+import { confirmationNote, sendPendingNotices } from "@/lib/notices";
 
 const PATH = "/coaches";
 
@@ -74,7 +74,7 @@ export async function bookLesson(form: FormData) {
   const date = str(form, "date");
   const time = str(form, "time");
   if (!isValidDate(date) || !/^\d{2}:\d{2}$/.test(time)) back(PATH, "Choose a date and time.");
-  const { error } = await supabase.rpc("book_lesson", {
+  const { data: lessonId, error } = await supabase.rpc("book_lesson", {
     p_coach: str(form, "coach_id"),
     p_start: zonedToUtc(date, time, loc.timezone).toISOString(),
     p_minutes: num(form, "minutes"),
@@ -87,5 +87,6 @@ export async function bookLesson(form: FormData) {
   });
   if (error) back(PATH, friendly(error));
   await sendPendingNotices(supabase, org.id); // the member's confirmation (LINE when linked)
-  done("Lesson booked. It's on the court calendar, and the payment is in Payments.");
+  const note = await confirmationNote(supabase, `confirmed:court:${lessonId}`);
+  done("Lesson booked. It's on the court calendar, and the payment is in Payments." + note);
 }

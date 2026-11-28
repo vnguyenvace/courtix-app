@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { contactApiMessage, runChatTurn } from "@/lib/chat";
+import { contactApiMessage, runChatTurn, staffApiMessage } from "@/lib/chat";
 import { verifyLineSignature } from "@/lib/line";
 import { deliverChat, lineDisplayName, loadLine } from "@/lib/messaging";
 import { decryptSecret } from "@/lib/secrets";
@@ -111,6 +111,26 @@ async function handleEvents(db: SupabaseClient, channel: MessagingChannel, event
       continue;
     }
     await db.from("chat_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", convId);
+
+    // "LINK ABC234" from a member's invite (member page → LINE invite): link and confirm, no assistant turn.
+    if (e.message.type === "text" && /link/i.test(text)) {
+      const { data: link } = await db.rpc("line_link_by_code", { p_conversation: convId, p_text: text });
+      const res = link as { name?: string; error?: string; language?: string } | null;
+      if (res) {
+        const reply = linkReply(res, org.name);
+        await db.from("chat_messages").insert({
+          org_id: org.id,
+          conversation_id: convId,
+          role: "staff",
+          body: reply,
+          api: staffApiMessage(reply),
+          created_by: null,
+        });
+        await deliverChat(db, convId as string, e.replyToken);
+        toAnswer.delete(convId as string);
+        continue;
+      }
+    }
     toAnswer.set(convId as string, e.replyToken);
   }
 
@@ -122,4 +142,23 @@ async function handleEvents(db: SupabaseClient, channel: MessagingChannel, event
     }
     await deliverChat(db, convId, replyToken);
   }
+}
+
+/** The reply to an invite code, in the member's language (English when we don't have theirs). */
+function linkReply(res: { name?: string; error?: string; language?: string }, club: string): string {
+  const lang = (res.language ?? "en").slice(0, 2);
+  const linked: Record<string, string> = {
+    en: "Thanks {name}, your LINE is now connected to {club}. Booking confirmations and reminders will come here.",
+    th: "ขอบคุณค่ะ คุณ{name} LINE ของคุณเชื่อมต่อกับ {club} แล้ว การยืนยันการจองและการแจ้งเตือนจะส่งมาที่นี่",
+    ru: "Спасибо, {name}! Ваш LINE подключён к {club}. Подтверждения бронирований и напоминания будут приходить сюда.",
+    zh: "谢谢 {name}，您的 LINE 已连接到 {club}。预订确认和提醒将发送到这里。",
+  };
+  const other: Record<string, string> = {
+    en: "This LINE account is already connected to another member at {club}. Please ask the front desk to help.",
+    th: "บัญชี LINE นี้เชื่อมต่อกับสมาชิกคนอื่นของ {club} อยู่แล้ว กรุณาติดต่อเคาน์เตอร์",
+    ru: "Этот LINE уже подключён к другому участнику {club}. Пожалуйста, обратитесь на ресепшен.",
+    zh: "此 LINE 账号已连接到 {club} 的另一位会员。请联系前台协助。",
+  };
+  const table = res.error ? other : linked;
+  return (table[lang] ?? table.en).replace("{name}", res.name ?? "").replace("{club}", club);
 }

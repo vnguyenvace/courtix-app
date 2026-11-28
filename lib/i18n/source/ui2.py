@@ -716,4 +716,12 @@ UI2 += [
 ("Price per person (blank = the type's price)", "ราคาต่อคน (เว้นว่าง = ใช้ราคาของประเภท)", "Цена с человека (пусто = цена типа)", "每人价格（留空 = 使用类型价格）"),
 ("What players get, what to bring…", "ผู้เล่นจะได้อะไร ต้องเตรียมอะไร…", "Что получат игроки, что взять…", "球员能获得什么、要带什么…"),
 ("Early bird prices, divisions and pairs: add them on the event's page after you create it.", "ราคาเออร์ลี่เบิร์ด รุ่นการแข่งขัน และการสมัครเป็นคู่: เพิ่มได้ในหน้าของอีเวนต์หลังจากสร้างแล้ว", "Ранние цены, дивизионы и пары: добавьте их на странице события после создания.", "早鸟价、组别和双人报名：创建活动后在活动页面添加。"),
+("Invite them to LINE", "ชวนเชื่อม LINE", "Пригласить в LINE", "邀请连接 LINE"),
+("Connect the club's LINE account in Settings to invite members. Linked members get booking confirmations, reminders and sign-in codes on LINE.", "เชื่อมบัญชี LINE ของคลับในการตั้งค่าก่อนจึงจะชวนสมาชิกได้ สมาชิกที่เชื่อมแล้วจะได้รับการยืนยันการจอง การแจ้งเตือน และรหัสเข้าสู่ระบบทาง LINE", "Подключите LINE клуба в настройках, чтобы приглашать участников. Подключённые участники получают в LINE подтверждения, напоминания и коды входа.", "请先在设置中连接俱乐部的 LINE 账号才能邀请会员。已连接的会员会在 LINE 上收到预订确认、提醒和登录码。"),
+("Linked members get booking confirmations, reminders and sign-in codes on LINE. The invite opens the club's LINE with a code typed in: they only press send.", "สมาชิกที่เชื่อมแล้วจะได้รับการยืนยันการจอง การแจ้งเตือน และรหัสเข้าสู่ระบบทาง LINE คำเชิญจะเปิด LINE ของคลับพร้อมพิมพ์รหัสไว้ให้ เขาแค่กดส่ง", "Подключённые участники получают в LINE подтверждения, напоминания и коды входа. Приглашение открывает LINE клуба с уже введённым кодом: достаточно нажать «Отправить».", "已连接的会员会在 LINE 上收到预订确认、提醒和登录码。邀请会打开俱乐部的 LINE 并填好代码，对方只需点发送。"),
+("Create LINE invite", "สร้างคำเชิญ LINE", "Создать приглашение в LINE", "创建 LINE 邀请"),
+("Ask {name} to scan this with their phone camera, then press send in LINE.", "ให้ {name} สแกนด้วยกล้องมือถือ แล้วกดส่งใน LINE", "Попросите {name} отсканировать код камерой телефона и нажать «Отправить» в LINE.", "请 {name} 用手机相机扫描，然后在 LINE 中点发送。"),
+("Or send them this link", "หรือส่งลิงก์นี้ให้", "Или отправьте эту ссылку", "或发送此链接"),
+("Send on WhatsApp", "ส่งทาง WhatsApp", "Отправить в WhatsApp", "通过 WhatsApp 发送"),
+("Code {code}. It works once; this page shows Linked on LINE after they send it.", "รหัส {code} ใช้ได้ครั้งเดียว หลังเขากดส่ง หน้านี้จะแสดงว่าเชื่อม LINE แล้ว", "Код {code}. Работает один раз; после отправки здесь появится «Подключён к LINE».", "代码 {code}，仅可使用一次；对方发送后此页面会显示“已连接 LINE”。"),
 ]

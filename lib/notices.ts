@@ -287,3 +287,24 @@ export async function payUrlFor(
     .maybeSingle();
   return data ? clubUrl(club.slug, `/book/pay/${data.order_id}`, null) : null;
 }
+
+/**
+ * After the desk books for a member: what happened to their confirmation, as a sentence for the
+ * banner (the Banner translates it). Empty when no confirmation was due (guest, waitlist, turned off).
+ */
+export async function confirmationNote(supabase: SupabaseClient, dedupeKey: string): Promise<string> {
+  const { data } = await supabase
+    .from("member_notices")
+    .select("status, error, members(line_user_id)")
+    .eq("dedupe_key", dedupeKey)
+    .maybeSingle();
+  const n = data as unknown as { status: string; error: string | null; members: { line_user_id: string | null } | null } | null;
+  if (!n) return "";
+  if (n.status === "sent") return " Confirmation sent on LINE.";
+  if (n.status === "manual" || n.status === "failed" || n.status === "pending") {
+    return n.members?.line_user_id
+      ? " Couldn't send the confirmation on LINE: send it from the Morning page."
+      : " Not linked on LINE yet: send the confirmation from the Morning page, and invite them to LINE from their member page.";
+  }
+  return "";
+}

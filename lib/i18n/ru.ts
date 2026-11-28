@@ -1130,6 +1130,13 @@ const dict: Record<string, string> = {
   "Price per person (blank = the type's price)": "Цена с человека (пусто = цена типа)",
   "What players get, what to bring…": "Что получат игроки, что взять…",
   "Early bird prices, divisions and pairs: add them on the event's page after you create it.": "Ранние цены, дивизионы и пары: добавьте их на странице события после создания.",
+  "Invite them to LINE": "Пригласить в LINE",
+  "Connect the club's LINE account in Settings to invite members. Linked members get booking confirmations, reminders and sign-in codes on LINE.": "Подключите LINE клуба в настройках, чтобы приглашать участников. Подключённые участники получают в LINE подтверждения, напоминания и коды входа.",
+  "Linked members get booking confirmations, reminders and sign-in codes on LINE. The invite opens the club's LINE with a code typed in: they only press send.": "Подключённые участники получают в LINE подтверждения, напоминания и коды входа. Приглашение открывает LINE клуба с уже введённым кодом: достаточно нажать «Отправить».",
+  "Create LINE invite": "Создать приглашение в LINE",
+  "Ask {name} to scan this with their phone camera, then press send in LINE.": "Попросите {name} отсканировать код камерой телефона и нажать «Отправить» в LINE.",
+  "Or send them this link": "Или отправьте эту ссылку",
+  "Code {code}. It works once; this page shows Linked on LINE after they send it.": "Код {code}. Работает один раз; после отправки здесь появится «Подключён к LINE».",
   "Club settings saved.": "Настройки клуба сохранены.",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix пока не настроен для хранения ключей LINE (CHANNEL_SECRETS_KEY). Обратитесь в поддержку Courtix.",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret — это 32 буквы и цифры (LINE Developers → Basic settings).",
@@ -1357,5 +1364,9 @@ const dict: Record<string, string> = {
   "Registration closed on {0}": "Запись закрылась {0}",
   "The registration deadline must be before the event starts": "Срок записи должен быть до начала события",
   "Pairs are already signed up. Cancel their places before turning pairs off": "Пары уже записаны. Отмените их места, прежде чем выключать пары",
+  "Confirmation sent on LINE.": "Подтверждение отправлено в LINE.",
+  "Couldn't send the confirmation on LINE: send it from the Morning page.": "Не удалось отправить подтверждение в LINE: отправьте его со страницы «Утро».",
+  "Not linked on LINE yet: send the confirmation from the Morning page, and invite them to LINE from their member page.": "Ещё не подключён к LINE: отправьте подтверждение со страницы «Утро» и пригласите его в LINE со страницы участника.",
+  "LINE invite ready. Show them the QR code or send them the link.": "Приглашение в LINE готово. Покажите QR-код или отправьте ссылку.",
 };
 export default dict;

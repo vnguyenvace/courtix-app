@@ -1130,6 +1130,13 @@ const dict: Record<string, string> = {
   "Price per person (blank = the type's price)": "每人价格（留空 = 使用类型价格）",
   "What players get, what to bring…": "球员能获得什么、要带什么…",
   "Early bird prices, divisions and pairs: add them on the event's page after you create it.": "早鸟价、组别和双人报名：创建活动后在活动页面添加。",
+  "Invite them to LINE": "邀请连接 LINE",
+  "Connect the club's LINE account in Settings to invite members. Linked members get booking confirmations, reminders and sign-in codes on LINE.": "请先在设置中连接俱乐部的 LINE 账号才能邀请会员。已连接的会员会在 LINE 上收到预订确认、提醒和登录码。",
+  "Linked members get booking confirmations, reminders and sign-in codes on LINE. The invite opens the club's LINE with a code typed in: they only press send.": "已连接的会员会在 LINE 上收到预订确认、提醒和登录码。邀请会打开俱乐部的 LINE 并填好代码，对方只需点发送。",
+  "Create LINE invite": "创建 LINE 邀请",
+  "Ask {name} to scan this with their phone camera, then press send in LINE.": "请 {name} 用手机相机扫描，然后在 LINE 中点发送。",
+  "Or send them this link": "或发送此链接",
+  "Code {code}. It works once; this page shows Linked on LINE after they send it.": "代码 {code}，仅可使用一次；对方发送后此页面会显示“已连接 LINE”。",
   "Club settings saved.": "俱乐部设置已保存。",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix 尚未配置保存 LINE 密钥（CHANNEL_SECRETS_KEY）。请联系 Courtix 支持。",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret 是 32 位字母和数字（LINE Developers → Basic settings）。",
@@ -1357,5 +1364,9 @@ const dict: Record<string, string> = {
   "Registration closed on {0}": "报名已于 {0} 截止",
   "The registration deadline must be before the event starts": "报名截止时间必须早于活动开始",
   "Pairs are already signed up. Cancel their places before turning pairs off": "已有双人报名。关闭双人报名前请先取消他们的名额",
+  "Confirmation sent on LINE.": "确认已通过 LINE 发送。",
+  "Couldn't send the confirmation on LINE: send it from the Morning page.": "无法通过 LINE 发送确认：请在“早间”页面发送。",
+  "Not linked on LINE yet: send the confirmation from the Morning page, and invite them to LINE from their member page.": "尚未连接 LINE：请在“早间”页面发送确认，并在会员页面邀请其连接 LINE。",
+  "LINE invite ready. Show them the QR code or send them the link.": "LINE 邀请已就绪。请让对方扫码或发送链接。",
 };
 export default dict;

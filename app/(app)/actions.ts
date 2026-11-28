@@ -10,7 +10,7 @@ import { detectColors, LOGO_MAX_BYTES, LOGO_TYPES, normalizeLogo } from "@/lib/l
 import { encryptSecret, secretsConfigured } from "@/lib/secrets";
 import { promptPayKind } from "@/lib/promptpay";
 import { LineError, lineBotInfo } from "@/lib/line";
-import { sendPendingNotices } from "@/lib/notices";
+import { confirmationNote, sendPendingNotices } from "@/lib/notices";
 import { staffApiMessage } from "@/lib/chat";
 import { deliverChat } from "@/lib/messaging";
 import { formatMoney } from "@/lib/time";
@@ -67,6 +67,17 @@ export async function createMember(form: FormData) {
 
   revalidatePath("/members");
   redirect(`/members/${data.id}?notice=${encodeURIComponent("Member added.")}`);
+}
+
+/** A LINE invite for a member: a code they send to the club's LINE, which links them. */
+export async function createLineInvite(form: FormData) {
+  const { supabase } = await requireOrg();
+  const id = str(form, "member_id");
+  const path = `/members/${id}#line`;
+  const { error } = await supabase.rpc("member_line_invite", { p_member: id });
+  if (error) back(path, friendly(error));
+  revalidatePath(`/members/${id}`);
+  back(path, "LINE invite ready. Show them the QR code or send them the link.", "notice");
 }
 
 export async function updateMember(form: FormData) {
@@ -204,7 +215,7 @@ export async function createBooking(form: FormData) {
   }
 
   const start = zonedToUtc(date, time, loc.timezone);
-  const { error } = await supabase.rpc("create_booking", {
+  const { data: bookingId, error } = await supabase.rpc("create_booking", {
     p_court: str(form, "court_id"),
     p_start: start.toISOString(),
     p_member: memberId,
@@ -216,9 +227,10 @@ export async function createBooking(form: FormData) {
 
   if (error) back(formPath, friendly(error));
   await sendPendingNotices(supabase, org.id); // the member's booking confirmation
+  const note = await confirmationNote(supabase, `confirmed:court:${bookingId}`);
   revalidatePath("/bookings");
   revalidatePath("/payments");
-  back(path, "Court booked.", "notice");
+  back(path, "Court booked." + note, "notice");
 }
 
 export async function setBookingStatus(form: FormData) {

@@ -1130,6 +1130,13 @@ const dict: Record<string, string> = {
   "Price per person (blank = the type's price)": "ราคาต่อคน (เว้นว่าง = ใช้ราคาของประเภท)",
   "What players get, what to bring…": "ผู้เล่นจะได้อะไร ต้องเตรียมอะไร…",
   "Early bird prices, divisions and pairs: add them on the event's page after you create it.": "ราคาเออร์ลี่เบิร์ด รุ่นการแข่งขัน และการสมัครเป็นคู่: เพิ่มได้ในหน้าของอีเวนต์หลังจากสร้างแล้ว",
+  "Invite them to LINE": "ชวนเชื่อม LINE",
+  "Connect the club's LINE account in Settings to invite members. Linked members get booking confirmations, reminders and sign-in codes on LINE.": "เชื่อมบัญชี LINE ของคลับในการตั้งค่าก่อนจึงจะชวนสมาชิกได้ สมาชิกที่เชื่อมแล้วจะได้รับการยืนยันการจอง การแจ้งเตือน และรหัสเข้าสู่ระบบทาง LINE",
+  "Linked members get booking confirmations, reminders and sign-in codes on LINE. The invite opens the club's LINE with a code typed in: they only press send.": "สมาชิกที่เชื่อมแล้วจะได้รับการยืนยันการจอง การแจ้งเตือน และรหัสเข้าสู่ระบบทาง LINE คำเชิญจะเปิด LINE ของคลับพร้อมพิมพ์รหัสไว้ให้ เขาแค่กดส่ง",
+  "Create LINE invite": "สร้างคำเชิญ LINE",
+  "Ask {name} to scan this with their phone camera, then press send in LINE.": "ให้ {name} สแกนด้วยกล้องมือถือ แล้วกดส่งใน LINE",
+  "Or send them this link": "หรือส่งลิงก์นี้ให้",
+  "Code {code}. It works once; this page shows Linked on LINE after they send it.": "รหัส {code} ใช้ได้ครั้งเดียว หลังเขากดส่ง หน้านี้จะแสดงว่าเชื่อม LINE แล้ว",
   "Club settings saved.": "บันทึกการตั้งค่าคลับแล้ว",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix ยังไม่พร้อมเก็บคีย์ LINE (CHANNEL_SECRETS_KEY) ติดต่อทีมซัพพอร์ต Courtix",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret คือตัวอักษรและตัวเลข 32 ตัว (LINE Developers → Basic settings)",
@@ -1357,5 +1364,9 @@ const dict: Record<string, string> = {
   "Registration closed on {0}": "ปิดรับสมัครเมื่อ {0}",
   "The registration deadline must be before the event starts": "วันปิดรับสมัครต้องอยู่ก่อนอีเวนต์เริ่ม",
   "Pairs are already signed up. Cancel their places before turning pairs off": "มีคู่สมัครแล้ว ยกเลิกที่ของเขาก่อนปิดการสมัครเป็นคู่",
+  "Confirmation sent on LINE.": "ส่งการยืนยันทาง LINE แล้ว",
+  "Couldn't send the confirmation on LINE: send it from the Morning page.": "ส่งการยืนยันทาง LINE ไม่ได้ ส่งจากหน้า “ตอนเช้า” แทน",
+  "Not linked on LINE yet: send the confirmation from the Morning page, and invite them to LINE from their member page.": "ยังไม่ได้เชื่อม LINE: ส่งการยืนยันจากหน้า “ตอนเช้า” และชวนเขาเชื่อม LINE จากหน้าสมาชิก",
+  "LINE invite ready. Show them the QR code or send them the link.": "คำเชิญ LINE พร้อมแล้ว ให้เขาสแกน QR หรือส่งลิงก์ให้",
 };
 export default dict;

@@ -100,6 +100,7 @@ export interface Member {
   phone: string | null;
   email: string | null;
   line_user_id: string | null;
+  line_link_code: string | null;
   whatsapp: string | null;
   language: string;
   skill_level: number | null;

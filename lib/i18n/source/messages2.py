@@ -244,4 +244,9 @@ MESSAGES2 += [
 ("Registration closed on {0}", "ปิดรับสมัครเมื่อ {0}", "Запись закрылась {0}", "报名已于 {0} 截止"),
 ("The registration deadline must be before the event starts", "วันปิดรับสมัครต้องอยู่ก่อนอีเวนต์เริ่ม", "Срок записи должен быть до начала события", "报名截止时间必须早于活动开始"),
 ("Pairs are already signed up. Cancel their places before turning pairs off", "มีคู่สมัครแล้ว ยกเลิกที่ของเขาก่อนปิดการสมัครเป็นคู่", "Пары уже записаны. Отмените их места, прежде чем выключать пары", "已有双人报名。关闭双人报名前请先取消他们的名额"),
+# Booking confirmations and LINE invites
+("Confirmation sent on LINE.", "ส่งการยืนยันทาง LINE แล้ว", "Подтверждение отправлено в LINE.", "确认已通过 LINE 发送。"),
+("Couldn't send the confirmation on LINE: send it from the Morning page.", "ส่งการยืนยันทาง LINE ไม่ได้ ส่งจากหน้า “ตอนเช้า” แทน", "Не удалось отправить подтверждение в LINE: отправьте его со страницы «Утро».", "无法通过 LINE 发送确认：请在“早间”页面发送。"),
+("Not linked on LINE yet: send the confirmation from the Morning page, and invite them to LINE from their member page.", "ยังไม่ได้เชื่อม LINE: ส่งการยืนยันจากหน้า “ตอนเช้า” และชวนเขาเชื่อม LINE จากหน้าสมาชิก", "Ещё не подключён к LINE: отправьте подтверждение со страницы «Утро» и пригласите его в LINE со страницы участника.", "尚未连接 LINE：请在“早间”页面发送确认，并在会员页面邀请其连接 LINE。"),
+("LINE invite ready. Show them the QR code or send them the link.", "คำเชิญ LINE พร้อมแล้ว ให้เขาสแกน QR หรือส่งลิงก์ให้", "Приглашение в LINE готово. Покажите QR-код или отправьте ссылку.", "LINE 邀请已就绪。请让对方扫码或发送链接。"),
 ]
