@@ -11,12 +11,60 @@ import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 import { memberBookSession, publicSignUp } from "../../actions";
 import { PublicFooter } from "@/components/PublicFooter";
 
+interface EventOptions {
+  allow_pairs: boolean;
+  registration_deadline: string | null;
+  current_tier: string | null;
+  current_price: number | null;
+  tiers: { id: string; label: string; price: number; available_until: string | null; max_qty: number | null }[];
+  divisions: { id: string; name: string; level_min: number | null; level_max: number | null; places_left: number }[];
+}
+
 async function load(id: string) {
   const { supabase, slug, club } = await loadPublicClub();
-  const { data } = await supabase.rpc("public_sessions", { p_slug: slug, p_location: null, p_days: 31 });
+  const [{ data }, { data: opts }] = await Promise.all([
+    supabase.rpc("public_sessions", { p_slug: slug, p_location: null, p_days: 31 }),
+    supabase.rpc("public_event_options", { p_slug: slug, p_session: id }),
+  ]);
   const s = ((data ?? []) as PublicSession[]).find((x) => x.id === id);
   if (!s) notFound();
-  return { club, s };
+  return { club, s, opts: (opts ?? null) as EventOptions | null };
+}
+
+/** Division and pair choices for an event (Step 4), inside a sign-up form. */
+function EventFields({ opts, price, currency }: { opts: EventOptions | null; price: number; currency: string }) {
+  if (!opts) return null;
+  return (
+    <>
+      {opts.divisions.length > 0 && (
+        <label>
+          Division
+          <select name="division_id" required defaultValue="">
+            <option value="" disabled>Choose your division</option>
+            {opts.divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+                {d.level_min !== null || d.level_max !== null ? ` (${levelText(d.level_min, d.level_max)})` : ""} ·{" "}
+                {d.places_left > 0 ? `${d.places_left} places left` : "full, waitlist"}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {opts.allow_pairs && (
+        <>
+          <label className="check">
+            <input type="checkbox" name="pair" />{" "}
+            <span>Sign up as a pair: 2 places, {formatMoney(price * 2, currency)} for both</span>
+          </label>
+          <label>
+            Partner&apos;s name (for a pair)
+            <input name="partner_name" maxLength={80} autoComplete="off" />
+          </label>
+        </>
+      )}
+    </>
+  );
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -33,7 +81,7 @@ export default async function PublicSessionPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { club, s } = await load(id);
+  const { club, s, opts } = await load(id);
   const tz = s.location_timezone;
   const day = new Date(s.starts_at).toLocaleDateString("en-CA", { timeZone: tz });
   const state = sessionState(s);
@@ -70,7 +118,10 @@ export default async function PublicSessionPage({
         <div className="stat">
           <div className="label">Price</div>
           <div className="value"><span className="unit">{club.currency}</span>{Number(s.price).toLocaleString("en-US")}</div>
-          <div className="muted small">Pay at the club</div>
+          <div className="muted small">
+            {opts?.tiers.find((x) => x.id === opts.current_tier)?.label ? `${opts.tiers.find((x) => x.id === opts.current_tier)!.label} · ` : ""}
+            {opts?.allow_pairs ? "Per person · " : ""}Pay at the club
+          </div>
         </div>
       </header>
 
@@ -90,7 +141,7 @@ export default async function PublicSessionPage({
       )}
       {done === "booked" && (
         <div className="banner notice" role="status">
-          You&apos;re booked for {s.name} on {when}. Pay {formatMoney(s.price, club.currency)}
+          You&apos;re booked for {s.name} on {when}. Pay {formatMoney(Number(param(sp, "price") ?? s.price), club.currency)}
           {param(sp, "pay") ? <> <Link href={`/book/pay/${param(sp, "pay")}`}>now by PromptPay</Link> or</> : ""} at the club. See you on court.
         </div>
       )}
@@ -113,6 +164,22 @@ export default async function PublicSessionPage({
             <li><span className="muted">Where</span><span>{s.location_name}{location?.address ? `, ${location.address}` : ""}</span></li>
             {s.coach_name && <li><span className="muted">Coach</span><span>{s.coach_name}</span></li>}
             <li><span className="muted">Places</span><span>{s.spots_left} of {s.max_players} left</span></li>
+            {opts && opts.tiers.length > 1 && (
+              <li>
+                <span className="muted">Prices</span>
+                <span>
+                  {opts.tiers
+                    .map((x) => `${x.label} ${formatMoney(x.price, club.currency)}${x.available_until ? ` until ${formatLongDay(new Date(x.available_until).toLocaleDateString("en-CA", { timeZone: tz }))}` : ""}${x.max_qty ? ` (first ${x.max_qty} places)` : ""}`)
+                    .join(" · ")}
+                </span>
+              </li>
+            )}
+            {opts && opts.divisions.length > 0 && (
+              <li>
+                <span className="muted">Divisions</span>
+                <span>{opts.divisions.map((d) => `${d.name}: ${d.places_left} left`).join(" · ")}</span>
+              </li>
+            )}
             <li>
               <span className="muted">Sign-ups close</span>
               <span>{formatLongDay(new Date(s.book_by).toLocaleDateString("en-CA", { timeZone: tz }))} {localTime(s.book_by, tz)}</span>
@@ -152,8 +219,9 @@ export default async function PublicSessionPage({
                       <p className="muted small">
                         {me.package ? `With your ${me.package.name} if it covers this session; otherwise pay at the club.` : "You pay at the club."}
                       </p>
-                      <form action={memberBookSession}>
+                      <form action={memberBookSession} className="form">
                         <input type="hidden" name="session_id" value={s.id} />
+                        <EventFields opts={opts} price={Number(s.price)} currency={club.currency} />
                         <button className="primary">{state === "full" ? "Join the waitlist" : "Book my place"}</button>
                       </form>
                     </>
@@ -180,6 +248,7 @@ export default async function PublicSessionPage({
                     <input name="phone" type="tel" required autoComplete="tel" placeholder="+66 81 234 5678" />
                     <span className="small muted">With country code if you&apos;re not on a Thai number.</span>
                   </label>
+                  <EventFields opts={opts} price={Number(s.price)} currency={club.currency} />
                   <label className="check">
                     <input type="checkbox" name="contact_ok" required /> <span>The club may contact me on WhatsApp about this booking (<Link href="/privacy">privacy</Link>)</span>
                   </label>

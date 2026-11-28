@@ -157,7 +157,7 @@ Done when: every paid thing has an order, unpaid ones are listed, totals per loc
 - Tested locally (fake LINE): desk booked a court for Dmitri → LINE confirmation in Russian with "THB 600" and the PromptPay note; marked paid by transfer with a slip; dashboard and Payments figures moved together; roster quick Mark paid.
 - Left open: PromptPay QR / payment links (Step 7); partial payments; one order per item for now (the schema allows combining items into one order later); staff names on "received by" (shows "by you" only).
 
-## Step 4: Event ticket tiers  ☐
+## Step 4: Event ticket tiers  ☑
 
 For the Coach Kimo camps (early bird 2,500 until 15 Nov, then 3,300), the Parents Pickleball Cup (divisions, pairs), and the IPTPA workshop (30 spots).
 
@@ -167,6 +167,12 @@ For the Coach Kimo camps (early bird 2,500 until 15 Nov, then 3,300), the Parent
 - Registration deadline separate from `book_by`.
 
 Done when: an early-bird sign-up records 2,500 before the deadline and 3,300 after; pair sign-ups fill 2 spots; divisions fill separately; tests cover it.
+
+**Done 28 Nov 2026** (migration `20261128010000_event_tickets.sql`, test `event_tickets_test.sql`). Julian decided: a pair pays 2 × the per-person price (one sign-up, one payment); the cheapest tier still open by sign-up date wins, with an optional "first N places" cap; divisions split places only (no own price); desk and booking page first.
+- **Session page → Tickets** (owner/admin): price tiers (label, price per person, until date/time, first N places), divisions (name, places, level range), pairs on/off, registration deadline (separate from the type's sign-up cut-off). The sign-up form gets a division choice and "Sign up as a pair" with the partner's name; the roster shows pair, division and price tier.
+- **Rules in the database:** `event_price()` picks the tier; `places_fit()` checks the event's and the division's places; `register_for_session(…, p_spots, p_partner_name, p_division)` records spots, partner, division and tier. Every count of places (overview, minimum check, editing limits, approvals, booking page) now sums `spots`. The waitlist moves up the first person who fits (a pair waits if only 1 place is free; a single behind it may go). An uncovered member pays their tier price, not the base price. Packages don't cover pairs.
+- **Booking page:** the session page shows the current price and tier, all prices with dates and caps, places left per division, a division choice and a pair option (guests and signed-in members). `public_event_options()` feeds it.
+- **Left open:** chat can't sign up pairs or choose divisions (it hands paid events to staff anyway); the Morning page and follow-up invites count places but don't mention divisions.
 
 ## Step 5: Coaches and private coaching  ☑
 

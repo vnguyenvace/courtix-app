@@ -28,6 +28,9 @@ export async function publicSignUp(form: FormData) {
     p_phone: str(form, "phone"),
     p_contact_ok: form.get("contact_ok") === "on",
     p_marketing: form.get("marketing") === "on",
+    p_spots: form.get("pair") === "on" ? 2 : 1,
+    p_partner_name: form.get("pair") === "on" ? str(form, "partner_name") || null : null,
+    p_division: str(form, "division_id") || null,
   });
   if (error) redirect(`${path}?error=${encodeURIComponent(friendly(error))}`);
 
@@ -35,7 +38,8 @@ export async function publicSignUp(form: FormData) {
   const status = raw === "waitlisted" || raw === "requested" ? raw : "booked";
   // Booked with something to pay: offer the PromptPay pay page.
   const pay = status === "booked" ? await orderFor(host.slug, { registration: (data as { registration_id?: string }).registration_id }) : null;
-  redirect(`${path}?done=${status}${pay ? `&pay=${pay}` : ""}`);
+  const price = (data as { price?: number }).price;
+  redirect(`${path}?done=${status}${price != null ? `&price=${price}` : ""}${pay ? `&pay=${pay}` : ""}`);
 }
 
 /** The unpaid order for a booking just made (for the pay page), or null. */
@@ -108,6 +112,9 @@ export async function memberBookSession(form: FormData) {
     p_slug: slug,
     p_token: token,
     p_session: sessionId,
+    p_spots: form.get("pair") === "on" ? 2 : 1,
+    p_partner_name: form.get("pair") === "on" ? str(form, "partner_name") || null : null,
+    p_division: str(form, "division_id") || null,
   });
   if (error) go(path, "error", friendly(error));
   const r = data as { registration_id: string; status: string; price: number; covered: boolean };

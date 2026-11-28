@@ -6,8 +6,8 @@ import { canManage, requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
 import { SessionStatusBadge, Spots, levelText } from "@/components/SessionBits";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
-import { approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession } from "../actions";
-import { CATEGORY_LABELS, type MemberStatus, type RosterRow, type SessionOverview } from "@/lib/types";
+import { addDivision, addPriceTier, approveRequest, cancelRegistration, cancelSession, declineRequest, markAttendance, registerForSession, removeDivision, removePriceTier, setEventOptions } from "../actions";
+import { CATEGORY_LABELS, type Division, type MemberStatus, type PriceTier, type RosterRow, type SessionOverview } from "@/lib/types";
 import { MarkPaidForm, METHOD_LABELS } from "@/components/Payments";
 import type { T } from "@/lib/i18n";
 
@@ -29,7 +29,7 @@ export default async function SessionPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, org, multiLocation, role, t, locale } = await requireOrg();
+  const { supabase, org, multiLocation, role, t, locale, can } = await requireOrg();
   const editable = canManage(role);
 
   const [{ data: sData }, { data: rData }, { data: mData }] = await Promise.all([
@@ -79,6 +79,16 @@ export default async function SessionPage({
   }
 
   const s = sData as SessionOverview;
+  // Event tickets (Step 4): price tiers, divisions with places taken, the price for the next sign-up.
+  const [{ data: tierData }, { data: divData }, { data: priceNow }] = await Promise.all([
+    supabase.from("session_price_tiers").select("*").eq("session_id", id).order("price").order("sort_order"),
+    supabase.from("session_divisions").select("*").eq("session_id", id).order("sort_order").order("name"),
+    supabase.rpc("event_price", { p_session: id, p_spots: 1 }),
+  ]);
+  const tiers = (tierData ?? []) as PriceTier[];
+  const divisions = (divData ?? []) as Division[];
+  const current = ((priceNow ?? []) as { tier_id: string | null; price: number; label: string | null }[])[0] ?? null;
+  const ticketsEditable = can("club.setup") && s.status !== "cancelled";
 
   const roster = (rData ?? []) as RosterRow[];
   // Payment for each paid place (orders are made by the database; Step 3).
@@ -102,6 +112,11 @@ export default async function SessionPage({
   const finished = new Date(s.ends_at).getTime() <= now;
   const closed = new Date(s.book_by).getTime() <= now;
 
+  const divTaken = new Map<string, number>();
+  for (const r of roster) {
+    if (r.division_id && (r.status === "booked" || r.status === "attended")) divTaken.set(r.division_id, (divTaken.get(r.division_id) ?? 0) + r.spots);
+  }
+  const localDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: tz });
   const playing = roster.filter((r) => r.status === "booked" || r.status === "attended" || r.status === "no_show");
   const waiting = roster.filter((r) => r.status === "waitlisted");
   const requests = roster.filter((r) => r.status === "requested");
@@ -156,7 +171,7 @@ export default async function SessionPage({
       <div className="grid grid-2">
         <div className="stack">
           <section className="card">
-            <h2>{t("Signed up")} ({playing.length})</h2>
+            <h2>{t("Signed up")} ({playing.reduce((n, r) => n + r.spots, 0)})</h2>
             {playing.length === 0 ? (
               <p className="muted small">{t("Nobody yet.")}</p>
             ) : (
@@ -246,6 +261,30 @@ export default async function SessionPage({
                     <input name="guest_phone" type="tel" placeholder="+66 81 234 5678" />
                   </label>
                 </div>
+                {divisions.length > 0 && (
+                  <label>
+                    {t("Division")}
+                    <select name="division_id" required defaultValue="">
+                      <option value="" disabled>{t("Choose a division")}</option>
+                      {divisions.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} · {t("{n} places left", { n: Math.max(d.max_players - (divTaken.get(d.id) ?? 0), 0) })}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {s.allow_pairs && (
+                  <div className="form-row">
+                    <label className="check">
+                      <input type="checkbox" name="pair" /> {t("Sign up as a pair (2 places, pays for both)")}
+                    </label>
+                    <label>
+                      {t("Partner's name")}
+                      <input name="partner_name" maxLength={80} />
+                    </label>
+                  </div>
+                )}
                 {closed && (
                   <label className="check">
                     <input type="checkbox" name="allow_late" /> {t("Sign-ups have closed. Add them anyway (desk override)")}
@@ -257,7 +296,11 @@ export default async function SessionPage({
                   </label>
                 )}
                 <p className="muted small">
-                  {t("Price {price}. Members whose package covers this session pay nothing; session packs use 1 credit.", { price: formatMoney(s.price, org.currency) })}
+                  {current?.price == null
+                    ? t("Sold out at every price.")
+                    : t("Price {price}. Members whose package covers this session pay nothing; session packs use 1 credit.", {
+                        price: `${formatMoney(current.price, org.currency)}${current.label ? ` (${current.label})` : ""}`,
+                      })}
                 </p>
                 <button className="primary">{s.spots_left === 0 ? t("Add to waitlist") : t("Sign up")}</button>
               </form>
@@ -280,6 +323,150 @@ export default async function SessionPage({
             </ul>
             {s.description && <p className="small" style={{ marginTop: 12 }}>{s.description}</p>}
           </section>
+
+          {(ticketsEditable || tiers.length > 0 || divisions.length > 0 || s.allow_pairs || s.registration_deadline) && (
+            <section className="card" id="tickets">
+              <h2>{t("Tickets")}</h2>
+              <h3 className="small" style={{ marginTop: 4 }}>{t("Prices")}</h3>
+              {tiers.length === 0 ? (
+                <p className="muted small">{t("One price for everyone: {price}. Add prices for early bird or other tiers.", { price: formatMoney(s.price, org.currency) })}</p>
+              ) : (
+                <ul className="list small">
+                  {tiers.map((p) => (
+                    <li key={p.id}>
+                      <span>
+                        <strong>{p.label}</strong> · {formatMoney(p.price, org.currency)}
+                        {p.available_until && ` · ${t("until {date}", { date: `${formatLongDay(localDate(p.available_until), locale)} ${localTime(p.available_until, tz)}` })}`}
+                        {p.max_qty && ` · ${t("first {n} places", { n: p.max_qty })}`}
+                        {current?.tier_id === p.id && <span className="badge ok" style={{ marginLeft: 6 }}>{t("now")}</span>}
+                      </span>
+                      {ticketsEditable && (
+                        <form action={removePriceTier} className="inline">
+                          <input type="hidden" name="session_id" value={s.id} />
+                          <input type="hidden" name="tier_id" value={p.id} />
+                          <button className="link">{t("Remove")}</button>
+                        </form>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {ticketsEditable && (
+                <details style={{ marginTop: 6 }}>
+                  <summary className="small">{t("Add a price")}</summary>
+                  <form action={addPriceTier} className="form" style={{ marginTop: 8 }}>
+                    <input type="hidden" name="session_id" value={s.id} />
+                    <input type="hidden" name="timezone" value={tz} />
+                    <div className="form-row">
+                      <label>
+                        {t("Label")}
+                        <input name="label" required maxLength={60} placeholder={t("Early bird")} />
+                      </label>
+                      <label>
+                        {t("Price per person ({currency})", { currency: org.currency })}
+                        <input name="price" type="number" min="0" step="1" required />
+                      </label>
+                    </div>
+                    <div className="form-row">
+                      <label>
+                        {t("Until (optional)")}
+                        <input name="until_date" type="date" />
+                      </label>
+                      <label>
+                        {t("Time")}
+                        <input name="until_time" type="time" defaultValue="23:59" />
+                      </label>
+                      <label>
+                        {t("Only the first … places (optional)")}
+                        <input name="max_qty" type="number" min="1" />
+                      </label>
+                    </div>
+                    <p className="muted small">{t("The cheapest price still open is used at sign-up. People keep the price they signed up at.")}</p>
+                    <button>{t("Add price")}</button>
+                  </form>
+                </details>
+              )}
+
+              <h3 className="small" style={{ marginTop: 12 }}>{t("Divisions")}</h3>
+              {divisions.length === 0 ? (
+                <p className="muted small">{t("No divisions: everyone shares the {n} places.", { n: s.max_players })}</p>
+              ) : (
+                <ul className="list small">
+                  {divisions.map((d) => (
+                    <li key={d.id}>
+                      <span>
+                        <strong>{d.name}</strong> · {t("{taken} of {n} places taken", { taken: divTaken.get(d.id) ?? 0, n: d.max_players })}
+                        {(d.level_min !== null || d.level_max !== null) && ` · ${levelText(d.level_min, d.level_max, t)}`}
+                      </span>
+                      {ticketsEditable && (
+                        <form action={removeDivision} className="inline">
+                          <input type="hidden" name="session_id" value={s.id} />
+                          <input type="hidden" name="division_id" value={d.id} />
+                          <button className="link">{t("Remove")}</button>
+                        </form>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {ticketsEditable && (
+                <details style={{ marginTop: 6 }}>
+                  <summary className="small">{t("Add a division")}</summary>
+                  <form action={addDivision} className="form" style={{ marginTop: 8 }}>
+                    <input type="hidden" name="session_id" value={s.id} />
+                    <div className="form-row">
+                      <label>
+                        {t("Name")}
+                        <input name="name" required maxLength={60} placeholder={t("Beginner")} />
+                      </label>
+                      <label>
+                        {t("Places")}
+                        <input name="max_players" type="number" min="1" required />
+                      </label>
+                      <label>
+                        {t("Level from")}
+                        <input name="level_min" type="number" step="0.5" min="1" max="6" placeholder={t("Any")} />
+                      </label>
+                      <label>
+                        {t("Level to")}
+                        <input name="level_max" type="number" step="0.5" min="1" max="6" placeholder={t("Any")} />
+                      </label>
+                    </div>
+                    <p className="muted small">{t("Each division fills on its own. The event's total places still apply.")}</p>
+                    <button>{t("Add division")}</button>
+                  </form>
+                </details>
+              )}
+
+              <h3 className="small" style={{ marginTop: 12 }}>{t("Pairs and deadline")}</h3>
+              {ticketsEditable ? (
+                <form action={setEventOptions} className="form">
+                  <input type="hidden" name="session_id" value={s.id} />
+                  <input type="hidden" name="timezone" value={tz} />
+                  <label className="check">
+                    <input type="checkbox" name="allow_pairs" defaultChecked={s.allow_pairs} /> {t("Allow pair sign-ups (one person signs up two, and pays for both)")}
+                  </label>
+                  <div className="form-row">
+                    <label>
+                      {t("Registration closes (optional)")}
+                      <input name="deadline_date" type="date" defaultValue={s.registration_deadline ? localDate(s.registration_deadline) : ""} />
+                    </label>
+                    <label>
+                      {t("Time")}
+                      <input name="deadline_time" type="time" defaultValue={s.registration_deadline ? localTime(s.registration_deadline, tz) : "23:59"} />
+                    </label>
+                  </div>
+                  <button>{t("Save")}</button>
+                </form>
+              ) : (
+                <p className="small">
+                  {s.allow_pairs ? t("Pairs allowed.") : t("Single sign-ups only.")}{" "}
+                  {s.registration_deadline &&
+                    t("Registration closes {date}.", { date: `${formatLongDay(localDate(s.registration_deadline), locale)} ${localTime(s.registration_deadline, tz)}` })}
+                </p>
+              )}
+            </section>
+          )}
 
           {s.status !== "cancelled" && !finished && (
             <section className="card">
@@ -322,6 +509,9 @@ function RosterList({
           <span>
             {r.member_id ? <Link href={`/members/${r.member_id}`}>{r.name}</Link> : r.name}
             <span className="muted small">
+              {r.spots === 2 ? ` · ${t("pair with {name}", { name: r.partner_name ?? "" })}` : ""}
+              {r.division_name ? ` · ${r.division_name}` : ""}
+              {r.tier_label ? ` · ${r.tier_label}` : ""}
               {r.is_guest ? ` · ${t("guest")}` : ""}
               {r.source === "online" ? ` · ${t("booked online")}` : ""}
               {r.skill_level ? ` · ${r.skill_level}` : ""}

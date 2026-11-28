@@ -262,6 +262,31 @@ export interface SessionOverview {
   location_id: string;
   location_name: string;
   location_timezone: string;
+  allow_pairs: boolean; // Step 4: one sign-up can be a pair (2 places)
+  registration_deadline: string | null;
+  has_divisions: boolean;
+  has_tiers: boolean;
+}
+
+/** Step 4: price tiers (early bird…) and divisions of an event. */
+export interface PriceTier {
+  id: string;
+  session_id: string;
+  label: string;
+  price: number;
+  available_until: string | null;
+  max_qty: number | null;
+  sort_order: number;
+}
+
+export interface Division {
+  id: string;
+  session_id: string;
+  name: string;
+  max_players: number;
+  level_min: number | null;
+  level_max: number | null;
+  sort_order: number;
 }
 
 export interface RosterRow {
@@ -283,6 +308,11 @@ export interface RosterRow {
   covered_kind: PackageKind | null;
   sessions_left: number | null; // credits left on that pack
   source: "desk" | "online"; // online = signed up on the public booking page
+  spots: number; // 2 = a pair
+  partner_name: string | null;
+  division_id: string | null;
+  division_name: string | null;
+  tier_label: string | null;
 }
 
 // ---------------------------------------------------------------- AI follow-ups

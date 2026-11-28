@@ -1,6 +1,7 @@
 """Writes lib/i18n/th.ts, ru.ts and zh.ts from ui.py, ui2.py, messages.py and messages2.py, and checks placeholders.
 Run from the repo root: python3 lib/i18n/source/build.py"""
 import json, os, re, sys
+sys.dont_write_bytecode = True  # no __pycache__ next to the translations
 sys.path.insert(0, os.path.dirname(__file__))
 from ui import UI
 from messages import MESSAGES

@@ -7,3 +7,6 @@ out
 next-env.d.ts
 supabase/.branches
 supabase/.temp
+
+# Python bytecode (lib/i18n/source build script)
+__pycache__/

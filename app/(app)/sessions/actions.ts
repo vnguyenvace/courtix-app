@@ -77,6 +77,9 @@ export async function registerForSession(form: FormData) {
     p_guest_phone: memberId ? null : optStr(form, "guest_phone"),
     p_allow_late: form.get("allow_late") === "on",
     p_ignore_level: form.get("ignore_level") === "on",
+    p_spots: form.get("pair") === "on" ? 2 : 1,
+    p_partner_name: form.get("pair") === "on" ? optStr(form, "partner_name") : null,
+    p_division: optStr(form, "division_id"),
   });
   if (error) back(path, friendly(error));
   await notifyMembers(supabase); // the member's booking confirmation
@@ -481,4 +484,96 @@ async function notifyMembers(supabase: Awaited<ReturnType<typeof requireOrg>>["s
   } catch (e) {
     console.error("Notices: couldn't send after a session change", e);
   }
+}
+
+// ---------------------------------------------------------------- Event tickets (Step 4)
+
+async function requireSetup(path: string) {
+  const ctx = await requireOrg();
+  if (!ctx.can("club.setup")) back(path, "Only the owner or an admin can change event tickets.");
+  return ctx;
+}
+
+/** Pairs on/off and the registration deadline (local time of the session's location). */
+export async function setEventOptions(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}#tickets`;
+  const { supabase } = await requireSetup(path);
+  const date = str(form, "deadline_date");
+  const time = str(form, "deadline_time") || "23:59";
+  if (date && !isValidDate(date)) back(path, "Enter a valid date.");
+  const { error } = await supabase.rpc("set_event_options", {
+    p_session: sessionId,
+    p_allow_pairs: form.get("allow_pairs") === "on",
+    p_deadline: date ? zonedToUtc(date, time, str(form, "timezone") || "Asia/Bangkok").toISOString() : null,
+  });
+  if (error) back(path, friendly(error));
+  refresh();
+  back(path, "Event options saved.", "notice");
+}
+
+export async function addPriceTier(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}#tickets`;
+  const { supabase, org } = await requireSetup(path);
+  const price = num(form, "price");
+  if (price === null || price < 0) back(path, "Enter a price.");
+  const date = str(form, "until_date");
+  if (date && !isValidDate(date)) back(path, "Enter a valid date.");
+  const { error } = await supabase.from("session_price_tiers").insert({
+    org_id: org.id,
+    session_id: sessionId,
+    label: str(form, "label") || "Price",
+    price,
+    available_until: date ? zonedToUtc(date, str(form, "until_time") || "23:59", str(form, "timezone") || "Asia/Bangkok").toISOString() : null,
+    max_qty: num(form, "max_qty"),
+  });
+  if (error) back(path, friendly(error));
+  refresh();
+  back(path, "Price added.", "notice");
+}
+
+export async function removePriceTier(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}#tickets`;
+  const { supabase } = await requireSetup(path);
+  const { error } = await supabase.from("session_price_tiers").delete().eq("id", str(form, "tier_id"));
+  if (error) back(path, friendly(error));
+  refresh();
+  back(path, "Price removed. People already signed up keep their price.", "notice");
+}
+
+export async function addDivision(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}#tickets`;
+  const { supabase, org } = await requireSetup(path);
+  const places = num(form, "max_players");
+  if (!places || places < 1) back(path, "Enter how many places the division has.");
+  const { error } = await supabase.from("session_divisions").insert({
+    org_id: org.id,
+    session_id: sessionId,
+    name: str(form, "name"),
+    max_players: places,
+    level_min: num(form, "level_min"),
+    level_max: num(form, "level_max"),
+  });
+  if (error) back(path, error.code === "23505" ? "There's already a division with that name." : friendly(error));
+  refresh();
+  back(path, "Division added.", "notice");
+}
+
+export async function removeDivision(form: FormData) {
+  const sessionId = str(form, "session_id");
+  const path = `/sessions/${sessionId}#tickets`;
+  const { supabase } = await requireSetup(path);
+  const { count } = await supabase
+    .from("session_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("division_id", str(form, "division_id"))
+    .in("status", ["booked", "waitlisted", "requested"]);
+  if (count) back(path, "People are signed up in this division. Cancel their places first.");
+  const { error } = await supabase.from("session_divisions").delete().eq("id", str(form, "division_id"));
+  if (error) back(path, friendly(error));
+  refresh();
+  back(path, "Division removed.", "notice");
 }
