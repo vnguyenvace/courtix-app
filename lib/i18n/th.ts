@@ -1126,6 +1126,7 @@ const dict: Record<string, string> = {
   "Single sign-ups only.": "สมัครทีละคนเท่านั้น",
   "Registration closes {date}.": "ปิดรับสมัคร {date}",
   "pair with {name}": "คู่กับ {name}",
+  "Prices and divisions": "ราคาและรุ่นการแข่งขัน",
   "Club settings saved.": "บันทึกการตั้งค่าคลับแล้ว",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix ยังไม่พร้อมเก็บคีย์ LINE (CHANNEL_SECRETS_KEY) ติดต่อทีมซัพพอร์ต Courtix",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret คือตัวอักษรและตัวเลข 32 ตัว (LINE Developers → Basic settings)",

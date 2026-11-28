@@ -1126,6 +1126,7 @@ const dict: Record<string, string> = {
   "Single sign-ups only.": "Только по одному.",
   "Registration closes {date}.": "Запись закрывается {date}.",
   "pair with {name}": "пара с {name}",
+  "Prices and divisions": "Цены и дивизионы",
   "Club settings saved.": "Настройки клуба сохранены.",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix пока не настроен для хранения ключей LINE (CHANNEL_SECRETS_KEY). Обратитесь в поддержку Courtix.",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret — это 32 буквы и цифры (LINE Developers → Basic settings).",

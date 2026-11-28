@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
-import { Pencil } from "lucide-react";
+import { Pencil, Ticket } from "lucide-react";
 import { notFound } from "next/navigation";
 import { canManage, requireOrg } from "@/lib/org";
 import { Banner, type SearchParams } from "@/components/Banner";
@@ -139,6 +139,12 @@ export default async function SessionPage({
                 <Pencil size={15} strokeWidth={1.75} aria-hidden />
                 {t("Edit")}
               </Link>
+            )}
+            {ticketsEditable && !finished && (
+              <a href="#tickets" className="button small-button">
+                <Ticket size={15} strokeWidth={1.75} aria-hidden />
+                {t("Prices and divisions")}
+              </a>
             )}
           </div>
           <p className="muted">

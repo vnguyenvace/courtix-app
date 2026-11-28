@@ -1126,6 +1126,7 @@ const dict: Record<string, string> = {
   "Single sign-ups only.": "仅限单人报名。",
   "Registration closes {date}.": "报名于 {date} 截止。",
   "pair with {name}": "与 {name} 组队",
+  "Prices and divisions": "价格和组别",
   "Club settings saved.": "俱乐部设置已保存。",
   "Courtix isn't set up to store LINE keys yet (CHANNEL_SECRETS_KEY). Ask Courtix support.": "Courtix 尚未配置保存 LINE 密钥（CHANNEL_SECRETS_KEY）。请联系 Courtix 支持。",
   "The channel secret is 32 letters and numbers (LINE Developers → Basic settings).": "Channel secret 是 32 位字母和数字（LINE Developers → Basic settings）。",
