@@ -77,7 +77,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
           </div>
           <div className="form-row">
             <label>
-              {t("Price per person")}
+              {t("Price per person (blank = the type's price)")}
               <input type="number" name="price" min="0" placeholder={t("From type")} />
             </label>
             <label>
@@ -118,8 +118,9 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
           </fieldset>
           <label>
             {t("Description")}
-            <textarea name="description" placeholder={t("What players get, what to bring, early bird deadline…")} />
+            <textarea name="description" placeholder={t("What players get, what to bring…")} />
           </label>
+          <p className="muted small">{t("Early bird prices, divisions and pairs: add them on the event's page after you create it.")}</p>
           <div className="actions">
             <button className="primary">{t("Create event")}</button>
             <Link href="/sessions" className="button">{t("Cancel")}</Link>
