@@ -12,6 +12,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { count: openHelp } = canSupport
     ? await supabase.from("support_requests").select("id", { count: "exact", head: true }).eq("status", "open")
     : { count: 0 };
+  const { count: newDemos } = canSupport
+    ? await supabase.from("demo_requests").select("id", { count: "exact", head: true }).eq("status", "new")
+    : { count: 0 };
   return (
     <div className="admin-shell" style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 16px 48px" }}>
       <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -22,6 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           <Link href="/admin">{t("Clubs")}</Link>
           {canSupport && <Link href="/admin/help">{t("Help requests")}{openHelp ? ` (${openHelp})` : ""}</Link>}
+          {canSupport && <Link href="/admin/demos">{t("Demo requests")}{newDemos ? ` (${newDemos})` : ""}</Link>}
           {role === "super_admin" && <Link href="/admin/team">{t("Team")}</Link>}
         </nav>
         <div className="actions">

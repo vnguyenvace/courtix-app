@@ -59,3 +59,19 @@ export async function replyToRequest(form: FormData) {
   revalidatePath(HELP);
   back(HELP, reply ? `Reply saved${emailed ? " and emailed" : ""}${close ? ", request closed" : ""}.` : "Request closed.", "notice");
 }
+
+const DEMOS = "/admin/demos";
+
+/** Demo requests from the landing page: status (new / contacted / closed) and a note. */
+export async function updateDemoRequest(form: FormData) {
+  const { supabase } = await requirePlatform(["super_admin", "support"]);
+  const status = str(form, "status");
+  if (!["new", "contacted", "closed"].includes(status)) back(DEMOS, "Choose a status.");
+  const { error } = await supabase
+    .from("demo_requests")
+    .update({ status, note: str(form, "note") || null, updated_at: new Date().toISOString() })
+    .eq("id", str(form, "id"));
+  if (error) back(DEMOS, friendly(error));
+  revalidatePath(DEMOS);
+  back(DEMOS, "Saved.", "notice");
+}

@@ -401,6 +401,10 @@ Julian, 28 Nov 2026: each staff member picks their language (English, ไทย,
 - **Done (Phase 2, 28 Nov 2026):** every other staff page: settings, staff, coaches, chats and chat page, reply helper, follow-ups, morning, help, member import (upload and check), session setup / new event / edit session, the Courtix admin area (clubs, team, help requests), sign-in, forgot / change password, no access and onboarding. Role, category, reason and notice labels, day names and import field names too. The banner also translates the results of those pages' actions and the remaining staff-visible database messages. Translations in `lib/i18n/source/ui2.py` and `messages2.py` (about 1,300 texts per language in all). `scripts/i18n-wrap.mjs` wraps text in a new page in `t("…")` (a starting point; check its output).
 - **Not translated:** the public booking page (visitors), chat and member messages (they already use the member's language), browser tab titles, and messages only visitors or the chat assistant see.
 
+## Landing page (courtix.app)  ☑
+
+**Built 28 Nov 2026 (Julian):** courtix.app (and www.) now shows a sales page instead of sign-in: headline "AI Assisted Court Management", English and Thai (`?lang=th`, else the browser's language), **Book a demo** form, no prices ("Founding clubs in Phuket get special terms"). Files: `components/landing/` (copy in `copy.ts`: every claim must match what Courtix does today; WhatsApp is "coming"), `.lp` styles in `globals.css`, `app/landing-actions.ts`. Demo requests: migration `20261128040000_demo_requests.sql` (`request_demo`, flood guard), test `demo_requests_test.sql`, **Admin → Demo requests** (status and note). Email to the team needs `SALES_EMAIL` (e.g. admin@courtix.app) in Vercel, plus the Resend variables. Open: Thai copy needs a native speaker's check; add real screenshots and a club testimonial once Raccoon is live.
+
 ## Step 11: SaaS billing  ☐
 
 Tiers (for example Basic: courts and members; Pro: sessions, AI follow-ups; Multi-site: several locations), monthly billing per club, feature gating, trial period. Only once a second paying club is close.

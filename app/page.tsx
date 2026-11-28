@@ -10,16 +10,38 @@ import { currentHost } from "@/lib/host";
 import { loadPublicClub, type PublicSession } from "@/lib/public";
 import { formatLongDay, formatMoney, localTime } from "@/lib/time";
 import { PublicFooter } from "@/components/PublicFooter";
+import { Landing } from "@/components/landing/Landing";
+import { COPY } from "@/components/landing/copy";
+import { translateMessage } from "@/lib/i18n";
+import { headers } from "next/headers";
 
 // <slug>.courtix.app/ is the club's public front page: who they are, where, what's on, and how to
-// book. Staff sign in from a link on it. On the main site (courtix.app/) this still goes to the
-// dashboard, which sends signed-out people to /login.
+// book. Staff sign in from a link on it. On the main site (courtix.app/) it's the Courtix landing
+// page (components/landing), in English or Thai (?lang=th, else the browser's language).
 
 const UPCOMING = 6;
 
-export async function generateMetadata(): Promise<Metadata> {
+type SP = Promise<Record<string, string | string[] | undefined>>;
+
+async function landingLang(sp: Awaited<SP>): Promise<"en" | "th"> {
+  if (sp.lang === "th") return "th";
+  if (sp.lang === "en") return "en";
+  const accept = (await headers()).get("accept-language") ?? "";
+  return /^th\b/i.test(accept.trim()) ? "th" : "en";
+}
+
+export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
   const host = await currentHost();
-  if (host.kind !== "club") return {};
+  if (host.kind !== "club") {
+    const lang = await landingLang(await searchParams);
+    const description = COPY[lang].hero.lead;
+    return {
+      title: { absolute: "Courtix · AI Assisted Court Management" },
+      description,
+      openGraph: { title: "Courtix · AI Assisted Court Management", description, siteName: "Courtix", images: ["/brand/og.png"] },
+      alternates: { languages: { en: "/", th: "/?lang=th" } },
+    };
+  }
   const { club } = await loadPublicClub();
   const where = club.locations.map((l) => l.name).join(", ");
   return {
@@ -30,8 +52,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: SP }) {
   const host = await currentHost();
+  if (host.kind === "root") {
+    const sp = await searchParams;
+    const lang = await landingLang(sp);
+    const err = typeof sp.demo_error === "string" ? translateMessage(lang, sp.demo_error.slice(0, 300)) : null;
+    return <Landing lang={lang} sent={sp.sent === "1"} error={err} />;
+  }
   if (host.kind !== "club") redirect("/dashboard");
 
   const { supabase, slug, club } = await loadPublicClub();
